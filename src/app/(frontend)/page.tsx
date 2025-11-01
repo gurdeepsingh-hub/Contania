@@ -1,59 +1,66 @@
-import { headers as getHeaders } from 'next/headers.js'
-import Image from 'next/image'
-import { getPayload } from 'payload'
-import React from 'react'
-import { fileURLToPath } from 'url'
+'use client'
 
-import config from '@/payload.config'
-import './styles.css'
+import { Banner } from '@/components/home/banner'
+import { Hero } from '@/components/home/hero'
+import { FeatureCards } from '@/components/home/feature-cards'
+import { ValueProposition } from '@/components/home/value-proposition'
+import { Footer } from '@/components/home/footer'
+import { UrgencyCTA } from '@/components/home/urgency-cta'
+import { useAuthStore } from '@/lib/store'
+import Link from 'next/link'
 
-export default async function HomePage() {
-  const headers = await getHeaders()
-  const payloadConfig = await config
-  const payload = await getPayload({ config: payloadConfig })
-  const { user } = await payload.auth({ headers })
-
-  const fileURL = `vscode://file/${fileURLToPath(import.meta.url)}`
+export default function HomePage() {
+  const { user, isAuthenticated } = useAuthStore()
 
   return (
-    <div className="home">
-      <div className="content">
-        <picture>
-          <source srcSet="https://raw.githubusercontent.com/payloadcms/payload/main/packages/ui/src/assets/payload-favicon.svg" />
-          <Image
-            alt="Payload Logo"
-            height={65}
-            src="https://raw.githubusercontent.com/payloadcms/payload/main/packages/ui/src/assets/payload-favicon.svg"
-            width={65}
-          />
-        </picture>
-        {!user && <h1>Welcome to your new project.</h1>}
-        {user && <h1>Welcome back, {user.email}</h1>}
-        <div className="links">
-          <a
-            className="admin"
-            href={payloadConfig.routes.admin}
-            rel="noopener noreferrer"
-            target="_blank"
+    <div className="bg-background min-h-screen">
+      {/* Full-screen Banner Section */}
+      <Banner
+        primaryAction={{
+          label: 'Start Free Trial',
+          href: '/signup',
+        }}
+        secondaryAction={{
+          label: 'Schedule Demo',
+          href: '/contact',
+        }}
+      />
+
+      {/* Value Proposition Section */}
+      <ValueProposition />
+
+      {/* Hero Section */}
+      <Hero
+        primaryAction={{
+          label: 'Learn More',
+          href: '/features',
+        }}
+        secondaryAction={{
+          label: 'View Documentation',
+          href: '/docs',
+        }}
+      />
+
+      {/* Feature Cards Section */}
+      <FeatureCards />
+
+      {/* Urgency CTA Section */}
+      <UrgencyCTA />
+
+      {/* Footer */}
+      <Footer />
+
+      {/* Admin Panel Link for authenticated users */}
+      {isAuthenticated && user && (
+        <div className="right-4 bottom-4 z-50 fixed">
+          <Link
+            href="/admin"
+            className="bg-primary hover:bg-primary/90 shadow-lg px-4 py-2 rounded-lg text-primary-foreground transition-colors"
           >
-            Go to admin panel
-          </a>
-          <a
-            className="docs"
-            href="https://payloadcms.com/docs"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            Documentation
-          </a>
+            Admin Panel
+          </Link>
         </div>
-      </div>
-      <div className="footer">
-        <p>Update this page by editing</p>
-        <a className="codeLink" href={fileURL}>
-          <code>app/(frontend)/page.tsx</code>
-        </a>
-      </div>
+      )}
     </div>
   )
 }
