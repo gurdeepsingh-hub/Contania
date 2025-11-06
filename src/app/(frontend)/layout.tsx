@@ -1,7 +1,8 @@
 import React from 'react'
 import './globals.css'
-import { NavigationMenuWrapper } from '@/components/common/navigation-menu-wrapper'
-import { Header } from '@/components/common/header'
+import { ConditionalAuthProvider } from '@/components/common/conditional-auth-provider'
+import { RootHeaderbarWrapper } from '@/components/common/root-headerbar-wrapper'
+import { ConditionalHeader } from '@/components/common/conditional-header'
 
 export const metadata = {
   description: 'A blank template using Payload in a Next.js app.',
@@ -14,9 +15,11 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <Header />
-        <NavigationMenuWrapper />
-        <main>{children}</main>
+        <ConditionalAuthProvider>
+          <ConditionalHeader />
+          <RootHeaderbarWrapper />
+          <main>{children}</main>
+        </ConditionalAuthProvider>
       </body>
     </html>
   )

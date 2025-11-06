@@ -9,7 +9,10 @@ import sharp from 'sharp'
 
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
+import { Tenants } from './collections/Tenants'
+import { TenantUsers } from './collections/TenantUsers'
 
+import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
@@ -20,7 +23,22 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media],
+  collections: [Users, Media, Tenants, TenantUsers],
+  email: nodemailerAdapter(
+    // {
+    // defaultFromName: process.env.EMAIL_FROM_NAME || 'Contania',
+    // defaultFromAddress:
+    //   process.env.EMAIL_FROM || `no-reply@${process.env.DEFAULT_HOST || 'localhost'}`,
+    // transportOptions: {
+    //   host: process.env.SMTP_HOST || '',
+    //   port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 0,
+    //   auth: {
+    //     user: process.env.SMTP_USER || '',
+    //     pass: process.env.SMTP_PASS || '',
+    //   },
+    // },
+  // }
+),
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

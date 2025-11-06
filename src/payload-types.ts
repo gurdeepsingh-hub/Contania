@@ -64,11 +64,14 @@ export type SupportedTimezones =
 export interface Config {
   auth: {
     users: UserAuthOperations;
+    'tenant-users': TenantUserAuthOperations;
   };
   blocks: {};
   collections: {
     users: User;
     media: Media;
+    tenants: Tenant;
+    'tenant-users': TenantUser;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -77,6 +80,8 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    tenants: TenantsSelect<false> | TenantsSelect<true>;
+    'tenant-users': TenantUsersSelect<false> | TenantUsersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -87,9 +92,13 @@ export interface Config {
   globals: {};
   globalsSelect: {};
   locale: null;
-  user: User & {
-    collection: 'users';
-  };
+  user:
+    | (User & {
+        collection: 'users';
+      })
+    | (TenantUser & {
+        collection: 'tenant-users';
+      });
   jobs: {
     tasks: unknown;
     workflows: unknown;
@@ -113,12 +122,47 @@ export interface UserAuthOperations {
     password: string;
   };
 }
+export interface TenantUserAuthOperations {
+  forgotPassword: {
+    email: string;
+    password: string;
+  };
+  login: {
+    email: string;
+    password: string;
+  };
+  registerFirstUser: {
+    email: string;
+    password: string;
+  };
+  unlock: {
+    email: string;
+    password: string;
+  };
+}
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
 export interface User {
   id: number;
+  fullName: string;
+  /**
+   * Platform-level role (only superadmin supported currently)
+   */
+  role?: 'superadmin' | null;
+  /**
+   * Account status of the admin
+   */
+  status?: ('active' | 'inactive') | null;
+  /**
+   * Timestamp of last successful login
+   */
+  lastLoginAt?: string | null;
+  /**
+   * Soft deletion timestamp
+   */
+  deletedAt?: string | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -158,6 +202,209 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenants".
+ */
+export interface Tenant {
+  id: number;
+  /**
+   * Short or trading name of the company
+   */
+  companyName: string;
+  /**
+   * Full registered legal name of the company
+   */
+  fullName?: string | null;
+  /**
+   * Australian Business Number (if applicable)
+   */
+  abn?: string | null;
+  /**
+   * Australian Company Number (if applicable)
+   */
+  acn?: string | null;
+  /**
+   * Official company website URL
+   */
+  website?: string | null;
+  /**
+   * Standard Carrier Alpha Code (used for identifying carriers)
+   */
+  scac?: string | null;
+  emails?: {
+    /**
+     * Account/Finance department email
+     */
+    account?: string | null;
+    /**
+     * Bookings department email
+     */
+    bookings?: string | null;
+    /**
+     * Management email
+     */
+    management?: string | null;
+    /**
+     * Operations department email
+     */
+    operations?: string | null;
+    /**
+     * Reply-to email address
+     */
+    replyTo?: string | null;
+  };
+  address?: {
+    /**
+     * Street address
+     */
+    street?: string | null;
+    /**
+     * City
+     */
+    city?: string | null;
+    /**
+     * State/Province
+     */
+    state?: string | null;
+    /**
+     * Postal/ZIP code
+     */
+    postalCode?: string | null;
+    /**
+     * Country code (e.g., AU, US)
+     */
+    countryCode?: string | null;
+  };
+  /**
+   * Primary business contact number
+   */
+  phone?: string | null;
+  /**
+   * Company fax number (optional)
+   */
+  fax?: string | null;
+  /**
+   * General company email or contact address
+   */
+  email: string;
+  /**
+   * Company logo file
+   */
+  logo?: (number | null) | Media;
+  /**
+   * Dedicated subdomain for the tenant (e.g., abc.truckingapp.com)
+   */
+  subdomain?: string | null;
+  /**
+   * Whether the tenant has been approved by an admin
+   */
+  approved?: boolean | null;
+  /**
+   * Reference to the approving super admin
+   */
+  approvedBy?: (number | null) | User;
+  /**
+   * Whether company info and documents are verified
+   */
+  verified?: boolean | null;
+  /**
+   * Timestamp when verification was completed
+   */
+  verifiedAt?: string | null;
+  /**
+   * Indicates acceptance of privacy terms
+   */
+  privacyConsent?: boolean | null;
+  /**
+   * When terms and conditions were accepted
+   */
+  termsAcceptedAt?: string | null;
+  emailPreferences?: {
+    /**
+     * Receive marketing emails
+     */
+    marketing?: boolean | null;
+    /**
+     * Receive product updates
+     */
+    updates?: boolean | null;
+    /**
+     * Receive system notifications
+     */
+    system?: boolean | null;
+  };
+  /**
+   * Data hosting region
+   */
+  dataRegion?: ('ap-southeast-2' | 'us-east-1' | 'eu-central-1') | null;
+  /**
+   * Track onboarding progress (draft/submitted/backoffice)
+   */
+  onboardingStep?: string | null;
+  /**
+   * Soft delete timestamp
+   */
+  deletedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenant-users".
+ */
+export interface TenantUser {
+  id: number;
+  /**
+   * Links user to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * User's chosen username (unique within tenant)
+   */
+  username?: string | null;
+  /**
+   * Full name of the user
+   */
+  fullName: string;
+  /**
+   * Mobile contact number
+   */
+  phoneMobile?: string | null;
+  /**
+   * Fixed-line phone number
+   */
+  phoneFixed?: string | null;
+  /**
+   * Direct Dial-In extension (optional)
+   */
+  ddi?: string | null;
+  /**
+   * Job title or position in the company
+   */
+  position?: string | null;
+  /**
+   * Role or group the user belongs to
+   */
+  userGroup?: ('Admin' | 'Dispatcher' | 'Driver' | 'Manager') | null;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -170,12 +417,25 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'tenants';
+        value: number | Tenant;
+      } | null)
+    | ({
+        relationTo: 'tenant-users';
+        value: number | TenantUser;
       } | null);
   globalSlug?: string | null;
-  user: {
-    relationTo: 'users';
-    value: number | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: number | User;
+      }
+    | {
+        relationTo: 'tenant-users';
+        value: number | TenantUser;
+      };
   updatedAt: string;
   createdAt: string;
 }
@@ -185,10 +445,15 @@ export interface PayloadLockedDocument {
  */
 export interface PayloadPreference {
   id: number;
-  user: {
-    relationTo: 'users';
-    value: number | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: number | User;
+      }
+    | {
+        relationTo: 'tenant-users';
+        value: number | TenantUser;
+      };
   key?: string | null;
   value?:
     | {
@@ -218,6 +483,11 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  fullName?: T;
+  role?: T;
+  status?: T;
+  lastLoginAt?: T;
+  deletedAt?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -252,6 +522,89 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenants_select".
+ */
+export interface TenantsSelect<T extends boolean = true> {
+  companyName?: T;
+  fullName?: T;
+  abn?: T;
+  acn?: T;
+  website?: T;
+  scac?: T;
+  emails?:
+    | T
+    | {
+        account?: T;
+        bookings?: T;
+        management?: T;
+        operations?: T;
+        replyTo?: T;
+      };
+  address?:
+    | T
+    | {
+        street?: T;
+        city?: T;
+        state?: T;
+        postalCode?: T;
+        countryCode?: T;
+      };
+  phone?: T;
+  fax?: T;
+  email?: T;
+  logo?: T;
+  subdomain?: T;
+  approved?: T;
+  approvedBy?: T;
+  verified?: T;
+  verifiedAt?: T;
+  privacyConsent?: T;
+  termsAcceptedAt?: T;
+  emailPreferences?:
+    | T
+    | {
+        marketing?: T;
+        updates?: T;
+        system?: T;
+      };
+  dataRegion?: T;
+  onboardingStep?: T;
+  deletedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenant-users_select".
+ */
+export interface TenantUsersSelect<T extends boolean = true> {
+  tenantId?: T;
+  username?: T;
+  fullName?: T;
+  phoneMobile?: T;
+  phoneFixed?: T;
+  ddi?: T;
+  position?: T;
+  userGroup?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  email?: T;
+  resetPasswordToken?: T;
+  resetPasswordExpiration?: T;
+  salt?: T;
+  hash?: T;
+  loginAttempts?: T;
+  lockUntil?: T;
+  sessions?:
+    | T
+    | {
+        id?: T;
+        createdAt?: T;
+        expiresAt?: T;
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

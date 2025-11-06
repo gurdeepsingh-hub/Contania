@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Logo } from '@/components/ui/logo'
 import { getLogoProps } from '@/lib/logo-config'
 import { cn } from '@/lib/utils'
-import { useAuthStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
+import { useTenant } from '@/lib/tenant-context'
 // import { TenantSelector } from "@/components/ui/tenant-selector"
 
 interface HeaderProps {
@@ -16,19 +17,58 @@ interface HeaderProps {
   notifications?: number
 }
 
+// Safe hook to get tenant - returns null if not in TenantProvider
+function useTenantSafe() {
+  try {
+    return useTenant()
+  } catch {
+    return { tenant: null, loading: false, setTenant: () => {} }
+  }
+}
+
+// Safe hook to get auth - returns null if not in AuthProvider
+function useAuthSafe() {
+  try {
+    return useAuth()
+  } catch {
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      login: async () => undefined,
+      logout: async () => {},
+      checkAuth: async () => {},
+      setUser: () => {},
+    }
+  }
+}
+
 export function Header({ className, notifications = 0 }: HeaderProps) {
-  const { user, logout } = useAuthStore()
+  const { user, logout } = useAuthSafe()
+  const { tenant } = useTenantSafe()
 
   const handleLogout = async () => {
     try {
       await logout()
+      // Redirect to home page after logout
+      window.location.href = '/'
     } catch (_error) {
-      // Logout failed
+      // Logout failed, still redirect
+      window.location.href = '/'
     }
   }
 
   // Get unified header logo configuration
   const headerLogoProps = getLogoProps('header')
+
+  // Show tenant company name on subdomain, otherwise show Contania logo
+  const brandDisplay = tenant ? (
+    <Link href="/" className="font-semibold text-lg hover:opacity-90 transition-opacity">
+      {tenant.companyName}
+    </Link>
+  ) : (
+    <Logo {...headerLogoProps} href="/" />
+  )
 
   return (
     <header
@@ -40,9 +80,7 @@ export function Header({ className, notifications = 0 }: HeaderProps) {
     >
       <div className="flex justify-between items-center mx-auto px-6 sm:px-8 lg:px-12 max-w-7xl h-16">
         {/* Logo and Brand */}
-        <div className="flex items-center">
-          <Logo {...headerLogoProps} href="/" />
-        </div>
+        <div className="flex items-center">{brandDisplay}</div>
 
         {/* User Actions */}
         <div className="flex items-center gap-3 sm:gap-4">
@@ -91,7 +129,7 @@ export function Header({ className, notifications = 0 }: HeaderProps) {
                 <Link href="/signin">Sign In</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/signup">Get Started</Link>
+                <Link href="/onboarding">Apply as Tenant</Link>
               </Button>
             </div>
           )}

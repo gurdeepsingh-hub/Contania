@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
@@ -44,13 +45,13 @@ export function Banner({
           {(primaryAction || secondaryAction) && (
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center animate-slide-up stagger-2">
               {primaryAction && (
-                <Button variant="banner" size="lg" className="group">
-                  {primaryAction.label}
+                <Button variant="banner" size="lg" className="group" asChild>
+                  <Link href={primaryAction.href}>{primaryAction.label}</Link>
                 </Button>
               )}
               {secondaryAction && (
-                <Button variant="bannerOutline" size="lg" className="group">
-                  {secondaryAction.label}
+                <Button variant="bannerOutline" size="lg" className="group" asChild>
+                  <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
                 </Button>
               )}
             </div>

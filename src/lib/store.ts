@@ -11,8 +11,8 @@ interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  login: (email: string, password: string) => Promise<{ user: any } | undefined>
+  logout: () => Promise<void>
   setUser: (user: User | null) => void
   setLoading: (loading: boolean) => void
 }
@@ -42,6 +42,7 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
               isLoading: false,
             })
+            return data // Return data so caller can check role
           } else {
             const error = await response.json()
             throw new Error(error.message || 'Login failed')
@@ -52,7 +53,17 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: () => {
+      logout: async () => {
+        // Call logout API to clear server-side cookie
+        try {
+          await fetch('/api/users/logout', {
+            method: 'POST',
+          })
+        } catch (error) {
+          console.error('Logout API error:', error)
+        }
+
+        // Clear client-side state
         set({
           user: null,
           isAuthenticated: false,

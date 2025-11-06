@@ -1,12 +1,21 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useAuthStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
 import { NavigationMenu } from './navigation-menu'
 import { createNavigationItems, getActivePageFromPath } from '@/lib/navigation-config'
 
+// Safe hook for NavigationMenuWrapper - used for tenant users
+function useAuthSafe() {
+  try {
+    return useAuth()
+  } catch {
+    return { user: null, isAuthenticated: false }
+  }
+}
+
 export function NavigationMenuWrapper() {
-  const { user } = useAuthStore()
+  const { user } = useAuthSafe()
   const pathname = usePathname()
   const router = useRouter()
 
