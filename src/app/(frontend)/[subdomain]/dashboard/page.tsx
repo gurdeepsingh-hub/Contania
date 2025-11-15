@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Building2, Users, Mail, Phone, MapPin } from 'lucide-react'
+import { hasViewPermission } from '@/lib/permissions'
 
 type TenantUser = {
   id: number
@@ -25,8 +26,9 @@ export default function TenantDashboard() {
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id?: number; role?: number | string | { id: number; permissions?: Record<string, boolean> } } | null>(null)
 
-  // Check tenant-user authentication
+  // Check tenant-user authentication and permissions
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -36,7 +38,25 @@ export default function TenantDashboard() {
           router.push('/')
           return
         }
-        setAuthChecked(true)
+        const data = await res.json()
+        if (data.success && data.user) {
+          // Fetch full user with role populated to check permissions
+          const fullUserRes = await fetch(`/api/tenant-users/${data.user.id}?depth=1`)
+          if (fullUserRes.ok) {
+            const fullUserData = await fullUserRes.json()
+            if (fullUserData.success && fullUserData.user) {
+              setCurrentUser(fullUserData.user)
+              // Check if user has permission to view dashboard
+              if (!hasViewPermission(fullUserData.user, 'dashboard')) {
+                router.push('/dashboard/settings')
+                return
+              }
+            }
+          } else {
+            setCurrentUser(data.user)
+          }
+          setAuthChecked(true)
+        }
       } catch (error) {
         // Not authenticated, redirect to subdomain homepage
         router.push('/')

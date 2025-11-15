@@ -1,0 +1,9 @@
+Tanant dashboad:
+1. In navigation bar add settings field. -> on click of this we open setting page.
+2. in setting page we have following options: Entity Settings, User Settings, Tenant Users, Personalization, User Roles.
+3. Manage users option will be removed from navigation bar and tenant users option in setting will replace the manage users functionality.
+4. I want Tenants to manage their own roles (dynamic roles). they can create new roles, manage permission for each role. refer to below written points.
+    4a. there will be one admin role (have whole access to all tenat platform and this role will be fixed not deletable and non editable).
+    4b. then there will be option to add new role and permissions given to that role ( can also be editable later ).
+    4c. When a role is assigned to any tenant user . user can only access sections of dashboard which are given in their permissions all other sections are restricted.
+    4d. all roles will be dynamically fetched in manage users tab and shown in dropdown while edit or create new user process.

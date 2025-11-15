@@ -82,3 +82,52 @@ export const createNavigationItemsWithPath = (pathname: string): NavigationItem[
   const activePage = getActivePageFromPath(pathname)
   return createNavigationItems(activePage)
 }
+
+// Tenant navigation configuration
+export const createTenantNavigationItems = (
+  activePage?: string,
+  permissions?: string[]
+): NavigationItem[] => {
+  const items: NavigationItem[] = []
+
+  // Dashboard - show if user has dashboard_view permission
+  if (!permissions || permissions.includes('dashboard_view')) {
+    items.push({
+      id: 'dashboard',
+      label: 'Dashboard',
+      iconName: 'LayoutDashboard',
+      href: '/dashboard',
+      active: activePage === 'dashboard',
+    })
+  }
+
+  // Settings - show if user has settings_view permission
+  if (!permissions || permissions.includes('settings_view')) {
+    items.push({
+      id: 'settings',
+      label: 'Settings',
+      iconName: 'Cog',
+      href: '/dashboard/settings',
+      active: activePage === 'settings' || activePage?.startsWith('settings-'),
+    })
+  }
+
+  return items
+}
+
+// Helper function to get the active page from tenant pathname
+export const getActiveTenantPageFromPath = (pathname: string): string => {
+  const segments = pathname.split('/').filter(Boolean)
+  // Handle /dashboard and /dashboard/* routes
+  if (segments.length >= 2 && segments[0] === 'dashboard') {
+    if (segments[1] === 'settings') {
+      // Handle /dashboard/settings and sub-routes
+      if (segments.length >= 3) {
+        return `settings-${segments[2]}` // e.g., settings-user-roles, settings-tenant-users
+      }
+      return 'settings'
+    }
+    return segments[1] || 'dashboard'
+  }
+  return segments[0] || 'dashboard'
+}

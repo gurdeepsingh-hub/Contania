@@ -21,10 +21,7 @@ async function isSuperAdmin(req: NextRequest): Promise<{ payload: any; user: any
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await isSuperAdmin(request)
     if (!auth) {
@@ -32,7 +29,8 @@ export async function POST(
     }
 
     const { payload, user } = auth
-    const tenantId = Number(params.id)
+    const resolvedParams = await params
+    const tenantId = Number(resolvedParams.id)
 
     // Get the tenant
     const tenant = await payload.findByID({
@@ -62,23 +60,93 @@ export async function POST(
       return existing.docs.length === 0
     }
 
-    const subdomain = await generateUniqueSubdomain(
-      tenant.companyName,
-      checkSubdomainUniqueness
-    )
+    const subdomain = await generateUniqueSubdomain(tenant.companyName, checkSubdomainUniqueness)
+
+    // First, ensure admin role exists for this tenant (it will be created by the hook when tenant is approved)
+    // But we need it before creating the user, so let's check and create if needed
+    let adminRole
+    const existingRoles = await payload.find({
+      collection: 'tenant-roles',
+      where: {
+        and: [
+          {
+            tenantId: {
+              equals: tenant.id,
+            },
+          },
+          {
+            isSystemRole: {
+              equals: true,
+            },
+          },
+        ],
+      },
+      limit: 1,
+    })
+
+    if (existingRoles.totalDocs > 0) {
+      adminRole = existingRoles.docs[0]
+    } else {
+      // Create admin role if it doesn't exist
+      const allPermissions: Record<string, boolean> = {}
+      const permissionKeys = [
+        'dashboard_view',
+        'dashboard_edit',
+        'containers_view',
+        'containers_create',
+        'containers_edit',
+        'containers_delete',
+        'inventory_view',
+        'inventory_create',
+        'inventory_edit',
+        'inventory_delete',
+        'transportation_view',
+        'transportation_create',
+        'transportation_edit',
+        'transportation_delete',
+        'map_view',
+        'map_edit',
+        'reports_view',
+        'reports_create',
+        'reports_delete',
+        'settings_view',
+        'settings_manage_users',
+        'settings_manage_roles',
+        'settings_entity_settings',
+        'settings_user_settings',
+        'settings_personalization',
+      ]
+
+      permissionKeys.forEach((key) => {
+        allPermissions[key] = true
+      })
+
+      adminRole = await payload.create({
+        collection: 'tenant-roles',
+        data: {
+          name: 'Admin',
+          description: 'Administrator role with full access to all features',
+          tenantId: tenant.id,
+          isSystemRole: true,
+          isActive: true,
+          permissions: allPermissions,
+        },
+      })
+    }
 
     // Generate a temporary password for the initial tenant user
     const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`
 
-    // Create initial tenant user (company admin)
+    // Create initial tenant user (company admin) with admin role
     const tenantUser = await payload.create({
       collection: 'tenant-users',
       data: {
         tenantId: tenant.id,
         fullName: tenant.companyName + ' Admin',
         email: tenant.email,
-        userGroup: 'Admin',
+        role: adminRole.id,
         password: tempPassword,
+        status: 'active',
       },
     })
 
@@ -90,6 +158,7 @@ export async function POST(
         approved: true,
         approvedBy: user.id,
         subdomain,
+        status: 'approved',
       },
     })
 
@@ -126,10 +195,6 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error approving tenant:', error)
-    return NextResponse.json(
-      { message: 'Failed to approve tenant' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to approve tenant' }, { status: 500 })
   }
 }
-

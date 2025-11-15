@@ -111,6 +111,16 @@ export const TenantUsers: CollectionConfig = {
       },
     },
     {
+      name: 'role',
+      type: 'relationship',
+      relationTo: 'tenant-roles',
+      required: true,
+      admin: {
+        description: 'Role assigned to the user',
+      },
+    },
+    // Keep userGroup for backward compatibility during migration (deprecated)
+    {
       name: 'userGroup',
       type: 'select',
       options: [
@@ -120,7 +130,20 @@ export const TenantUsers: CollectionConfig = {
         { label: 'Manager', value: 'Manager' },
       ],
       admin: {
-        description: 'Role or group the user belongs to',
+        description: 'DEPRECATED: Use role field instead. This field is kept for backward compatibility.',
+        hidden: true,
+      },
+    },
+    {
+      name: 'status',
+      type: 'select',
+      defaultValue: 'active',
+      options: [
+        { label: 'Active', value: 'active' },
+        { label: 'Suspended', value: 'suspended' },
+      ],
+      admin: {
+        description: 'User account status',
       },
     },
     // Note: depot and warehouse relationships will be added when those collections exist
@@ -154,6 +177,135 @@ export const TenantUsers: CollectionConfig = {
           }
         }
         return data
+      },
+    ],
+    afterChange: [
+      async ({ doc, operation, req }) => {
+        // On create, if this is the first user for the tenant and no role is assigned,
+        // assign the admin role
+        if (operation === 'create' && !doc.role) {
+          try {
+            const payload = req.payload
+            const tenantId = typeof (doc as { tenantId?: number | { id: number } }).tenantId === 'object'
+              ? ((doc as { tenantId?: { id: number } }).tenantId as { id: number }).id
+              : (doc as { tenantId?: number }).tenantId
+
+            if (!tenantId) return doc
+
+            // Check if there are any other users for this tenant
+            const existingUsers = await payload.find({
+              collection: 'tenant-users',
+              where: {
+                and: [
+                  {
+                    tenantId: {
+                      equals: tenantId,
+                    },
+                  },
+                  {
+                    id: {
+                      not_equals: doc.id,
+                    },
+                  },
+                ],
+              },
+              limit: 1,
+            })
+
+            // If this is the first user, assign admin role
+            if (existingUsers.totalDocs === 0) {
+              // Find or create admin role for this tenant
+              const adminRoles = await payload.find({
+                collection: 'tenant-roles',
+                where: {
+                  and: [
+                    {
+                      tenantId: {
+                        equals: tenantId,
+                      },
+                    },
+                    {
+                      isSystemRole: {
+                        equals: true,
+                      },
+                    },
+                  ],
+                },
+                limit: 1,
+              })
+
+              let adminRoleId: number | undefined
+
+              if (adminRoles.totalDocs > 0) {
+                adminRoleId = adminRoles.docs[0].id as number
+              } else {
+                // Create admin role if it doesn't exist
+                const allPermissions: Record<string, boolean> = {}
+                const permissionKeys = [
+                  'dashboard_view',
+                  'dashboard_edit',
+                  'containers_view',
+                  'containers_create',
+                  'containers_edit',
+                  'containers_delete',
+                  'inventory_view',
+                  'inventory_create',
+                  'inventory_edit',
+                  'inventory_delete',
+                  'transportation_view',
+                  'transportation_create',
+                  'transportation_edit',
+                  'transportation_delete',
+                  'map_view',
+                  'map_edit',
+                  'reports_view',
+                  'reports_create',
+                  'reports_delete',
+                  'settings_view',
+                  'settings_manage_users',
+                  'settings_manage_roles',
+                  'settings_entity_settings',
+                  'settings_user_settings',
+                  'settings_personalization',
+                ]
+
+                permissionKeys.forEach((key) => {
+                  allPermissions[key] = true
+                })
+
+                const adminRole = await payload.create({
+                  collection: 'tenant-roles',
+                  data: {
+                    name: 'Admin',
+                    description: 'Administrator role with full access to all features',
+                    tenantId: tenantId,
+                    isSystemRole: true,
+                    isActive: true,
+                    permissions: allPermissions,
+                  },
+                })
+
+                adminRoleId = adminRole.id as number
+              }
+
+              // Update the user with admin role
+              if (adminRoleId) {
+                await payload.update({
+                  collection: 'tenant-users',
+                  id: doc.id as number,
+                  data: {
+                    role: adminRoleId,
+                  },
+                })
+              }
+            }
+          } catch (error) {
+            console.error('Error assigning admin role to first user:', error)
+            // Don't fail user creation if role assignment fails
+          }
+        }
+
+        return doc
       },
     ],
   },

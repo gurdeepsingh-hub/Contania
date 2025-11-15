@@ -11,6 +11,7 @@ import { Users } from './collections/Users'
 import { Media } from './collections/Media'
 import { Tenants } from './collections/Tenants'
 import { TenantUsers } from './collections/TenantUsers'
+import { TenantRoles } from './collections/TenantRoles'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -23,7 +24,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Tenants, TenantUsers],
+  collections: [Users, Media, Tenants, TenantUsers, TenantRoles],
   email: nodemailerAdapter(
     // {
     // defaultFromName: process.env.EMAIL_FROM_NAME || 'Contania',

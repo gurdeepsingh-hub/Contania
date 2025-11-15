@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CardDecorator } from '@/components/ui/card-decorator'
+import { Label } from '@/components/ui/label'
 import { 
   Building2, 
   Mail, 
@@ -15,7 +16,10 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  Globe
+  Globe,
+  Send,
+  AlertCircle,
+  X
 } from 'lucide-react'
 
 type Tenant = {
@@ -64,6 +68,11 @@ export default function TenantDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
+  const [resendingEmail, setResendingEmail] = useState(false)
+  const [emailMessage, setEmailMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [showRevertModal, setShowRevertModal] = useState(false)
+  const [revertReason, setRevertReason] = useState('')
+  const [reverting, setReverting] = useState(false)
 
   useEffect(() => {
     if (tenantId) {
@@ -84,6 +93,85 @@ export default function TenantDetailsPage() {
       console.error('Error loading tenant details:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendEmail = async (type: 'approval' | 'credentials') => {
+    if (!tenant) return
+
+    setResendingEmail(true)
+    setEmailMessage(null)
+
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenantId}/resend-email?type=${type}`, {
+        method: 'POST',
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setEmailMessage({
+          type: 'success',
+          text: `Email sent successfully. ${data.credentials ? `New password: ${data.credentials.password}` : ''}`,
+        })
+      } else {
+        setEmailMessage({
+          type: 'error',
+          text: data.message || 'Failed to send email',
+        })
+      }
+    } catch (error) {
+      console.error('Error resending email:', error)
+      setEmailMessage({
+        type: 'error',
+        text: 'An error occurred while sending the email',
+      })
+    } finally {
+      setResendingEmail(false)
+      // Clear message after 5 seconds
+      setTimeout(() => setEmailMessage(null), 5000)
+    }
+  }
+
+  const handleRequestCorrections = async () => {
+    if (!tenant) return
+
+    setReverting(true)
+    setEmailMessage(null)
+
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenantId}/revert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: revertReason }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setEmailMessage({
+          type: 'success',
+          text: 'Correction request sent successfully. The tenant has been notified via email.',
+        })
+        setShowRevertModal(false)
+        setRevertReason('')
+        await loadTenantDetails() // Reload to update status
+      } else {
+        setEmailMessage({
+          type: 'error',
+          text: data.message || 'Failed to send correction request',
+        })
+      }
+    } catch (error) {
+      console.error('Error requesting corrections:', error)
+      setEmailMessage({
+        type: 'error',
+        text: 'An error occurred while sending the correction request',
+      })
+    } finally {
+      setReverting(false)
+      // Clear message after 5 seconds
+      setTimeout(() => setEmailMessage(null), 5000)
     }
   }
 
@@ -187,8 +275,12 @@ export default function TenantDetailsPage() {
             <div>
               <label className="text-sm font-medium text-muted-foreground block mb-1">Status</label>
               <p className="font-medium text-sm sm:text-base">
-                {tenant.approved ? (
+                {(tenant as { status?: string }).status === 'needs_correction' ? (
+                  <span className="text-orange-600">Needs Correction</span>
+                ) : tenant.approved ? (
                   <span className="text-green-600">Approved</span>
+                ) : (tenant as { status?: string }).status === 'rejected' ? (
+                  <span className="text-red-600">Rejected</span>
                 ) : (
                   <span className="text-yellow-600">Pending Approval</span>
                 )}
@@ -276,6 +368,77 @@ export default function TenantDetailsPage() {
         )}
       </div>
 
+      {/* Request Corrections Section - Only show for non-approved tenants */}
+      {!tenant.approved && (
+        <Card className="relative rounded-none shadow-zinc-950/5">
+          <CardDecorator />
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Request Corrections</CardTitle>
+            <CardDescription>Request the tenant to correct their registration details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              onClick={() => setShowRevertModal(true)}
+              className="min-h-[44px]"
+            >
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Request Corrections
+            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              This will send an email to the tenant with a link to edit their registration details.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Resend Email Section - Only show for approved tenants */}
+      {tenant.approved && tenant.subdomain && (
+        <Card className="relative rounded-none shadow-zinc-950/5">
+          <CardDecorator />
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Resend Email</CardTitle>
+            <CardDescription>Resend approval or credentials email to the tenant</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {emailMessage && (
+              <div
+                className={`p-4 rounded-lg ${
+                  emailMessage.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-800'
+                    : 'bg-red-50 border border-red-200 text-red-800'
+                }`}
+              >
+                {emailMessage.text}
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={() => handleResendEmail('approval')}
+                disabled={resendingEmail}
+                className="min-h-[44px]"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {resendingEmail ? 'Sending...' : 'Resend Approval Email'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleResendEmail('credentials')}
+                disabled={resendingEmail}
+                className="min-h-[44px]"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {resendingEmail ? 'Sending...' : 'Resend Credentials'}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Resending credentials will generate a new temporary password for the tenant admin user.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Tenant Users */}
       <Card className="relative rounded-none shadow-zinc-950/5">
         <CardDecorator />
@@ -335,6 +498,69 @@ export default function TenantDetailsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Revert Modal */}
+      {showRevertModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 sm:p-6">
+          <Card className="relative rounded-none shadow-zinc-950/5 w-full max-w-2xl">
+            <CardDecorator />
+            <CardHeader>
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-xl sm:text-2xl">Request Corrections</CardTitle>
+                  <CardDescription>Send a correction request to the tenant</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setShowRevertModal(false)
+                    setRevertReason('')
+                  }}
+                  className="flex-shrink-0 min-h-[44px] min-w-[44px]"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="revertReason">Reason for Correction (Optional)</Label>
+                <textarea
+                  id="revertReason"
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border rounded-md min-h-[100px] resize-y"
+                  placeholder="Please specify what needs to be corrected..."
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  This message will be included in the email sent to the tenant.
+                </p>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRevertModal(false)
+                    setRevertReason('')
+                  }}
+                  disabled={reverting}
+                  className="min-h-[44px]"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleRequestCorrections}
+                  disabled={reverting}
+                  className="min-h-[44px]"
+                >
+                  {reverting ? 'Sending...' : 'Send Correction Request'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

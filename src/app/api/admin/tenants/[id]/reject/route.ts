@@ -21,7 +21,7 @@ async function isSuperAdmin(req: NextRequest): Promise<{ payload: any; user: any
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const auth = await isSuperAdmin(request)
@@ -30,7 +30,8 @@ export async function POST(
     }
 
     const { payload, user } = auth
-    const tenantId = Number(params.id)
+    const resolvedParams = await params
+    const tenantId = Number(resolvedParams.id)
     const body = await request.json()
 
     // Get the tenant
@@ -50,6 +51,7 @@ export async function POST(
       data: {
         approved: false,
         approvedBy: user.id,
+        status: 'rejected',
       },
     })
 

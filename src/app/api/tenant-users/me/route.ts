@@ -61,13 +61,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'User does not belong to this tenant' }, { status: 403 })
     }
 
+    // Fetch user with role populated
+    const fullUser = await payload.findByID({
+      collection: 'tenant-users',
+      id: user.id as number,
+      depth: 1,
+    })
+
     return NextResponse.json({
       success: true,
       user: {
         id: user.id,
         email: user.email,
         fullName: (user as { fullName?: string }).fullName,
-        userGroup: (user as { userGroup?: string }).userGroup,
+        role: (fullUser as { role?: number | string | { id: number; name?: string; permissions?: Record<string, boolean> } }).role,
+        userGroup: (user as { userGroup?: string }).userGroup, // Keep for backward compatibility
       },
     })
   } catch (error) {

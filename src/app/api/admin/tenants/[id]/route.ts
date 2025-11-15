@@ -22,7 +22,7 @@ async function isSuperAdmin(req: NextRequest): Promise<boolean> {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await isSuperAdmin(request))) {
@@ -30,9 +30,10 @@ export async function GET(
     }
 
     const payload = await getPayload({ config })
+    const resolvedParams = await params
     const tenant = await payload.findByID({
       collection: 'tenants',
-      id: Number(params.id),
+      id: Number(resolvedParams.id),
     })
 
     // Get tenant users
@@ -63,7 +64,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     if (!(await isSuperAdmin(request))) {
@@ -78,9 +79,10 @@ export async function PATCH(
       headers: request.headers,
     })
 
+    const resolvedParams = await params
     const updated = await payload.update({
       collection: 'tenants',
-      id: Number(params.id),
+      id: Number(resolvedParams.id),
       data: {
         ...body,
         approvedBy: user?.id,

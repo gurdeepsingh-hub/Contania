@@ -72,6 +72,7 @@ export interface Config {
     media: Media;
     tenants: Tenant;
     'tenant-users': TenantUser;
+    'tenant-roles': TenantRole;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -82,6 +83,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     'tenant-users': TenantUsersSelect<false> | TenantUsersSelect<true>;
+    'tenant-roles': TenantRolesSelect<false> | TenantRolesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -341,6 +343,22 @@ export interface Tenant {
    */
   onboardingStep?: string | null;
   /**
+   * Current status of the tenant request
+   */
+  status?: ('pending' | 'needs_correction' | 'approved' | 'rejected') | null;
+  /**
+   * Token for editing tenant details (used for correction requests)
+   */
+  editToken?: string | null;
+  /**
+   * Expiration date for the edit token
+   */
+  editTokenExpiresAt?: string | null;
+  /**
+   * Reason for requesting corrections from the tenant
+   */
+  revertReason?: string | null;
+  /**
    * Soft delete timestamp
    */
   deletedAt?: string | null;
@@ -382,9 +400,17 @@ export interface TenantUser {
    */
   position?: string | null;
   /**
-   * Role or group the user belongs to
+   * Role assigned to the user
+   */
+  role: number | TenantRole;
+  /**
+   * DEPRECATED: Use role field instead. This field is kept for backward compatibility.
    */
   userGroup?: ('Admin' | 'Dispatcher' | 'Driver' | 'Manager') | null;
+  /**
+   * User account status
+   */
+  status?: ('active' | 'suspended') | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -402,6 +428,137 @@ export interface TenantUser {
       }[]
     | null;
   password?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenant-roles".
+ */
+export interface TenantRole {
+  id: number;
+  /**
+   * Name of the role (unique per tenant)
+   */
+  name: string;
+  /**
+   * Optional description of the role
+   */
+  description?: string | null;
+  /**
+   * Tenant this role belongs to
+   */
+  tenantId: number | Tenant;
+  /**
+   * System roles (like Admin) cannot be edited or deleted
+   */
+  isSystemRole?: boolean | null;
+  permissions?: {
+    /**
+     * View dashboard
+     */
+    dashboard_view?: boolean | null;
+    /**
+     * Edit dashboard
+     */
+    dashboard_edit?: boolean | null;
+    /**
+     * View containers
+     */
+    containers_view?: boolean | null;
+    /**
+     * Create containers
+     */
+    containers_create?: boolean | null;
+    /**
+     * Edit containers
+     */
+    containers_edit?: boolean | null;
+    /**
+     * Delete containers
+     */
+    containers_delete?: boolean | null;
+    /**
+     * View inventory
+     */
+    inventory_view?: boolean | null;
+    /**
+     * Create inventory
+     */
+    inventory_create?: boolean | null;
+    /**
+     * Edit inventory
+     */
+    inventory_edit?: boolean | null;
+    /**
+     * Delete inventory
+     */
+    inventory_delete?: boolean | null;
+    /**
+     * View transportation
+     */
+    transportation_view?: boolean | null;
+    /**
+     * Create transportation
+     */
+    transportation_create?: boolean | null;
+    /**
+     * Edit transportation
+     */
+    transportation_edit?: boolean | null;
+    /**
+     * Delete transportation
+     */
+    transportation_delete?: boolean | null;
+    /**
+     * View live map
+     */
+    map_view?: boolean | null;
+    /**
+     * Edit live map
+     */
+    map_edit?: boolean | null;
+    /**
+     * View reports
+     */
+    reports_view?: boolean | null;
+    /**
+     * Create reports
+     */
+    reports_create?: boolean | null;
+    /**
+     * Delete reports
+     */
+    reports_delete?: boolean | null;
+    /**
+     * View settings
+     */
+    settings_view?: boolean | null;
+    /**
+     * Manage tenant users
+     */
+    settings_manage_users?: boolean | null;
+    /**
+     * Manage roles
+     */
+    settings_manage_roles?: boolean | null;
+    /**
+     * Manage entity settings
+     */
+    settings_entity_settings?: boolean | null;
+    /**
+     * Manage user settings
+     */
+    settings_user_settings?: boolean | null;
+    /**
+     * Manage personalization
+     */
+    settings_personalization?: boolean | null;
+  };
+  /**
+   * Whether this role is active
+   */
+  isActive?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -425,6 +582,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tenant-users';
         value: number | TenantUser;
+      } | null)
+    | ({
+        relationTo: 'tenant-roles';
+        value: number | TenantRole;
       } | null);
   globalSlug?: string | null;
   user:
@@ -572,6 +733,10 @@ export interface TenantsSelect<T extends boolean = true> {
       };
   dataRegion?: T;
   onboardingStep?: T;
+  status?: T;
+  editToken?: T;
+  editTokenExpiresAt?: T;
+  revertReason?: T;
   deletedAt?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -588,7 +753,9 @@ export interface TenantUsersSelect<T extends boolean = true> {
   phoneFixed?: T;
   ddi?: T;
   position?: T;
+  role?: T;
   userGroup?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -605,6 +772,48 @@ export interface TenantUsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenant-roles_select".
+ */
+export interface TenantRolesSelect<T extends boolean = true> {
+  name?: T;
+  description?: T;
+  tenantId?: T;
+  isSystemRole?: T;
+  permissions?:
+    | T
+    | {
+        dashboard_view?: T;
+        dashboard_edit?: T;
+        containers_view?: T;
+        containers_create?: T;
+        containers_edit?: T;
+        containers_delete?: T;
+        inventory_view?: T;
+        inventory_create?: T;
+        inventory_edit?: T;
+        inventory_delete?: T;
+        transportation_view?: T;
+        transportation_create?: T;
+        transportation_edit?: T;
+        transportation_delete?: T;
+        map_view?: T;
+        map_edit?: T;
+        reports_view?: T;
+        reports_create?: T;
+        reports_delete?: T;
+        settings_view?: T;
+        settings_manage_users?: T;
+        settings_manage_roles?: T;
+        settings_entity_settings?: T;
+        settings_user_settings?: T;
+        settings_personalization?: T;
+      };
+  isActive?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

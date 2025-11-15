@@ -75,3 +75,72 @@ export function getTenantRejectionEmail(tenant: {
   }
 }
 
+export function getTenantUserWelcomeEmail(user: {
+  fullName: string
+  email: string
+  password: string
+  companyName: string
+  subdomain: string
+  userGroup?: string
+}) {
+  return {
+    subject: `Welcome to ${user.companyName} - Your Contania Account`,
+    html: `
+      <h2>Welcome to Contania, ${user.fullName}!</h2>
+      <p>You have been added as a user to <strong>${user.companyName}</strong> on the Contania platform.</p>
+      
+      ${user.userGroup ? `<p><strong>Your Role:</strong> ${user.userGroup}</p>` : ''}
+      
+      <h3>Your Login Credentials</h3>
+      <p><strong>Login URL:</strong> https://${user.subdomain}</p>
+      <p><strong>Email:</strong> ${user.email}</p>
+      <p><strong>Password:</strong> ${user.password}</p>
+      
+      <p><em>Please change your password after first login for security.</em></p>
+      
+      <p>You can now access the tenant dashboard and start using the platform.</p>
+      
+      <p>If you have any questions, please contact your administrator.</p>
+    `,
+  }
+}
+
+export function getTenantRevertEmail(tenant: {
+  companyName: string
+  email: string
+  editLink: string
+  reason?: string
+}) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+  const fullEditLink = editLink.startsWith('http') ? editLink : `${baseUrl}${editLink}`
+  
+  return {
+    subject: `Action Required: Please Correct Your Tenant Registration - ${tenant.companyName}`,
+    html: `
+      <h2>Action Required: Correction Needed</h2>
+      <p>Dear ${tenant.companyName},</p>
+      
+      <p>We have reviewed your tenant registration request and need you to make some corrections before we can proceed with approval.</p>
+      
+      ${tenant.reason ? `
+        <h3>Corrections Required:</h3>
+        <p>${tenant.reason}</p>
+      ` : ''}
+      
+      <h3>Next Steps</h3>
+      <p>Please click the link below to edit your tenant registration details:</p>
+      <p><a href="${fullEditLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Edit Registration Details</a></p>
+      
+      <p><strong>Edit Link:</strong> <a href="${fullEditLink}">${fullEditLink}</a></p>
+      
+      <p><em>Note: This link will expire in 7 days. Please complete the corrections as soon as possible.</em></p>
+      
+      <p>After you submit the corrected information, we will review your application again.</p>
+      
+      <p>If you have any questions, please contact our support team.</p>
+      
+      <p>Thank you for your cooperation.</p>
+    `,
+  }
+}
+

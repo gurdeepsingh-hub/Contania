@@ -295,6 +295,47 @@ export const Tenants: CollectionConfig = {
       },
     },
     {
+      name: 'status',
+      type: 'select',
+      defaultValue: 'pending',
+      options: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Needs Correction', value: 'needs_correction' },
+        { label: 'Approved', value: 'approved' },
+        { label: 'Rejected', value: 'rejected' },
+      ],
+      admin: {
+        description: 'Current status of the tenant request',
+      },
+    },
+    {
+      name: 'editToken',
+      type: 'text',
+      unique: true,
+      admin: {
+        description: 'Token for editing tenant details (used for correction requests)',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'editTokenExpiresAt',
+      type: 'date',
+      admin: {
+        description: 'Expiration date for the edit token',
+        date: {
+          pickerAppearance: 'dayAndTime',
+        },
+        readOnly: true,
+      },
+    },
+    {
+      name: 'revertReason',
+      type: 'textarea',
+      admin: {
+        description: 'Reason for requesting corrections from the tenant',
+      },
+    },
+    {
       name: 'deletedAt',
       type: 'date',
       admin: {
@@ -407,6 +448,83 @@ export const Tenants: CollectionConfig = {
               })
             } catch (error) {
               console.error('Error sending tenant rejection email:', error)
+            }
+          }
+
+          // Create admin role when tenant is approved (if it doesn't exist)
+          if (isApproved && (operation === 'create' || wasApproved !== true)) {
+            try {
+              // Check if admin role already exists for this tenant
+              const existingRoles = await payload.find({
+                collection: 'tenant-roles',
+                where: {
+                  and: [
+                    {
+                      tenantId: {
+                        equals: doc.id,
+                      },
+                    },
+                    {
+                      isSystemRole: {
+                        equals: true,
+                      },
+                    },
+                  ],
+                },
+                limit: 1,
+              })
+
+              // Create admin role if it doesn't exist
+              if (existingRoles.totalDocs === 0) {
+                // Create permissions object with all permissions enabled
+                const allPermissions: Record<string, boolean> = {}
+                const permissionKeys = [
+                  'dashboard_view',
+                  'dashboard_edit',
+                  'containers_view',
+                  'containers_create',
+                  'containers_edit',
+                  'containers_delete',
+                  'inventory_view',
+                  'inventory_create',
+                  'inventory_edit',
+                  'inventory_delete',
+                  'transportation_view',
+                  'transportation_create',
+                  'transportation_edit',
+                  'transportation_delete',
+                  'map_view',
+                  'map_edit',
+                  'reports_view',
+                  'reports_create',
+                  'reports_delete',
+                  'settings_view',
+                  'settings_manage_users',
+                  'settings_manage_roles',
+                  'settings_entity_settings',
+                  'settings_user_settings',
+                  'settings_personalization',
+                ]
+
+                permissionKeys.forEach((key) => {
+                  allPermissions[key] = true
+                })
+
+                await payload.create({
+                  collection: 'tenant-roles',
+                  data: {
+                    name: 'Admin',
+                    description: 'Administrator role with full access to all features',
+                    tenantId: doc.id,
+                    isSystemRole: true,
+                    isActive: true,
+                    permissions: allPermissions,
+                  },
+                })
+              }
+            } catch (error) {
+              console.error('Error creating admin role for tenant:', error)
+              // Don't fail tenant creation/approval if role creation fails
             }
           }
         }
