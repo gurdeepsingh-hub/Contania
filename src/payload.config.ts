@@ -12,6 +12,13 @@ import { Media } from './collections/Media'
 import { Tenants } from './collections/Tenants'
 import { TenantUsers } from './collections/TenantUsers'
 import { TenantRoles } from './collections/TenantRoles'
+import { Customers } from './collections/Customers'
+import { HandlingUnits } from './collections/HandlingUnits'
+import { StorageUnits } from './collections/StorageUnits'
+import { SKUs } from './collections/SKUs'
+import { PayingCustomers } from './collections/PayingCustomers'
+import { Warehouses } from './collections/Warehouses'
+import { TransportCompanies } from './collections/TransportCompanies'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -24,7 +31,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Tenants, TenantUsers, TenantRoles],
+  collections: [Users, Media, Tenants, TenantUsers, TenantRoles, Customers, HandlingUnits, StorageUnits, SKUs, PayingCustomers, Warehouses, TransportCompanies],
   email: nodemailerAdapter(
     // {
     // defaultFromName: process.env.EMAIL_FROM_NAME || 'Contania',

@@ -6,7 +6,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Palette, ArrowLeft } from 'lucide-react'
-import { hasViewPermission, hasViewPermission as hasPermission } from '@/lib/permissions'
+import { hasViewPermission, hasPermission, canManageRoles } from '@/lib/permissions'
 
 type TenantUser = {
   id?: number | string
@@ -55,7 +55,7 @@ export default function PersonalizationPage() {
     if (authChecked && currentUser) {
       if (!hasViewPermission(currentUser, 'settings') || 
           (!hasPermission(currentUser, 'settings_personalization') && 
-           !hasPermission(currentUser, 'settings_manage_roles'))) {
+           !canManageRoles(currentUser))) {
         router.push('/dashboard/settings')
       }
     }

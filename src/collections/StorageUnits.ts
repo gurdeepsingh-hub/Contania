@@ -1,0 +1,131 @@
+import type { CollectionConfig } from 'payload'
+
+export const StorageUnits: CollectionConfig = {
+  slug: 'storage-units',
+  admin: {
+    useAsTitle: 'name',
+  },
+  access: {
+    create: ({ req }) => {
+      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string } }).user
+      if (user?.role === 'superadmin') return true
+      return !!user?.tenantId
+    },
+    read: ({ req }) => {
+      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.tenantId) {
+        return {
+          tenantId: {
+            equals: user.tenantId,
+          },
+        }
+      }
+      return false
+    },
+    update: ({ req }) => {
+      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.tenantId) {
+        return {
+          tenantId: {
+            equals: user.tenantId,
+          },
+        }
+      }
+      return false
+    },
+    delete: ({ req }) => {
+      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.tenantId) {
+        return {
+          tenantId: {
+            equals: user.tenantId,
+          },
+        }
+      }
+      return false
+    },
+  },
+  fields: [
+    {
+      name: 'tenantId',
+      type: 'relationship',
+      relationTo: 'tenants',
+      required: true,
+      admin: {
+        description: 'Links storage unit to their company (tenant)',
+      },
+    },
+    {
+      name: 'abbreviation',
+      type: 'text',
+      admin: {
+        description: 'Short code for storage unit (e.g. PAL for pallet)',
+      },
+    },
+    {
+      name: 'name',
+      type: 'text',
+      required: true,
+      admin: {
+        description: 'Full name of storage unit (e.g. Pallet, Rack)',
+      },
+    },
+    {
+      name: 'palletSpaces',
+      type: 'number',
+      admin: {
+        description: 'Number of pallet spaces this unit occupies',
+        step: 0.01,
+      },
+    },
+    {
+      name: 'lengthPerSU_mm',
+      type: 'number',
+      admin: {
+        description: 'Length per storage unit in millimeters',
+        step: 0.01,
+      },
+    },
+    {
+      name: 'widthPerSU_mm',
+      type: 'number',
+      admin: {
+        description: 'Width per storage unit in millimeters',
+        step: 0.01,
+      },
+    },
+    {
+      name: 'whstoChargeBy',
+      type: 'select',
+      options: [
+        { label: 'LPN', value: 'LPN' },
+        { label: 'weight', value: 'weight' },
+        { label: 'cubic', value: 'cubic' },
+        { label: 'sqm', value: 'sqm' },
+      ],
+      admin: {
+        description: 'Basis for warehouse storage charging',
+      },
+    },
+  ],
+  timestamps: true,
+  hooks: {
+    beforeChange: [
+      ({ req, data }) => {
+        const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+        // If creating/updating and user has tenantId, ensure it matches
+        if (user?.tenantId && data.tenantId !== user.tenantId) {
+          // Super admins can set any tenantId, but regular users cannot
+          if (user.role !== 'superadmin' && user.collection !== 'users') {
+            data.tenantId = user.tenantId
+          }
+        }
+        return data
+      },
+    ],
+  },
+}
+

@@ -5,17 +5,17 @@ import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { 
-  Cog, 
-  Building2, 
-  UserCog, 
-  Users, 
-  Palette, 
-  Shield, 
+import {
+  Cog,
+  Building2,
+  UserCog,
+  Users,
+  Palette,
+  Shield,
   ArrowRight,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
 } from 'lucide-react'
-import { hasViewPermission, canManageUsers, canManageRoles } from '@/lib/permissions'
+import { hasViewPermission, hasPermission, canManageUsers, canManageRoles } from '@/lib/permissions'
 
 type TenantUser = {
   id?: number | string
@@ -84,8 +84,9 @@ export default function SettingsPage() {
       description: 'Manage company information and entity details',
       icon: Building2,
       href: '/dashboard/settings/entity-settings',
-      enabled: hasViewPermission(currentUser, 'settings') && 
-               (hasViewPermission(currentUser, 'settings_entity_settings') || canManageRoles(currentUser)),
+      enabled:
+        hasViewPermission(currentUser, 'settings') &&
+        (hasPermission(currentUser, 'settings_entity_settings') || canManageRoles(currentUser)),
     },
     {
       id: 'user-settings',
@@ -93,8 +94,9 @@ export default function SettingsPage() {
       description: 'Configure user preferences and account settings',
       icon: UserCog,
       href: '/dashboard/settings/user-settings',
-      enabled: hasViewPermission(currentUser, 'settings') && 
-               (hasViewPermission(currentUser, 'settings_user_settings') || canManageRoles(currentUser)),
+      enabled:
+        hasViewPermission(currentUser, 'settings') &&
+        (hasPermission(currentUser, 'settings_user_settings') || canManageRoles(currentUser)),
     },
     {
       id: 'tenant-users',
@@ -110,8 +112,9 @@ export default function SettingsPage() {
       description: 'Customize your dashboard and preferences',
       icon: Palette,
       href: '/dashboard/settings/personalization',
-      enabled: hasViewPermission(currentUser, 'settings') && 
-               (hasViewPermission(currentUser, 'settings_personalization') || canManageRoles(currentUser)),
+      enabled:
+        hasViewPermission(currentUser, 'settings') &&
+        (hasPermission(currentUser, 'settings_personalization') || canManageRoles(currentUser)),
     },
     {
       id: 'user-roles',
@@ -137,8 +140,8 @@ export default function SettingsPage() {
         {settingsSections.map((section) => {
           const Icon = section.icon
           return (
-            <Card 
-              key={section.id} 
+            <Card
+              key={section.id}
               className="hover:shadow-lg transition-shadow cursor-pointer"
               onClick={() => router.push(section.href)}
             >
@@ -153,8 +156,8 @@ export default function SettingsPage() {
                 <CardDescription>{section.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -180,4 +183,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-

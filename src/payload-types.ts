@@ -73,6 +73,13 @@ export interface Config {
     tenants: Tenant;
     'tenant-users': TenantUser;
     'tenant-roles': TenantRole;
+    customers: Customer;
+    'handling-units': HandlingUnit;
+    'storage-units': StorageUnit;
+    skus: Skus;
+    'paying-customers': PayingCustomer;
+    warehouses: Warehouse;
+    'transport-companies': TransportCompany;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -84,6 +91,13 @@ export interface Config {
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     'tenant-users': TenantUsersSelect<false> | TenantUsersSelect<true>;
     'tenant-roles': TenantRolesSelect<false> | TenantRolesSelect<true>;
+    customers: CustomersSelect<false> | CustomersSelect<true>;
+    'handling-units': HandlingUnitsSelect<false> | HandlingUnitsSelect<true>;
+    'storage-units': StorageUnitsSelect<false> | StorageUnitsSelect<true>;
+    skus: SkusSelect<false> | SkusSelect<true>;
+    'paying-customers': PayingCustomersSelect<false> | PayingCustomersSelect<true>;
+    warehouses: WarehousesSelect<false> | WarehousesSelect<true>;
+    'transport-companies': TransportCompaniesSelect<false> | TransportCompaniesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -562,6 +576,370 @@ export interface TenantRole {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "customers".
+ */
+export interface Customer {
+  id: number;
+  /**
+   * Links customer to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of delivery customer or consignee/consignor
+   */
+  customer_name: string;
+  /**
+   * Customer email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact name
+   */
+  contact_name?: string | null;
+  /**
+   * Contact phone number
+   */
+  contact_phone?: string | null;
+  /**
+   * Street address
+   */
+  street?: string | null;
+  /**
+   * City
+   */
+  city?: string | null;
+  /**
+   * State or province
+   */
+  state?: string | null;
+  /**
+   * Postal/ZIP code
+   */
+  postcode?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "handling-units".
+ */
+export interface HandlingUnit {
+  id: number;
+  /**
+   * Links handling unit to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Short code for the unit (e.g. CTN for carton)
+   */
+  abbreviation?: string | null;
+  /**
+   * Full name of handling unit (e.g. Carton, Bottle, Drum)
+   */
+  name: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "storage-units".
+ */
+export interface StorageUnit {
+  id: number;
+  /**
+   * Links storage unit to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Short code for storage unit (e.g. PAL for pallet)
+   */
+  abbreviation?: string | null;
+  /**
+   * Full name of storage unit (e.g. Pallet, Rack)
+   */
+  name: string;
+  /**
+   * Number of pallet spaces this unit occupies
+   */
+  palletSpaces?: number | null;
+  /**
+   * Length per storage unit in millimeters
+   */
+  lengthPerSU_mm?: number | null;
+  /**
+   * Width per storage unit in millimeters
+   */
+  widthPerSU_mm?: number | null;
+  /**
+   * Basis for warehouse storage charging
+   */
+  whstoChargeBy?: ('LPN' | 'weight' | 'cubic' | 'sqm') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "skus".
+ */
+export interface Skus {
+  id: number;
+  /**
+   * Links SKU to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Unique SKU identifier for product
+   */
+  skuCode: string;
+  /**
+   * Detailed product description
+   */
+  description?: string | null;
+  /**
+   * Customer who owns or is linked to this SKU
+   */
+  customerId?: (number | null) | Customer;
+  /**
+   * Default storage unit (SU) for SKU, mandatory, eg: pallet
+   */
+  storageUnitId: number | StorageUnit;
+  /**
+   * Default handling unit (HU) for SKU, mandatory, eg: boxes
+   */
+  handlingUnitId: number | HandlingUnit;
+  /**
+   * Fetched from selected storage unit
+   */
+  palletSpacesOfStorageUnit?: number | null;
+  /**
+   * Number of handling units per storage unit
+   */
+  huPerSu?: number | null;
+  /**
+   * Whether SKU can be received per handling unit
+   */
+  receiveHU?: ('YES' | 'NO') | null;
+  /**
+   * Whether SKU can be picked per handling unit
+   */
+  pickHU?: ('YES' | 'NO') | null;
+  /**
+   * Defines stock picking rule
+   */
+  pickStrategy?: ('FIFO' | 'FEFO') | null;
+  /**
+   * Length per handling unit in millimeters
+   */
+  lengthPerHU_mm?: number | null;
+  /**
+   * Width per handling unit in millimeters
+   */
+  widthPerHU_mm?: number | null;
+  /**
+   * Height per handling unit in millimeters
+   */
+  heightPerHU_mm?: number | null;
+  /**
+   * Weight per handling unit in kilograms
+   */
+  weightPerHU_kg?: number | null;
+  /**
+   * Number of cases per layer
+   */
+  casesPerLayer?: number | null;
+  /**
+   * Number of layers per pallet
+   */
+  layersPerPallet?: number | null;
+  /**
+   * Number of cases per pallet
+   */
+  casesPerPallet?: number | null;
+  /**
+   * Number of individual units (eachs) per case
+   */
+  eachsPerCase?: number | null;
+  /**
+   * Whether expiry date tracking is enabled
+   */
+  isExpriy?: boolean | null;
+  /**
+   * Whether attribute 1 is enabled
+   */
+  isAttribute1?: boolean | null;
+  /**
+   * Whether attribute 2 is enabled
+   */
+  isAttribute2?: boolean | null;
+  /**
+   * Expiry date (optional)
+   */
+  expiryDate?: string | null;
+  /**
+   * Extra notes for attribute 1 (optional)
+   */
+  attribute1?: string | null;
+  /**
+   * Extra notes for attribute 2 (optional)
+   */
+  attribute2?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "paying-customers".
+ */
+export interface PayingCustomer {
+  id: number;
+  /**
+   * Links paying customer to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Official name of the paying customer (client responsible for billing)
+   */
+  customer_name: string;
+  /**
+   * Business number for invoicing
+   */
+  abn?: string | null;
+  /**
+   * Customer email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact person for billing
+   */
+  contact_name?: string | null;
+  /**
+   * Contact phone number
+   */
+  contact_phone?: string | null;
+  /**
+   * Billing street address
+   */
+  billing_street?: string | null;
+  /**
+   * Billing city
+   */
+  billing_city?: string | null;
+  /**
+   * Billing state or province
+   */
+  billing_state?: string | null;
+  /**
+   * Billing postal/ZIP code
+   */
+  billing_postcode?: string | null;
+  /**
+   * If true, delivery address = billing address
+   */
+  delivery_same_as_billing?: boolean | null;
+  /**
+   * Delivery street address
+   */
+  delivery_street?: string | null;
+  /**
+   * Delivery city
+   */
+  delivery_city?: string | null;
+  /**
+   * Delivery state or province
+   */
+  delivery_state?: string | null;
+  /**
+   * Delivery postal/ZIP code
+   */
+  delivery_postcode?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "warehouses".
+ */
+export interface Warehouse {
+  id: number;
+  /**
+   * Links warehouse to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of warehouse or depot
+   */
+  name: string;
+  /**
+   * Warehouse email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact name
+   */
+  contact_name?: string | null;
+  /**
+   * Contact phone number
+   */
+  contact_phone?: string | null;
+  /**
+   * Street address
+   */
+  street?: string | null;
+  /**
+   * City
+   */
+  city?: string | null;
+  /**
+   * State or province
+   */
+  state?: string | null;
+  /**
+   * Postal/ZIP code
+   */
+  postcode?: string | null;
+  /**
+   * Array of strings for stores in warehouse
+   */
+  store?:
+    | {
+        store_name: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Differentiates between location types
+   */
+  type?: ('Depot' | 'Warehouse') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "transport-companies".
+ */
+export interface TransportCompany {
+  id: number;
+  /**
+   * Links transport company to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Third-party transport company name
+   */
+  name: string;
+  /**
+   * Primary contact person
+   */
+  contact?: string | null;
+  /**
+   * Contact mobile number
+   */
+  mobile?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -586,6 +964,34 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tenant-roles';
         value: number | TenantRole;
+      } | null)
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null)
+    | ({
+        relationTo: 'handling-units';
+        value: number | HandlingUnit;
+      } | null)
+    | ({
+        relationTo: 'storage-units';
+        value: number | StorageUnit;
+      } | null)
+    | ({
+        relationTo: 'skus';
+        value: number | Skus;
+      } | null)
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'warehouses';
+        value: number | Warehouse;
+      } | null)
+    | ({
+        relationTo: 'transport-companies';
+        value: number | TransportCompany;
       } | null);
   globalSlug?: string | null;
   user:
@@ -812,6 +1218,141 @@ export interface TenantRolesSelect<T extends boolean = true> {
         settings_personalization?: T;
       };
   isActive?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "customers_select".
+ */
+export interface CustomersSelect<T extends boolean = true> {
+  tenantId?: T;
+  customer_name?: T;
+  email?: T;
+  contact_name?: T;
+  contact_phone?: T;
+  street?: T;
+  city?: T;
+  state?: T;
+  postcode?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "handling-units_select".
+ */
+export interface HandlingUnitsSelect<T extends boolean = true> {
+  tenantId?: T;
+  abbreviation?: T;
+  name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "storage-units_select".
+ */
+export interface StorageUnitsSelect<T extends boolean = true> {
+  tenantId?: T;
+  abbreviation?: T;
+  name?: T;
+  palletSpaces?: T;
+  lengthPerSU_mm?: T;
+  widthPerSU_mm?: T;
+  whstoChargeBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "skus_select".
+ */
+export interface SkusSelect<T extends boolean = true> {
+  tenantId?: T;
+  skuCode?: T;
+  description?: T;
+  customerId?: T;
+  storageUnitId?: T;
+  handlingUnitId?: T;
+  palletSpacesOfStorageUnit?: T;
+  huPerSu?: T;
+  receiveHU?: T;
+  pickHU?: T;
+  pickStrategy?: T;
+  lengthPerHU_mm?: T;
+  widthPerHU_mm?: T;
+  heightPerHU_mm?: T;
+  weightPerHU_kg?: T;
+  casesPerLayer?: T;
+  layersPerPallet?: T;
+  casesPerPallet?: T;
+  eachsPerCase?: T;
+  isExpriy?: T;
+  isAttribute1?: T;
+  isAttribute2?: T;
+  expiryDate?: T;
+  attribute1?: T;
+  attribute2?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "paying-customers_select".
+ */
+export interface PayingCustomersSelect<T extends boolean = true> {
+  tenantId?: T;
+  customer_name?: T;
+  abn?: T;
+  email?: T;
+  contact_name?: T;
+  contact_phone?: T;
+  billing_street?: T;
+  billing_city?: T;
+  billing_state?: T;
+  billing_postcode?: T;
+  delivery_same_as_billing?: T;
+  delivery_street?: T;
+  delivery_city?: T;
+  delivery_state?: T;
+  delivery_postcode?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "warehouses_select".
+ */
+export interface WarehousesSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  email?: T;
+  contact_name?: T;
+  contact_phone?: T;
+  street?: T;
+  city?: T;
+  state?: T;
+  postcode?: T;
+  store?:
+    | T
+    | {
+        store_name?: T;
+        id?: T;
+      };
+  type?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "transport-companies_select".
+ */
+export interface TransportCompaniesSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  contact?: T;
+  mobile?: T;
   updatedAt?: T;
   createdAt?: T;
 }

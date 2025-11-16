@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Building2, ArrowLeft } from 'lucide-react'
-import { hasViewPermission, hasViewPermission as hasPermission } from '@/lib/permissions'
+import { Building2, ArrowLeft, Users, Package, Warehouse, Barcode, ArrowRight, CreditCard, Truck } from 'lucide-react'
+import { hasViewPermission, hasPermission, canManageRoles } from '@/lib/permissions'
 
 type TenantUser = {
   id?: number | string
@@ -53,9 +53,10 @@ export default function EntitySettingsPage() {
 
   useEffect(() => {
     if (authChecked && currentUser) {
-      if (!hasViewPermission(currentUser, 'settings') || 
-          (!hasPermission(currentUser, 'settings_entity_settings') && 
-           !hasPermission(currentUser, 'settings_manage_roles'))) {
+      if (
+        !hasViewPermission(currentUser, 'settings') ||
+        (!hasPermission(currentUser, 'settings_entity_settings') && !canManageRoles(currentUser))
+      ) {
         router.push('/dashboard/settings')
       }
     }
@@ -80,11 +81,7 @@ export default function EntitySettingsPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => router.push('/dashboard/settings')}
-        >
+        <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/settings')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -96,18 +93,212 @@ export default function EntitySettingsPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Entity Settings</CardTitle>
-          <CardDescription>This section is coming soon</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            Entity settings will allow you to manage company information, business details, and entity configuration.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/customers')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">Customers</CardTitle>
+            <CardDescription>Manage customer information and contacts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/customers')
+              }}
+            >
+              Manage Customers
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/handling-units')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Package className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">Handling Units</CardTitle>
+            <CardDescription>
+              Configure handling unit types (e.g. Carton, Bottle, Drum)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/handling-units')
+              }}
+            >
+              Manage Handling Units
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/storage-units')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Warehouse className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">Storage Units</CardTitle>
+            <CardDescription>Configure storage unit types (e.g. Pallet, Rack)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/storage-units')
+              }}
+            >
+              Manage Storage Units
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/skus')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Barcode className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">SKUs</CardTitle>
+            <CardDescription>Manage stock keeping units and product details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/skus')
+              }}
+            >
+              Manage SKUs
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/paying-customers')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <CreditCard className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">Paying Customers</CardTitle>
+            <CardDescription>Manage paying customer information and billing details</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/paying-customers')
+              }}
+            >
+              Manage Paying Customers
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/warehouses')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Warehouse className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">Warehouses</CardTitle>
+            <CardDescription>Manage warehouse and depot locations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/warehouses')
+              }}
+            >
+              Manage Warehouses
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push('/dashboard/settings/entity-settings/transport-companies')}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Truck className="h-6 w-6 text-primary" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <CardTitle className="mt-4">Transport Companies</CardTitle>
+            <CardDescription>Manage third-party transport company information</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push('/dashboard/settings/entity-settings/transport-companies')
+              }}
+            >
+              Manage Transport Companies
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
-

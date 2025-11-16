@@ -6,7 +6,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { UserCog, ArrowLeft } from 'lucide-react'
-import { hasViewPermission, hasViewPermission as hasPermission } from '@/lib/permissions'
+import { hasViewPermission, hasPermission, canManageRoles } from '@/lib/permissions'
 
 type TenantUser = {
   id?: number | string
@@ -53,9 +53,10 @@ export default function UserSettingsPage() {
 
   useEffect(() => {
     if (authChecked && currentUser) {
-      if (!hasViewPermission(currentUser, 'settings') || 
-          (!hasPermission(currentUser, 'settings_user_settings') && 
-           !hasPermission(currentUser, 'settings_manage_roles'))) {
+      if (
+        !hasViewPermission(currentUser, 'settings') ||
+        (!hasPermission(currentUser, 'settings_user_settings') && !canManageRoles(currentUser))
+      ) {
         router.push('/dashboard/settings')
       }
     }
@@ -80,11 +81,7 @@ export default function UserSettingsPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => router.push('/dashboard/settings')}
-        >
+        <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/settings')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -103,11 +100,11 @@ export default function UserSettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">
-            User settings will allow you to configure user preferences, account settings, and notification preferences.
+            User settings will allow you to configure user preferences, account settings, and
+            notification preferences.
           </p>
         </CardContent>
       </Card>
     </div>
   )
 }
-
