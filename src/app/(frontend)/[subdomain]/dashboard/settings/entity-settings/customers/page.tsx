@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FormInput } from '@/components/ui/form-field'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +30,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { Input } from '@/components/ui/input'
 
 type Customer = {
   id: number
@@ -51,7 +54,7 @@ export default function CustomersPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<TenantUser | null>(null)
+  const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -61,22 +64,43 @@ export default function CustomersPage() {
 
   // Pagination state
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [limit] = useState(20)
   const [totalDocs, setTotalDocs] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    email: '',
-    contact_name: '',
-    contact_phone: '',
-    street: '',
-    city: '',
-    state: '',
-    postcode: '',
+  const customerSchema = z.object({
+    customer_name: z.string().min(1, 'Customer name is required'),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    contact_name: z.string().optional(),
+    contact_phone: z.string().optional(),
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postcode: z.string().optional(),
+  })
+
+  type CustomerFormData = z.infer<typeof customerSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<CustomerFormData>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      customer_name: '',
+      email: '',
+      contact_name: '',
+      contact_phone: '',
+      street: '',
+      city: '',
+      state: '',
+      postcode: '',
+    },
   })
 
   useEffect(() => {
@@ -105,7 +129,7 @@ export default function CustomersPage() {
           setCurrentUser(data.user)
           setAuthChecked(true)
         }
-      } catch (error) {
+      } catch (_error) {
         router.push('/dashboard')
       }
     }
@@ -119,6 +143,7 @@ export default function CustomersPage() {
     if (authChecked) {
       loadCustomers()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
   const loadCustomers = async () => {
@@ -158,7 +183,7 @@ export default function CustomersPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       customer_name: '',
       email: '',
       contact_name: '',
@@ -179,7 +204,7 @@ export default function CustomersPage() {
   }
 
   const handleEditCustomer = (customer: Customer) => {
-    setFormData({
+    reset({
       customer_name: customer.customer_name || '',
       email: customer.email || '',
       contact_name: customer.contact_name || '',
@@ -201,22 +226,16 @@ export default function CustomersPage() {
     resetForm()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: CustomerFormData) => {
     setError(null)
     setSuccess(null)
-
-    if (!formData.customer_name) {
-      setError('Customer name is required')
-      return
-    }
 
     try {
       if (editingCustomer) {
         const res = await fetch(`/api/customers/${editingCustomer.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -226,14 +245,14 @@ export default function CustomersPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update customer')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update customer')
         }
       } else {
         const res = await fetch('/api/customers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -243,8 +262,8 @@ export default function CustomersPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create customer')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create customer')
         }
       }
     } catch (error) {
@@ -338,90 +357,71 @@ export default function CustomersPage() {
               {editingCustomer ? 'Update customer information' : 'Create a new customer'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customer_name">Customer Name *</Label>
-                <Input
-                  id="customer_name"
-                  value={formData.customer_name}
-                  onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  required
-                  placeholder="Customer name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="customer@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_name">Contact Name</Label>
-                <Input
-                  id="contact_name"
-                  value={formData.contact_name}
-                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                  placeholder="Contact person"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_phone">Contact Phone</Label>
-                <Input
-                  id="contact_phone"
-                  type="tel"
-                  value={formData.contact_phone}
-                  onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                  placeholder="+61 2 XXXX XXXX"
-                />
-              </div>
-              <div>
-                <Label htmlFor="street">Street</Label>
-                <Input
-                  id="street"
-                  value={formData.street}
-                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                  placeholder="Street address"
-                />
-              </div>
-              <div>
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  placeholder="City"
-                />
-              </div>
-              <div>
-                <Label htmlFor="state">State</Label>
-                <Input
-                  id="state"
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  placeholder="State/Province"
-                />
-              </div>
-              <div>
-                <Label htmlFor="postcode">Postcode</Label>
-                <Input
-                  id="postcode"
-                  value={formData.postcode}
-                  onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
-                  placeholder="Postal code"
-                />
-              </div>
+              <FormInput
+                label="Customer Name"
+                required
+                error={errors.customer_name?.message}
+                placeholder="Customer name"
+                {...register('customer_name')}
+              />
+              <FormInput
+                label="Email"
+                type="email"
+                error={errors.email?.message}
+                placeholder="customer@example.com"
+                {...register('email')}
+              />
+              <FormInput
+                label="Contact Name"
+                error={errors.contact_name?.message}
+                placeholder="Contact person"
+                {...register('contact_name')}
+              />
+              <FormInput
+                label="Contact Phone"
+                type="tel"
+                error={errors.contact_phone?.message}
+                placeholder="+61 2 XXXX XXXX"
+                {...register('contact_phone')}
+              />
+              <FormInput
+                label="Street"
+                error={errors.street?.message}
+                placeholder="Street address"
+                {...register('street')}
+              />
+              <FormInput
+                label="City"
+                error={errors.city?.message}
+                placeholder="City"
+                {...register('city')}
+              />
+              <FormInput
+                label="State"
+                error={errors.state?.message}
+                placeholder="State/Province"
+                {...register('state')}
+              />
+              <FormInput
+                label="Postcode"
+                error={errors.postcode?.message}
+                placeholder="Postal code"
+                {...register('postcode')}
+              />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingCustomer ? 'Update Customer' : 'Create Customer'}
               </Button>
@@ -468,7 +468,7 @@ export default function CustomersPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {customer.customer_name}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -495,7 +495,7 @@ export default function CustomersPage() {
                         {customer.email && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Email:</span>
-                            <span className="break-words">{customer.email}</span>
+                            <span className="wrap-break-word">{customer.email}</span>
                           </div>
                         )}
                         {customer.contact_name && (
@@ -516,7 +516,7 @@ export default function CustomersPage() {
                           customer.postcode) && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Address:</span>
-                            <span className="break-words">
+                            <span className="wrap-break-word">
                               {[customer.street, customer.city, customer.state, customer.postcode]
                                 .filter(Boolean)
                                 .join(', ')}

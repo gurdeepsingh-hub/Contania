@@ -368,6 +368,83 @@ export default function TenantDetailsPage() {
         )}
       </div>
 
+      {/* Approve/Reject Section - Only show for pending tenants */}
+      {!tenant.approved && (tenant as { status?: string }).status !== 'rejected' && (
+        <Card className="relative rounded-none shadow-zinc-950/5">
+          <CardDecorator />
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Approve or Reject Tenant</CardTitle>
+            <CardDescription>Review and approve or reject this tenant registration</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      'Are you sure you want to approve this tenant? A subdomain and login credentials will be created.',
+                    )
+                  )
+                    return
+
+                  try {
+                    const res = await fetch(`/api/admin/tenants/${tenantId}/approve`, {
+                      method: 'POST',
+                    })
+
+                    if (res.ok) {
+                      const data = await res.json()
+                      await loadTenantDetails()
+                      alert(
+                        `Tenant approved successfully!\n\nSubdomain: ${data.credentials?.subdomain}\nEmail: ${data.credentials?.email}\nPassword: ${data.credentials?.password}\n\nThese credentials have been sent to the tenant via email.`,
+                      )
+                    } else {
+                      const error = await res.json().catch(() => ({ message: 'Failed to approve tenant' }))
+                      alert(error.message || 'Failed to approve tenant')
+                    }
+                  } catch (error) {
+                    console.error('Error approving tenant:', error)
+                    alert('Failed to approve tenant')
+                  }
+                }}
+                className="bg-green-600 hover:bg-green-700 min-h-[44px]"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Approve Tenant
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (!confirm('Are you sure you want to reject this tenant?')) return
+
+                  try {
+                    const res = await fetch(`/api/admin/tenants/${tenantId}/reject`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({}),
+                    })
+
+                    if (res.ok) {
+                      await loadTenantDetails()
+                      alert('Tenant rejected')
+                    } else {
+                      alert('Failed to reject tenant')
+                    }
+                  } catch (error) {
+                    console.error('Error rejecting tenant:', error)
+                    alert('Failed to reject tenant')
+                  }
+                }}
+                className="min-h-[44px]"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Reject Tenant
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Request Corrections Section - Only show for non-approved tenants */}
       {!tenant.approved && (
         <Card className="relative rounded-none shadow-zinc-950/5">

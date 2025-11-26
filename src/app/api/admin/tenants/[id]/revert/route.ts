@@ -78,6 +78,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const editLink = `/tenant/edit/${editToken}`
 
     // Send email with edit link
+    let emailSent = false
+    let emailError: Error | null = null
     try {
       const emailContent = getTenantRevertEmail({
         companyName: tenant.companyName as string,
@@ -92,16 +94,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         subject: emailContent.subject,
         html: emailContent.html,
       })
-    } catch (emailError) {
+      emailSent = true
+    } catch (err) {
+      emailError = err instanceof Error ? err : new Error(String(err))
       console.error('Error sending revert email:', emailError)
-      // Don't fail the revert if email fails, but log it
+      // Log detailed error for debugging
+      console.error('Email error details:', {
+        to: tenant.email,
+        from: process.env.EMAIL_FROM,
+        error: emailError.message,
+        stack: emailError.stack,
+      })
     }
 
     return NextResponse.json({
       success: true,
       tenant: updatedTenant,
-      message: 'Tenant revert request sent successfully',
+      message: emailSent
+        ? 'Tenant revert request sent successfully'
+        : 'Tenant revert request created, but email failed to send. Please check email configuration.',
       editLink: `${baseUrl}${editLink}`,
+      emailSent,
+      emailError: emailError ? emailError.message : undefined,
     })
   } catch (error) {
     console.error('Error reverting tenant:', error)

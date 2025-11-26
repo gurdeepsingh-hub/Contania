@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ message: 'Tenant already approved' }, { status: 400 })
     }
 
-    // Generate unique subdomain
+    // Use tenant's preferred subdomain if provided and available, otherwise generate one
     const checkSubdomainUniqueness = async (subdomain: string) => {
       const existing = await payload.find({
         collection: 'tenants',
@@ -60,7 +60,46 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return existing.docs.length === 0
     }
 
-    const subdomain = await generateUniqueSubdomain(tenant.companyName, checkSubdomainUniqueness)
+    let subdomain: string
+    if (tenant.subdomain) {
+      // Tenant provided a preferred subdomain during submission
+      // Use it directly since it was already validated during submission
+      // Only check if it conflicts with an already approved tenant
+      const existingApproved = await payload.find({
+        collection: 'tenants',
+        where: {
+          and: [
+            {
+              subdomain: {
+                equals: tenant.subdomain,
+              },
+            },
+            {
+              approved: {
+                equals: true,
+              },
+            },
+            {
+              id: {
+                not_equals: tenant.id,
+              },
+            },
+          ],
+        },
+        limit: 1,
+      })
+
+      if (existingApproved.docs.length === 0) {
+        // Subdomain is still available, use it
+        subdomain = tenant.subdomain
+      } else {
+        // Subdomain was taken by another approved tenant, generate a new one
+        subdomain = await generateUniqueSubdomain(tenant.companyName, checkSubdomainUniqueness)
+      }
+    } else {
+      // No preferred subdomain, generate one
+      subdomain = await generateUniqueSubdomain(tenant.companyName, checkSubdomainUniqueness)
+    }
 
     // First, ensure admin role exists for this tenant (it will be created by the hook when tenant is approved)
     // But we need it before creating the user, so let's check and create if needed
@@ -88,6 +127,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       adminRole = existingRoles.docs[0]
     } else {
       // Create admin role if it doesn't exist
+      // Include ALL current permissions from TenantRoles collection
       const allPermissions: Record<string, boolean> = {}
       const permissionKeys = [
         'dashboard_view',
@@ -104,6 +144,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         'transportation_create',
         'transportation_edit',
         'transportation_delete',
+        'freight_view',
+        'freight_create',
+        'freight_edit',
+        'freight_delete',
         'map_view',
         'map_edit',
         'reports_view',

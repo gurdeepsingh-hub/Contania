@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       const hostname = request.headers.get('host') || ''
       const subdomainMatch = hostname.match(/^([^.]+)\.(.+)$/)
       subdomain = subdomainMatch ? subdomainMatch[1] : null
-      
+
       // Ignore 'www' and 'localhost' as subdomains
       if (subdomain === 'www' || subdomain === 'localhost') {
         subdomain = null
@@ -53,20 +53,29 @@ export async function GET(request: NextRequest) {
 
     const tenant = tenantResult.docs[0]
     const tenantUser = user as { tenantId?: number | { id: number } }
-    const tenantUserId = typeof tenantUser.tenantId === 'object' 
-      ? tenantUser.tenantId.id 
-      : tenantUser.tenantId
+    const tenantUserId =
+      typeof tenantUser.tenantId === 'object' ? tenantUser.tenantId.id : tenantUser.tenantId
 
     if (tenantUserId !== tenant.id) {
       return NextResponse.json({ message: 'User does not belong to this tenant' }, { status: 403 })
     }
 
-    // Fetch user with role populated
+    // Fetch user with role populated (depth 2 to ensure permissions are included)
     const fullUser = await payload.findByID({
       collection: 'tenant-users',
       id: user.id as number,
-      depth: 1,
+      depth: 2,
     })
+
+    // Extract role with permissions
+    const role = (
+      fullUser as {
+        role?:
+          | number
+          | string
+          | { id: number; name?: string; permissions?: Record<string, boolean> }
+      }
+    ).role
 
     return NextResponse.json({
       success: true,
@@ -74,7 +83,7 @@ export async function GET(request: NextRequest) {
         id: user.id,
         email: user.email,
         fullName: (user as { fullName?: string }).fullName,
-        role: (fullUser as { role?: number | string | { id: number; name?: string; permissions?: Record<string, boolean> } }).role,
+        role: role,
         userGroup: (user as { userGroup?: string }).userGroup, // Keep for backward compatibility
       },
     })
@@ -83,5 +92,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Not authenticated' }, { status: 401 })
   }
 }
-
-

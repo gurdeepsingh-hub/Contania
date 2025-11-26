@@ -80,6 +80,9 @@ export interface Config {
     'paying-customers': PayingCustomer;
     warehouses: Warehouse;
     'transport-companies': TransportCompany;
+    'inbound-inventory': InboundInventory;
+    'inbound-product-line': InboundProductLine;
+    'put-away-stock': PutAwayStock;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -98,6 +101,9 @@ export interface Config {
     'paying-customers': PayingCustomersSelect<false> | PayingCustomersSelect<true>;
     warehouses: WarehousesSelect<false> | WarehousesSelect<true>;
     'transport-companies': TransportCompaniesSelect<false> | TransportCompaniesSelect<true>;
+    'inbound-inventory': InboundInventorySelect<false> | InboundInventorySelect<true>;
+    'inbound-product-line': InboundProductLineSelect<false> | InboundProductLineSelect<true>;
+    'put-away-stock': PutAwayStockSelect<false> | PutAwayStockSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -462,7 +468,7 @@ export interface TenantRole {
    */
   tenantId: number | Tenant;
   /**
-   * System roles (like Admin) cannot be edited or deleted
+   * System roles (like Admin) cannot be edited or deleted (except in development mode)
    */
   isSystemRole?: boolean | null;
   permissions?: {
@@ -522,6 +528,22 @@ export interface TenantRole {
      * Delete transportation
      */
     transportation_delete?: boolean | null;
+    /**
+     * View freight
+     */
+    freight_view?: boolean | null;
+    /**
+     * Create freight jobs
+     */
+    freight_create?: boolean | null;
+    /**
+     * Edit freight jobs
+     */
+    freight_edit?: boolean | null;
+    /**
+     * Delete freight jobs
+     */
+    freight_delete?: boolean | null;
     /**
      * View live map
      */
@@ -940,6 +962,225 @@ export interface TransportCompany {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inbound-inventory".
+ */
+export interface InboundInventory {
+  id: number;
+  /**
+   * Links inbound inventory to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Unique job code for this tenant (auto-generated)
+   */
+  jobCode: string;
+  /**
+   * Scheduled arrival date/time of goods
+   */
+  expectedDate?: string | null;
+  /**
+   * Actual receiving completion date/time
+   */
+  completedDate?: string | null;
+  /**
+   * Delivery customer reference number
+   */
+  deliveryCustomerReferenceNumber?: string | null;
+  /**
+   * Ordering customer reference number
+   */
+  orderingCustomerReferenceNumber?: string | null;
+  /**
+   * Delivery customer ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")
+   */
+  deliveryCustomerId?: string | null;
+  /**
+   * Any remarks or handling instructions
+   */
+  notes?: string | null;
+  /**
+   * Indicates who manages transport
+   */
+  transportMode?: ('our' | 'third_party') | null;
+  /**
+   * Destination warehouse for received goods
+   */
+  warehouseId?: (number | null) | Warehouse;
+  /**
+   * Auto-fetched customer name
+   */
+  customerName?: string | null;
+  /**
+   * Resolved address of the delivery customer
+   */
+  customerAddress?: string | null;
+  /**
+   * Customer location
+   */
+  customerLocation?: string | null;
+  /**
+   * Customer contact name
+   */
+  customerContactName?: string | null;
+  /**
+   * Supplier ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")
+   */
+  supplierId?: string | null;
+  /**
+   * Auto-fetched supplier name
+   */
+  supplierName?: string | null;
+  /**
+   * Supplier address
+   */
+  supplierAddress?: string | null;
+  /**
+   * Supplier location
+   */
+  supplierLocation?: string | null;
+  /**
+   * Supplier contact name
+   */
+  supplierContactName?: string | null;
+  /**
+   * Third-party transport company (if applicable)
+   */
+  transportCompanyId?: (number | null) | TransportCompany;
+  /**
+   * Transport contact person
+   */
+  transportContact?: string | null;
+  /**
+   * Transport mobile number
+   */
+  transportMobile?: string | null;
+  /**
+   * Quantity of CHEP pallets used
+   */
+  chep?: number | null;
+  /**
+   * Quantity of LOSCAM pallets used
+   */
+  loscam?: number | null;
+  /**
+   * Quantity of plain pallets used
+   */
+  plain?: number | null;
+  /**
+   * Reference number for pallet transfer documentation
+   */
+  palletTransferDocket?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inbound-product-line".
+ */
+export interface InboundProductLine {
+  id: number;
+  /**
+   * Links product to inbound shipment
+   */
+  inboundInventoryId: number | InboundInventory;
+  /**
+   * References SKU (product) record
+   */
+  skuId?: (number | null) | Skus;
+  /**
+   * Fetched from SKU ID
+   */
+  skuDescription?: string | null;
+  /**
+   * Product batch number (if batch id is in system give warn if wrong sku id and batch)
+   */
+  batchNumber?: string | null;
+  /**
+   * Fetched from SKU ID huPerSU
+   */
+  lpnQty?: string | null;
+  /**
+   * Square meters per storage unit (auto-calculated from Storage Unit length and width)
+   */
+  sqmPerSU?: number | null;
+  /**
+   * Quantity of product units expected
+   */
+  expectedQty?: number | null;
+  /**
+   * Quantity of product units received
+   */
+  recievedQty?: number | null;
+  /**
+   * Weight of product units expected
+   */
+  expectedWeight?: number | null;
+  /**
+   * Weight of product units received
+   */
+  recievedWeight?: number | null;
+  /**
+   * Number of pallet spaces occupied (auto-calculated from qty / lpnQty)
+   */
+  palletSpaces?: number | null;
+  /**
+   * Weight per handling unit, fetched from SKU / editable
+   */
+  weightPerHU?: number | null;
+  /**
+   * Volume per handling unit (m³)
+   */
+  expectedCubicPerHU?: number | null;
+  /**
+   * Volume per handling unit (m³)
+   */
+  recievedCubicPerHU?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "put-away-stock".
+ */
+export interface PutAwayStock {
+  id: number;
+  /**
+   * Links put-away stock to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Unique License Plate Number for this tenant (auto-generated)
+   */
+  lpnNumber: string;
+  /**
+   * Links to the inbound inventory job
+   */
+  inboundInventoryId: number | InboundInventory;
+  /**
+   * Links to the specific product line
+   */
+  inboundProductLineId: number | InboundProductLine;
+  /**
+   * References SKU (product) record
+   */
+  skuId: number | Skus;
+  /**
+   * Warehouse where stock is stored
+   */
+  warehouseId: number | Warehouse;
+  /**
+   * Storage location within the warehouse (from warehouse stores)
+   */
+  location: string;
+  /**
+   * Quantity of handling units per pallet
+   */
+  huQty: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -992,6 +1233,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'transport-companies';
         value: number | TransportCompany;
+      } | null)
+    | ({
+        relationTo: 'inbound-inventory';
+        value: number | InboundInventory;
+      } | null)
+    | ({
+        relationTo: 'inbound-product-line';
+        value: number | InboundProductLine;
+      } | null)
+    | ({
+        relationTo: 'put-away-stock';
+        value: number | PutAwayStock;
       } | null);
   globalSlug?: string | null;
   user:
@@ -1205,6 +1458,10 @@ export interface TenantRolesSelect<T extends boolean = true> {
         transportation_create?: T;
         transportation_edit?: T;
         transportation_delete?: T;
+        freight_view?: T;
+        freight_create?: T;
+        freight_edit?: T;
+        freight_delete?: T;
         map_view?: T;
         map_edit?: T;
         reports_view?: T;
@@ -1353,6 +1610,78 @@ export interface TransportCompaniesSelect<T extends boolean = true> {
   name?: T;
   contact?: T;
   mobile?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inbound-inventory_select".
+ */
+export interface InboundInventorySelect<T extends boolean = true> {
+  tenantId?: T;
+  jobCode?: T;
+  expectedDate?: T;
+  completedDate?: T;
+  deliveryCustomerReferenceNumber?: T;
+  orderingCustomerReferenceNumber?: T;
+  deliveryCustomerId?: T;
+  notes?: T;
+  transportMode?: T;
+  warehouseId?: T;
+  customerName?: T;
+  customerAddress?: T;
+  customerLocation?: T;
+  customerContactName?: T;
+  supplierId?: T;
+  supplierName?: T;
+  supplierAddress?: T;
+  supplierLocation?: T;
+  supplierContactName?: T;
+  transportCompanyId?: T;
+  transportContact?: T;
+  transportMobile?: T;
+  chep?: T;
+  loscam?: T;
+  plain?: T;
+  palletTransferDocket?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "inbound-product-line_select".
+ */
+export interface InboundProductLineSelect<T extends boolean = true> {
+  inboundInventoryId?: T;
+  skuId?: T;
+  skuDescription?: T;
+  batchNumber?: T;
+  lpnQty?: T;
+  sqmPerSU?: T;
+  expectedQty?: T;
+  recievedQty?: T;
+  expectedWeight?: T;
+  recievedWeight?: T;
+  palletSpaces?: T;
+  weightPerHU?: T;
+  expectedCubicPerHU?: T;
+  recievedCubicPerHU?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "put-away-stock_select".
+ */
+export interface PutAwayStockSelect<T extends boolean = true> {
+  tenantId?: T;
+  lpnNumber?: T;
+  inboundInventoryId?: T;
+  inboundProductLineId?: T;
+  skuId?: T;
+  warehouseId?: T;
+  location?: T;
+  huQty?: T;
   updatedAt?: T;
   createdAt?: T;
 }

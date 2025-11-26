@@ -55,7 +55,7 @@ export function TenantNavigationMenuWrapper() {
 
   // Get active page from pathname
   const activePage = getActiveTenantPageFromPath(pathname)
-  
+
   // Create navigation items based on permissions
   const navigationItems = createTenantNavigationItems(activePage, permissions)
 
@@ -73,6 +73,3 @@ export function TenantNavigationMenuWrapper() {
     />
   )
 }
-
-
-

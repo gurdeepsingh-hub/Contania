@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { FormInput } from '@/components/ui/form-field'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +30,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { Input } from '@/components/ui/input'
 
 type TransportCompany = {
   id: number
@@ -46,7 +49,7 @@ export default function TransportCompaniesPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<TenantUser | null>(null)
+  const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [transportCompanies, setTransportCompanies] = useState<TransportCompany[]>([])
   const [loadingTransportCompanies, setLoadingTransportCompanies] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -58,17 +61,33 @@ export default function TransportCompaniesPage() {
 
   // Pagination state
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [limit] = useState(20)
   const [totalDocs, setTotalDocs] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    name: '',
-    contact: '',
-    mobile: '',
+  const transportCompanySchema = z.object({
+    name: z.string().min(1, 'Company name is required'),
+    contact: z.string().optional(),
+    mobile: z.string().optional(),
+  })
+
+  type TransportCompanyFormData = z.infer<typeof transportCompanySchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<TransportCompanyFormData>({
+    resolver: zodResolver(transportCompanySchema),
+    defaultValues: {
+      name: '',
+      contact: '',
+      mobile: '',
+    },
   })
 
   useEffect(() => {
@@ -97,7 +116,7 @@ export default function TransportCompaniesPage() {
           setCurrentUser(data.user)
           setAuthChecked(true)
         }
-      } catch (error) {
+      } catch (_error) {
         router.push('/dashboard')
       }
     }
@@ -111,6 +130,7 @@ export default function TransportCompaniesPage() {
     if (authChecked) {
       loadTransportCompanies()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
   const loadTransportCompanies = async () => {
@@ -150,7 +170,7 @@ export default function TransportCompaniesPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       contact: '',
       mobile: '',
@@ -166,7 +186,7 @@ export default function TransportCompaniesPage() {
   }
 
   const handleEditTransportCompany = (transportCompany: TransportCompany) => {
-    setFormData({
+    reset({
       name: transportCompany.name || '',
       contact: transportCompany.contact || '',
       mobile: transportCompany.mobile || '',
@@ -183,22 +203,16 @@ export default function TransportCompaniesPage() {
     resetForm()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: TransportCompanyFormData) => {
     setError(null)
     setSuccess(null)
-
-    if (!formData.name) {
-      setError('Transport company name is required')
-      return
-    }
 
     try {
       if (editingTransportCompany) {
         const res = await fetch(`/api/transport-companies/${editingTransportCompany.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -208,14 +222,14 @@ export default function TransportCompaniesPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update transport company')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update transport company')
         }
       } else {
         const res = await fetch('/api/transport-companies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -225,8 +239,8 @@ export default function TransportCompaniesPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create transport company')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create transport company')
         }
       }
     } catch (error) {
@@ -324,44 +338,40 @@ export default function TransportCompaniesPage() {
                 : 'Create a new transport company'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Company Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="Transport company name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact">Contact Person</Label>
-                <Input
-                  id="contact"
-                  value={formData.contact}
-                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                  placeholder="Primary contact person"
-                />
-              </div>
-              <div>
-                <Label htmlFor="mobile">Mobile</Label>
-                <Input
-                  id="mobile"
-                  type="tel"
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  placeholder="Contact mobile number"
-                />
-              </div>
+              <FormInput
+                label="Company Name"
+                required
+                error={errors.name?.message}
+                placeholder="Transport company name"
+                {...register('name')}
+              />
+              <FormInput
+                label="Contact Person"
+                error={errors.contact?.message}
+                placeholder="Primary contact person"
+                {...register('contact')}
+              />
+              <FormInput
+                label="Mobile"
+                type="tel"
+                error={errors.mobile?.message}
+                placeholder="Contact mobile number"
+                {...register('mobile')}
+              />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingTransportCompany ? 'Update Transport Company' : 'Create Transport Company'}
               </Button>
@@ -412,7 +422,7 @@ export default function TransportCompaniesPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {transportCompany.name}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"

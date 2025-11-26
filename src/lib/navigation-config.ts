@@ -101,6 +101,17 @@ export const createTenantNavigationItems = (
     })
   }
 
+  // Freight - show if user has freight_view permission
+  if (!permissions || permissions.includes('freight_view')) {
+    items.push({
+      id: 'freight',
+      label: 'Freight',
+      iconName: 'Truck',
+      href: '/dashboard/freight',
+      active: activePage === 'freight' || activePage?.startsWith('freight-'),
+    })
+  }
+
   // Settings - show if user has settings_view permission
   if (!permissions || permissions.includes('settings_view')) {
     items.push({
@@ -126,6 +137,13 @@ export const getActiveTenantPageFromPath = (pathname: string): string => {
         return `settings-${segments[2]}` // e.g., settings-user-roles, settings-tenant-users
       }
       return 'settings'
+    }
+    if (segments[1] === 'freight') {
+      // Handle /dashboard/freight and sub-routes
+      if (segments.length >= 3) {
+        return `freight-${segments[2]}` // e.g., freight-inbound
+      }
+      return 'freight'
     }
     return segments[1] || 'dashboard'
   }

@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { FormInput } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -62,9 +65,24 @@ export default function HandlingUnitsPage() {
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    name: '',
-    abbreviation: '',
+  const handlingUnitSchema = z.object({
+    name: z.string().min(1, 'Name is required'),
+    abbreviation: z.string().optional(),
+  })
+
+  type HandlingUnitFormData = z.infer<typeof handlingUnitSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<HandlingUnitFormData>({
+    resolver: zodResolver(handlingUnitSchema),
+    defaultValues: {
+      name: '',
+      abbreviation: '',
+    },
   })
 
   useEffect(() => {
@@ -146,7 +164,7 @@ export default function HandlingUnitsPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       abbreviation: '',
     })
@@ -161,7 +179,7 @@ export default function HandlingUnitsPage() {
   }
 
   const handleEditUnit = (unit: HandlingUnit) => {
-    setFormData({
+    reset({
       name: unit.name || '',
       abbreviation: unit.abbreviation || '',
     })
@@ -177,22 +195,16 @@ export default function HandlingUnitsPage() {
     resetForm()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: HandlingUnitFormData) => {
     setError(null)
     setSuccess(null)
-
-    if (!formData.name) {
-      setError('Name is required')
-      return
-    }
 
     try {
       if (editingUnit) {
         const res = await fetch(`/api/handling-units/${editingUnit.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -202,14 +214,14 @@ export default function HandlingUnitsPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update handling unit')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update handling unit')
         }
       } else {
         const res = await fetch('/api/handling-units', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -219,8 +231,8 @@ export default function HandlingUnitsPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create handling unit')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create handling unit')
         }
       }
     } catch (error) {
@@ -312,34 +324,33 @@ export default function HandlingUnitsPage() {
               {editingUnit ? 'Update handling unit information' : 'Create a new handling unit'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="e.g. Carton, Bottle, Drum"
-                />
-              </div>
-              <div>
-                <Label htmlFor="abbreviation">Abbreviation</Label>
-                <Input
-                  id="abbreviation"
-                  value={formData.abbreviation}
-                  onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
-                  placeholder="e.g. CTN"
-                />
-              </div>
+              <FormInput
+                label="Name"
+                required
+                error={errors.name?.message}
+                placeholder="e.g. Carton, Bottle, Drum"
+                {...register('name')}
+              />
+              <FormInput
+                label="Abbreviation"
+                error={errors.abbreviation?.message}
+                placeholder="e.g. CTN"
+                {...register('abbreviation')}
+              />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingUnit ? 'Update Unit' : 'Create Unit'}
               </Button>
@@ -388,7 +399,7 @@ export default function HandlingUnitsPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {unit.name}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"

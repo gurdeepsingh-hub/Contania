@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -66,13 +69,32 @@ export default function StorageUnitsPage() {
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    name: '',
-    abbreviation: '',
-    palletSpaces: '',
-    lengthPerSU_mm: '',
-    widthPerSU_mm: '',
-    whstoChargeBy: '',
+  const storageUnitSchema = z.object({
+    name: z.string().min(1, 'Name is required'),
+    abbreviation: z.string().optional(),
+    palletSpaces: z.string().optional(),
+    lengthPerSU_mm: z.string().optional(),
+    widthPerSU_mm: z.string().optional(),
+    whstoChargeBy: z.string().optional(),
+  })
+
+  type StorageUnitFormData = z.infer<typeof storageUnitSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<StorageUnitFormData>({
+    resolver: zodResolver(storageUnitSchema),
+    defaultValues: {
+      name: '',
+      abbreviation: '',
+      palletSpaces: '',
+      lengthPerSU_mm: '',
+      widthPerSU_mm: '',
+      whstoChargeBy: '',
+    },
   })
 
   useEffect(() => {
@@ -154,7 +176,7 @@ export default function StorageUnitsPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       abbreviation: '',
       palletSpaces: '',
@@ -173,7 +195,7 @@ export default function StorageUnitsPage() {
   }
 
   const handleEditUnit = (unit: StorageUnit) => {
-    setFormData({
+    reset({
       name: unit.name || '',
       abbreviation: unit.abbreviation || '',
       palletSpaces: unit.palletSpaces?.toString() || '',
@@ -193,24 +215,18 @@ export default function StorageUnitsPage() {
     resetForm()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: StorageUnitFormData) => {
     setError(null)
     setSuccess(null)
 
-    if (!formData.name) {
-      setError('Name is required')
-      return
-    }
-
     try {
       const submitData: Record<string, unknown> = {
-        name: formData.name,
-        abbreviation: formData.abbreviation || undefined,
-        palletSpaces: formData.palletSpaces ? Number(formData.palletSpaces) : undefined,
-        lengthPerSU_mm: formData.lengthPerSU_mm ? Number(formData.lengthPerSU_mm) : undefined,
-        widthPerSU_mm: formData.widthPerSU_mm ? Number(formData.widthPerSU_mm) : undefined,
-        whstoChargeBy: formData.whstoChargeBy || undefined,
+        name: data.name,
+        abbreviation: data.abbreviation || undefined,
+        palletSpaces: data.palletSpaces ? Number(data.palletSpaces) : undefined,
+        lengthPerSU_mm: data.lengthPerSU_mm ? Number(data.lengthPerSU_mm) : undefined,
+        widthPerSU_mm: data.widthPerSU_mm ? Number(data.widthPerSU_mm) : undefined,
+        whstoChargeBy: data.whstoChargeBy || undefined,
       }
 
       if (editingUnit) {
@@ -227,8 +243,8 @@ export default function StorageUnitsPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update storage unit')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update storage unit')
         }
       } else {
         const res = await fetch('/api/storage-units', {
@@ -244,8 +260,8 @@ export default function StorageUnitsPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create storage unit')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create storage unit')
         }
       }
     } catch (error) {
@@ -335,82 +351,72 @@ export default function StorageUnitsPage() {
               {editingUnit ? 'Update storage unit information' : 'Create a new storage unit'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="e.g. Pallet, Rack"
-                />
-              </div>
-              <div>
-                <Label htmlFor="abbreviation">Abbreviation</Label>
-                <Input
-                  id="abbreviation"
-                  value={formData.abbreviation}
-                  onChange={(e) => setFormData({ ...formData, abbreviation: e.target.value })}
-                  placeholder="e.g. PAL"
-                />
-              </div>
-              <div>
-                <Label htmlFor="palletSpaces">Pallet Spaces</Label>
-                <Input
-                  id="palletSpaces"
-                  type="number"
-                  step="0.01"
-                  value={formData.palletSpaces}
-                  onChange={(e) => setFormData({ ...formData, palletSpaces: e.target.value })}
-                  placeholder="Number of pallet spaces"
-                />
-              </div>
-              <div>
-                <Label htmlFor="whstoChargeBy">Charge By</Label>
-                <select
-                  id="whstoChargeBy"
-                  value={formData.whstoChargeBy}
-                  onChange={(e) => setFormData({ ...formData, whstoChargeBy: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                >
-                  <option value="">Select option</option>
-                  <option value="LPN">LPN</option>
-                  <option value="weight">weight</option>
-                  <option value="cubic">cubic</option>
-                  <option value="sqm">sqm</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="lengthPerSU_mm">Length (mm)</Label>
-                <Input
-                  id="lengthPerSU_mm"
-                  type="number"
-                  step="0.01"
-                  value={formData.lengthPerSU_mm}
-                  onChange={(e) => setFormData({ ...formData, lengthPerSU_mm: e.target.value })}
-                  placeholder="Length in millimeters"
-                />
-              </div>
-              <div>
-                <Label htmlFor="widthPerSU_mm">Width (mm)</Label>
-                <Input
-                  id="widthPerSU_mm"
-                  type="number"
-                  step="0.01"
-                  value={formData.widthPerSU_mm}
-                  onChange={(e) => setFormData({ ...formData, widthPerSU_mm: e.target.value })}
-                  placeholder="Width in millimeters"
-                />
-              </div>
+              <FormInput
+                label="Name"
+                required
+                error={errors.name?.message}
+                placeholder="e.g. Pallet, Rack"
+                {...register('name')}
+              />
+              <FormInput
+                label="Abbreviation"
+                error={errors.abbreviation?.message}
+                placeholder="e.g. PAL"
+                {...register('abbreviation')}
+              />
+              <FormInput
+                label="Pallet Spaces"
+                type="number"
+                step="0.01"
+                min="0"
+                error={errors.palletSpaces?.message}
+                placeholder="Number of pallet spaces"
+                {...register('palletSpaces')}
+              />
+              <FormSelect
+                label="Charge By"
+                placeholder="Select option"
+                options={[
+                  { value: 'LPN', label: 'LPN' },
+                  { value: 'weight', label: 'Weight' },
+                  { value: 'cubic', label: 'Cubic' },
+                  { value: 'sqm', label: 'SQM' },
+                ]}
+                error={errors.whstoChargeBy?.message}
+                {...register('whstoChargeBy')}
+              />
+              <FormInput
+                label="Length (mm)"
+                type="number"
+                step="0.01"
+                min="0"
+                error={errors.lengthPerSU_mm?.message}
+                placeholder="Length in millimeters"
+                {...register('lengthPerSU_mm')}
+              />
+              <FormInput
+                label="Width (mm)"
+                type="number"
+                step="0.01"
+                min="0"
+                error={errors.widthPerSU_mm?.message}
+                placeholder="Width in millimeters"
+                {...register('widthPerSU_mm')}
+              />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingUnit ? 'Update Unit' : 'Create Unit'}
               </Button>
@@ -459,7 +465,7 @@ export default function StorageUnitsPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {unit.name}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"

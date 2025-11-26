@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { FormInput } from '@/components/ui/form-field'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -57,7 +61,7 @@ export default function PayingCustomersPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<TenantUser | null>(null)
+  const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [payingCustomers, setPayingCustomers] = useState<PayingCustomer[]>([])
   const [loadingPayingCustomers, setLoadingPayingCustomers] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -67,29 +71,64 @@ export default function PayingCustomersPage() {
 
   // Pagination state
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [limit] = useState(20)
   const [totalDocs, setTotalDocs] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    abn: '',
-    email: '',
-    contact_name: '',
-    contact_phone: '',
-    billing_street: '',
-    billing_city: '',
-    billing_state: '',
-    billing_postcode: '',
-    delivery_same_as_billing: false,
-    delivery_street: '',
-    delivery_city: '',
-    delivery_state: '',
-    delivery_postcode: '',
+  const payingCustomerSchema = z.object({
+    customer_name: z.string().min(1, 'Customer name is required'),
+    abn: z.string().optional(),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    contact_name: z.string().optional(),
+    contact_phone: z.string().optional(),
+    billing_street: z.string().optional(),
+    billing_city: z.string().optional(),
+    billing_state: z.string().optional(),
+    billing_postcode: z.string().optional(),
+    delivery_same_as_billing: z.boolean().default(false),
+    delivery_street: z.string().optional(),
+    delivery_city: z.string().optional(),
+    delivery_state: z.string().optional(),
+    delivery_postcode: z.string().optional(),
   })
+
+  type PayingCustomerFormData = z.infer<typeof payingCustomerSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<PayingCustomerFormData>({
+    resolver: zodResolver(payingCustomerSchema),
+    defaultValues: {
+      customer_name: '',
+      abn: '',
+      email: '',
+      contact_name: '',
+      contact_phone: '',
+      billing_street: '',
+      billing_city: '',
+      billing_state: '',
+      billing_postcode: '',
+      delivery_same_as_billing: false,
+      delivery_street: '',
+      delivery_city: '',
+      delivery_state: '',
+      delivery_postcode: '',
+    },
+  })
+
+  const deliverySameAsBilling = watch('delivery_same_as_billing')
+  const billingStreet = watch('billing_street')
+  const billingCity = watch('billing_city')
+  const billingState = watch('billing_state')
+  const billingPostcode = watch('billing_postcode')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -117,7 +156,7 @@ export default function PayingCustomersPage() {
           setCurrentUser(data.user)
           setAuthChecked(true)
         }
-      } catch (error) {
+      } catch (_error) {
         router.push('/dashboard')
       }
     }
@@ -131,25 +170,17 @@ export default function PayingCustomersPage() {
     if (authChecked) {
       loadPayingCustomers()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
   useEffect(() => {
-    if (formData.delivery_same_as_billing) {
-      setFormData((prev) => ({
-        ...prev,
-        delivery_street: prev.billing_street,
-        delivery_city: prev.billing_city,
-        delivery_state: prev.billing_state,
-        delivery_postcode: prev.billing_postcode,
-      }))
+    if (deliverySameAsBilling) {
+      setValue('delivery_street', billingStreet || '')
+      setValue('delivery_city', billingCity || '')
+      setValue('delivery_state', billingState || '')
+      setValue('delivery_postcode', billingPostcode || '')
     }
-  }, [
-    formData.delivery_same_as_billing,
-    formData.billing_street,
-    formData.billing_city,
-    formData.billing_state,
-    formData.billing_postcode,
-  ])
+  }, [deliverySameAsBilling, billingStreet, billingCity, billingState, billingPostcode, setValue])
 
   const loadPayingCustomers = async () => {
     try {
@@ -188,7 +219,7 @@ export default function PayingCustomersPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       customer_name: '',
       abn: '',
       email: '',
@@ -215,7 +246,7 @@ export default function PayingCustomersPage() {
   }
 
   const handleEditPayingCustomer = (payingCustomer: PayingCustomer) => {
-    setFormData({
+    reset({
       customer_name: payingCustomer.customer_name || '',
       abn: payingCustomer.abn || '',
       email: payingCustomer.email || '',
@@ -243,22 +274,16 @@ export default function PayingCustomersPage() {
     resetForm()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: PayingCustomerFormData) => {
     setError(null)
     setSuccess(null)
-
-    if (!formData.customer_name) {
-      setError('Customer name is required')
-      return
-    }
 
     try {
       if (editingPayingCustomer) {
         const res = await fetch(`/api/paying-customers/${editingPayingCustomer.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -268,14 +293,14 @@ export default function PayingCustomersPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update paying customer')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update paying customer')
         }
       } else {
         const res = await fetch('/api/paying-customers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -285,8 +310,8 @@ export default function PayingCustomersPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create paying customer')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create paying customer')
         }
       }
     } catch (error) {
@@ -384,174 +409,129 @@ export default function PayingCustomersPage() {
                 : 'Create a new paying customer'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="customer_name">Customer Name *</Label>
-                <Input
-                  id="customer_name"
-                  value={formData.customer_name}
-                  onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                  required
-                  placeholder="Customer name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="abn">ABN</Label>
-                <Input
-                  id="abn"
-                  value={formData.abn}
-                  onChange={(e) => setFormData({ ...formData, abn: e.target.value })}
-                  placeholder="Business number"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="customer@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_name">Contact Name</Label>
-                <Input
-                  id="contact_name"
-                  value={formData.contact_name}
-                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                  placeholder="Primary contact person"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_phone">Contact Phone</Label>
-                <Input
-                  id="contact_phone"
-                  type="tel"
-                  value={formData.contact_phone}
-                  onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                  placeholder="+61 2 XXXX XXXX"
-                />
-              </div>
+              <FormInput
+                label="Customer Name"
+                required
+                error={errors.customer_name?.message}
+                placeholder="Customer name"
+                {...register('customer_name')}
+              />
+              <FormInput
+                label="ABN"
+                error={errors.abn?.message}
+                placeholder="Business number"
+                {...register('abn')}
+              />
+              <FormInput
+                label="Email"
+                type="email"
+                error={errors.email?.message}
+                placeholder="customer@example.com"
+                {...register('email')}
+              />
+              <FormInput
+                label="Contact Name"
+                error={errors.contact_name?.message}
+                placeholder="Primary contact person"
+                {...register('contact_name')}
+              />
+              <FormInput
+                label="Contact Phone"
+                type="tel"
+                error={errors.contact_phone?.message}
+                placeholder="+61 2 XXXX XXXX"
+                {...register('contact_phone')}
+              />
             </div>
 
-            <div className="border-t pt-4">
+            <div className="border-t pt-4 md:pt-6">
               <h3 className="text-lg font-semibold mb-4">Billing Address</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="billing_street">Street</Label>
-                  <Input
-                    id="billing_street"
-                    value={formData.billing_street}
-                    onChange={(e) => setFormData({ ...formData, billing_street: e.target.value })}
-                    placeholder="Street address"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="billing_city">City</Label>
-                  <Input
-                    id="billing_city"
-                    value={formData.billing_city}
-                    onChange={(e) => setFormData({ ...formData, billing_city: e.target.value })}
-                    placeholder="City"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="billing_state">State</Label>
-                  <Input
-                    id="billing_state"
-                    value={formData.billing_state}
-                    onChange={(e) => setFormData({ ...formData, billing_state: e.target.value })}
-                    placeholder="State/Province"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="billing_postcode">Postcode</Label>
-                  <Input
-                    id="billing_postcode"
-                    value={formData.billing_postcode}
-                    onChange={(e) => setFormData({ ...formData, billing_postcode: e.target.value })}
-                    placeholder="Postal code"
-                  />
-                </div>
+                <FormInput
+                  label="Street"
+                  error={errors.billing_street?.message}
+                  placeholder="Street address"
+                  {...register('billing_street')}
+                />
+                <FormInput
+                  label="City"
+                  error={errors.billing_city?.message}
+                  placeholder="City"
+                  {...register('billing_city')}
+                />
+                <FormInput
+                  label="State"
+                  error={errors.billing_state?.message}
+                  placeholder="State/Province"
+                  {...register('billing_state')}
+                />
+                <FormInput
+                  label="Postcode"
+                  error={errors.billing_postcode?.message}
+                  placeholder="Postal code"
+                  {...register('billing_postcode')}
+                />
               </div>
             </div>
 
-            <div className="border-t pt-4">
+            <div className="border-t pt-4 md:pt-6">
               <div className="flex items-center space-x-2 mb-4">
                 <input
                   type="checkbox"
                   id="delivery_same_as_billing"
-                  checked={formData.delivery_same_as_billing}
-                  onChange={(e) =>
-                    setFormData({ ...formData, delivery_same_as_billing: e.target.checked })
-                  }
+                  {...register('delivery_same_as_billing')}
                   className="h-4 w-4 rounded border-gray-300"
                 />
                 <Label htmlFor="delivery_same_as_billing" className="cursor-pointer">
                   Delivery address same as billing address
                 </Label>
               </div>
-              {!formData.delivery_same_as_billing && (
+              {!deliverySameAsBilling && (
                 <>
                   <h3 className="text-lg font-semibold mb-4">Delivery Address</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="delivery_street">Street</Label>
-                      <Input
-                        id="delivery_street"
-                        value={formData.delivery_street}
-                        onChange={(e) =>
-                          setFormData({ ...formData, delivery_street: e.target.value })
-                        }
-                        placeholder="Street address"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="delivery_city">City</Label>
-                      <Input
-                        id="delivery_city"
-                        value={formData.delivery_city}
-                        onChange={(e) =>
-                          setFormData({ ...formData, delivery_city: e.target.value })
-                        }
-                        placeholder="City"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="delivery_state">State</Label>
-                      <Input
-                        id="delivery_state"
-                        value={formData.delivery_state}
-                        onChange={(e) =>
-                          setFormData({ ...formData, delivery_state: e.target.value })
-                        }
-                        placeholder="State/Province"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="delivery_postcode">Postcode</Label>
-                      <Input
-                        id="delivery_postcode"
-                        value={formData.delivery_postcode}
-                        onChange={(e) =>
-                          setFormData({ ...formData, delivery_postcode: e.target.value })
-                        }
-                        placeholder="Postal code"
-                      />
-                    </div>
+                    <FormInput
+                      label="Street"
+                      error={errors.delivery_street?.message}
+                      placeholder="Street address"
+                      {...register('delivery_street')}
+                    />
+                    <FormInput
+                      label="City"
+                      error={errors.delivery_city?.message}
+                      placeholder="City"
+                      {...register('delivery_city')}
+                    />
+                    <FormInput
+                      label="State"
+                      error={errors.delivery_state?.message}
+                      placeholder="State/Province"
+                      {...register('delivery_state')}
+                    />
+                    <FormInput
+                      label="Postcode"
+                      error={errors.delivery_postcode?.message}
+                      placeholder="Postal code"
+                      {...register('delivery_postcode')}
+                    />
                   </div>
                 </>
               )}
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingPayingCustomer ? 'Update Paying Customer' : 'Create Paying Customer'}
               </Button>
@@ -602,7 +582,7 @@ export default function PayingCustomersPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {payingCustomer.customer_name}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -635,7 +615,7 @@ export default function PayingCustomersPage() {
                         {payingCustomer.email && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Email:</span>
-                            <span className="break-words">{payingCustomer.email}</span>
+                            <span className="wrap-break-word">{payingCustomer.email}</span>
                           </div>
                         )}
                         {payingCustomer.contact_name && (
@@ -656,7 +636,7 @@ export default function PayingCustomersPage() {
                           payingCustomer.billing_postcode) && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Billing:</span>
-                            <span className="break-words">
+                            <span className="wrap-break-word">
                               {[
                                 payingCustomer.billing_street,
                                 payingCustomer.billing_city,

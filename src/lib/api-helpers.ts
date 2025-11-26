@@ -29,6 +29,10 @@ type PermissionString =
   | 'settings_entity_settings'
   | 'settings_user_settings'
   | 'settings_personalization'
+  | 'freight_view'
+  | 'freight_create'
+  | 'freight_edit'
+  | 'freight_delete'
 
 type PermissionChecker = (user: any) => boolean
 
@@ -47,7 +51,7 @@ type TenantContextResult =
  */
 export async function getTenantContext(
   request: NextRequest,
-  permissionCheck?: PermissionString | PermissionChecker | null
+  permissionCheck?: PermissionString | PermissionChecker | null,
 ): Promise<TenantContextResult> {
   const payload = await getPayload({ config })
   let subdomain = request.headers.get('x-tenant-subdomain')
@@ -102,9 +106,7 @@ export async function getTenantContext(
   // Verify user belongs to the tenant
   const tenantUser = user as { tenantId?: number | { id: number }; id?: number }
   const tenantUserId =
-    typeof tenantUser.tenantId === 'object'
-      ? tenantUser.tenantId.id
-      : tenantUser.tenantId
+    typeof tenantUser.tenantId === 'object' ? tenantUser.tenantId.id : tenantUser.tenantId
 
   if (tenantUserId !== tenant.id) {
     return { error: 'User does not belong to this tenant', status: 403 }
@@ -152,4 +154,3 @@ export async function getTenantContext(
 
   return { payload, tenant, currentUser: user }
 }
-

@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
         termsAcceptedAt: body.termsAcceptedAt ? new Date(body.termsAcceptedAt) : undefined,
         approved: false, // Default to not approved
         onboardingStep: 'submitted',
-        // Subdomain will be generated on approval (Phase 5)
+        // Subdomain can be provided by tenant, otherwise will be generated on approval
+        subdomain: body.subdomain || undefined,
       },
     })
 

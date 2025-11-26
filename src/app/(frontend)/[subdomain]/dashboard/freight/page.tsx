@@ -1,0 +1,221 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useTenant } from '@/lib/tenant-context'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Truck, Package, Plus } from 'lucide-react'
+import { hasViewPermission } from '@/lib/permissions'
+import Link from 'next/link'
+
+type InboundJob = {
+  id: number
+  expectedDate?: string
+  customerName?: string
+  warehouseId?: number | { id: number; name?: string }
+  createdAt: string
+}
+
+export default function FreightPage() {
+  const router = useRouter()
+  const { tenant, loading } = useTenant()
+  const [inboundJobs, setInboundJobs] = useState<InboundJob[]>([])
+  const [loadingJobs, setLoadingJobs] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id?: number; role?: number | string | { id: number; permissions?: Record<string, boolean> } } | null>(null)
+  const [activeTab, setActiveTab] = useState<'inbound' | 'outbound'>('inbound')
+
+  // Check tenant-user authentication and permissions
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/tenant-users/me')
+        if (!res.ok) {
+          router.push('/')
+          return
+        }
+        const data = await res.json()
+        if (data.success && data.user) {
+          const fullUserRes = await fetch(`/api/tenant-users/${data.user.id}?depth=1`)
+          if (fullUserRes.ok) {
+            const fullUserData = await fullUserRes.json()
+            if (fullUserData.success && fullUserData.user) {
+              setCurrentUser(fullUserData.user)
+              if (!hasViewPermission(fullUserData.user, 'freight')) {
+                router.push('/dashboard')
+                return
+              }
+            }
+          } else {
+            setCurrentUser(data.user)
+          }
+          setAuthChecked(true)
+        }
+      } catch (error) {
+        router.push('/')
+      }
+    }
+
+    if (!loading && tenant) {
+      checkAuth()
+    }
+  }, [loading, tenant, router])
+
+  useEffect(() => {
+    if (tenant && authChecked && activeTab === 'inbound') {
+      loadInboundJobs()
+    }
+  }, [tenant, authChecked, activeTab])
+
+  const loadInboundJobs = async () => {
+    try {
+      setLoadingJobs(true)
+      const res = await fetch('/api/inbound-inventory?limit=10')
+      if (res.ok) {
+        const data = await res.json()
+        setInboundJobs(data.jobs || [])
+      }
+    } catch (error) {
+      console.error('Error loading inbound jobs:', error)
+    } finally {
+      setLoadingJobs(false)
+    }
+  }
+
+  if (loading || !authChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!tenant) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Tenant not found</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Freight</h1>
+          <p className="text-muted-foreground">Manage inbound and outbound freight</p>
+        </div>
+        {activeTab === 'inbound' && (
+          <Link href="/dashboard/freight/inbound/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Inbound Job
+            </Button>
+          </Link>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-4 border-b">
+        <button
+          onClick={() => setActiveTab('inbound')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            activeTab === 'inbound'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Package className="h-4 w-4 inline mr-2" />
+          Inbound Freight
+        </button>
+        <button
+          onClick={() => setActiveTab('outbound')}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            activeTab === 'outbound'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Truck className="h-4 w-4 inline mr-2" />
+          Outbound Freight
+        </button>
+      </div>
+
+      {/* Content */}
+      {activeTab === 'inbound' ? (
+        <div className="space-y-4">
+          {loadingJobs ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">Loading jobs...</div>
+              </CardContent>
+            </Card>
+          ) : inboundJobs.length === 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No inbound jobs yet</p>
+                  <p className="mb-4">Create your first inbound freight job to get started.</p>
+                  <Link href="/dashboard/freight/inbound/new">
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Inbound Job
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {inboundJobs.map((job) => (
+                <Card key={job.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Job #{job.id}</CardTitle>
+                        <CardDescription>
+                          Expected: {job.expectedDate ? new Date(job.expectedDate).toLocaleDateString() : 'Not set'}
+                          {job.customerName && ` • ${job.customerName}`}
+                        </CardDescription>
+                      </div>
+                      <Link href={`/dashboard/freight/inbound/${job.id}`}>
+                        <Button variant="outline" size="sm">
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+              <div className="text-center">
+                <Link href="/dashboard/freight/inbound">
+                  <Button variant="outline">View All Inbound Jobs</Button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="py-12">
+            <div className="text-center text-muted-foreground">
+              <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium mb-2">Outbound Freight</p>
+              <p>Outbound freight functionality coming soon.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+
+
+
+
+
+
+

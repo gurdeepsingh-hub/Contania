@@ -28,6 +28,10 @@ type PermissionString =
   | 'settings_entity_settings'
   | 'settings_user_settings'
   | 'settings_personalization'
+  | 'freight_view'
+  | 'freight_create'
+  | 'freight_edit'
+  | 'freight_delete'
 
 type Section =
   | 'dashboard'
@@ -37,6 +41,7 @@ type Section =
   | 'map'
   | 'reports'
   | 'settings'
+  | 'freight'
 
 type PermissionGroup = {
   [key in PermissionString]?: boolean
@@ -99,6 +104,10 @@ export function getUserPermissions(user: UserWithRole | null | undefined): strin
     'settings_entity_settings',
     'settings_user_settings',
     'settings_personalization',
+    'freight_view',
+    'freight_create',
+    'freight_edit',
+    'freight_delete',
   ]
 
   return permissionKeys.filter((key) => permissions[key] === true)
@@ -109,7 +118,7 @@ export function getUserPermissions(user: UserWithRole | null | undefined): strin
  */
 export function hasPermission(
   user: UserWithRole | null | undefined,
-  permission: PermissionString
+  permission: PermissionString,
 ): boolean {
   if (!user || !user.role) {
     return false
@@ -127,10 +136,7 @@ export function hasPermission(
 /**
  * Check if user has any access to a section (has at least view permission)
  */
-export function canAccessSection(
-  user: UserWithRole | null | undefined,
-  section: Section
-): boolean {
+export function canAccessSection(user: UserWithRole | null | undefined, section: Section): boolean {
   return hasViewPermission(user, section)
 }
 
@@ -139,7 +145,7 @@ export function canAccessSection(
  */
 export function hasViewPermission(
   user: UserWithRole | null | undefined,
-  section: Section
+  section: Section,
 ): boolean {
   return hasPermission(user, `${section}_view` as PermissionString)
 }
@@ -149,7 +155,7 @@ export function hasViewPermission(
  */
 export function hasEditPermission(
   user: UserWithRole | null | undefined,
-  section: Section
+  section: Section,
 ): boolean {
   return hasPermission(user, `${section}_edit` as PermissionString)
 }
@@ -159,7 +165,7 @@ export function hasEditPermission(
  */
 export function hasCreatePermission(
   user: UserWithRole | null | undefined,
-  section: Section
+  section: Section,
 ): boolean {
   return hasPermission(user, `${section}_create` as PermissionString)
 }
@@ -169,7 +175,7 @@ export function hasCreatePermission(
  */
 export function hasDeletePermission(
   user: UserWithRole | null | undefined,
-  section: Section
+  section: Section,
 ): boolean {
   return hasPermission(user, `${section}_delete` as PermissionString)
 }
@@ -215,4 +221,3 @@ export function isAdmin(user: UserWithRole | null | undefined): boolean {
 
   return criticalPermissions.every((perm) => hasPermission(user, perm))
 }
-

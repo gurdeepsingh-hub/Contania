@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { FormInput } from '@/components/ui/form-field'
 import { Label } from '@/components/ui/label'
 import { Shield, Plus, Edit, Trash2, X, Save, ArrowLeft, Lock, AlertCircle } from 'lucide-react'
 import { canManageRoles } from '@/lib/permissions'
@@ -17,12 +20,6 @@ type Role = {
   isSystemRole?: boolean
   isActive?: boolean
   permissions?: Record<string, boolean>
-}
-
-type TenantUser = {
-  id?: number | string
-  role?: number | string | { id: number; permissions?: Record<string, boolean> }
-  [key: string]: unknown
 }
 
 const PERMISSION_SECTIONS = [
@@ -61,6 +58,15 @@ const PERMISSION_SECTIONS = [
     ],
   },
   {
+    section: 'Freight',
+    permissions: [
+      { key: 'freight_view', label: 'View Freight' },
+      { key: 'freight_create', label: 'Create Freight' },
+      { key: 'freight_edit', label: 'Edit Freight' },
+      { key: 'freight_delete', label: 'Delete Freight' },
+    ],
+  },
+  {
     section: 'Live Map',
     permissions: [
       { key: 'map_view', label: 'View Live Map' },
@@ -92,7 +98,6 @@ export default function UserRolesPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [roles, setRoles] = useState<Role[]>([])
   const [loadingRoles, setLoadingRoles] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -100,13 +105,40 @@ export default function UserRolesPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [checkingUsage, setCheckingUsage] = useState<number | null>(null)
+  const [isDevelopmentMode, setIsDevelopmentMode] = useState(false)
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    permissions: {} as Record<string, boolean>,
+  const roleSchema = z.object({
+    name: z
+      .string()
+      .min(1, 'Role name is required')
+      .max(100, 'Role name must be less than 100 characters'),
+    description: z
+      .string()
+      .max(500, 'Description must be less than 500 characters')
+      .optional()
+      .or(z.literal('')),
+    permissions: z.record(z.string(), z.boolean()),
   })
+
+  type RoleFormData = z.infer<typeof roleSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    reset,
+  } = useForm<RoleFormData>({
+    resolver: zodResolver(roleSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      permissions: {} as Record<string, boolean>,
+    },
+  })
+
+  const watchedPermissions = watch('permissions')
 
   // Check tenant-user authentication and permissions
   useEffect(() => {
@@ -123,7 +155,6 @@ export default function UserRolesPage() {
           if (fullUserRes.ok) {
             const fullUserData = await fullUserRes.json()
             if (fullUserData.success && fullUserData.user) {
-              setCurrentUser(fullUserData.user)
               if (!canManageRoles(fullUserData.user)) {
                 router.push('/dashboard/settings')
                 return
@@ -132,10 +163,9 @@ export default function UserRolesPage() {
               return
             }
           }
-          setCurrentUser(data.user)
           setAuthChecked(true)
         }
-      } catch (error) {
+      } catch {
         router.push('/dashboard')
       }
     }
@@ -148,6 +178,11 @@ export default function UserRolesPage() {
   useEffect(() => {
     if (authChecked) {
       loadRoles()
+      // Check if we're in development mode
+      setIsDevelopmentMode(
+        process.env.NODE_ENV === 'development' ||
+          (typeof window !== 'undefined' && window.location.hostname === 'localhost'),
+      )
     }
   }, [authChecked])
 
@@ -169,7 +204,7 @@ export default function UserRolesPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       description: '',
       permissions: {},
@@ -185,7 +220,7 @@ export default function UserRolesPage() {
   }
 
   const handleEditRole = (role: Role) => {
-    setFormData({
+    reset({
       name: role.name,
       description: role.description || '',
       permissions: role.permissions || {},
@@ -203,13 +238,8 @@ export default function UserRolesPage() {
   }
 
   const togglePermission = (permissionKey: string) => {
-    setFormData({
-      ...formData,
-      permissions: {
-        ...formData.permissions,
-        [permissionKey]: !formData.permissions[permissionKey],
-      },
-    })
+    const currentValue = watchedPermissions[permissionKey] || false
+    setValue(`permissions.${permissionKey}`, !currentValue, { shouldValidate: true })
   }
 
   const checkRoleUsage = async (roleId: number): Promise<boolean> => {
@@ -218,15 +248,18 @@ export default function UserRolesPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.users) {
-          const usersWithRole = data.users.filter((user: { role?: number | string | { id: number } }) => {
-            const role = user.role
-            const roleIdValue = typeof role === 'object' && role && 'id' in role
-              ? role.id
-              : typeof role === 'number' || typeof role === 'string'
-              ? Number(role)
-              : null
-            return roleIdValue === roleId
-          })
+          const usersWithRole = data.users.filter(
+            (user: { role?: number | string | { id: number } }) => {
+              const role = user.role
+              const roleIdValue =
+                typeof role === 'object' && role && 'id' in role
+                  ? role.id
+                  : typeof role === 'number' || typeof role === 'string'
+                    ? Number(role)
+                    : null
+              return roleIdValue === roleId
+            },
+          )
           return usersWithRole.length > 0
         }
       }
@@ -238,7 +271,7 @@ export default function UserRolesPage() {
   }
 
   const handleDeleteRole = async (role: Role) => {
-    if (role.isSystemRole) {
+    if (role.isSystemRole && !isDevelopmentMode) {
       setError('System roles cannot be deleted')
       return
     }
@@ -252,7 +285,11 @@ export default function UserRolesPage() {
       return
     }
 
-    if (!confirm(`Are you sure you want to delete the role "${role.name}"? This action cannot be undone.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete the role "${role.name}"? This action cannot be undone.`,
+      )
+    ) {
       return
     }
 
@@ -275,15 +312,9 @@ export default function UserRolesPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: RoleFormData) => {
     setError(null)
     setSuccess(null)
-
-    if (!formData.name.trim()) {
-      setError('Role name is required')
-      return
-    }
 
     try {
       if (editingRole) {
@@ -292,9 +323,9 @@ export default function UserRolesPage() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: formData.name,
-            description: formData.description,
-            permissions: formData.permissions,
+            name: data.name,
+            description: data.description,
+            permissions: data.permissions,
           }),
         })
 
@@ -305,8 +336,8 @@ export default function UserRolesPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update role')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update role')
         }
       } else {
         // Create role
@@ -314,9 +345,9 @@ export default function UserRolesPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: formData.name,
-            description: formData.description,
-            permissions: formData.permissions,
+            name: data.name,
+            description: data.description,
+            permissions: data.permissions,
           }),
         })
 
@@ -327,8 +358,8 @@ export default function UserRolesPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create role')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create role')
         }
       }
     } catch (error) {
@@ -357,11 +388,7 @@ export default function UserRolesPage() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => router.push('/dashboard/settings')}
-        >
+        <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/settings')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
@@ -387,7 +414,7 @@ export default function UserRolesPage() {
       )}
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 flex items-start gap-2">
-          <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
@@ -398,43 +425,43 @@ export default function UserRolesPage() {
           <CardHeader>
             <CardTitle>{editingRole ? 'Edit Role' : 'Add New Role'}</CardTitle>
             <CardDescription>
-              {editingRole && editingRole.isSystemRole && (
+              {editingRole && editingRole.isSystemRole && !isDevelopmentMode && (
                 <span className="text-amber-600 flex items-center gap-1">
                   <Lock className="h-4 w-4" />
                   This is a system role and cannot be edited
                 </span>
               )}
-              {editingRole 
-                ? editingRole.isSystemRole 
+              {editingRole && editingRole.isSystemRole && isDevelopmentMode && (
+                <span className="text-blue-600 flex items-center gap-1">
+                  <Lock className="h-4 w-4" />
+                  Development mode: System role editing enabled
+                </span>
+              )}
+              {editingRole
+                ? editingRole.isSystemRole && !isDevelopmentMode
                   ? 'System roles cannot be modified'
                   : 'Update role information and permissions'
                 : 'Create a new role for this tenant'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Role Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    disabled={editingRole?.isSystemRole}
-                    placeholder="e.g., Manager, Dispatcher"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    disabled={editingRole?.isSystemRole}
-                    placeholder="Optional role description"
-                  />
-                </div>
+                <FormInput
+                  label="Role Name"
+                  required
+                  error={errors.name?.message}
+                  disabled={editingRole?.isSystemRole && !isDevelopmentMode}
+                  placeholder="e.g., Manager, Dispatcher"
+                  {...register('name')}
+                />
+                <FormInput
+                  label="Description"
+                  error={errors.description?.message}
+                  disabled={editingRole?.isSystemRole && !isDevelopmentMode}
+                  placeholder="Optional role description"
+                  {...register('description')}
+                />
               </div>
 
               {/* Permissions Matrix */}
@@ -451,14 +478,14 @@ export default function UserRolesPage() {
                           {section.permissions.map((permission) => (
                             <label
                               key={permission.key}
-                              className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                              className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
                             >
                               <input
                                 type="checkbox"
-                                checked={formData.permissions[permission.key] || false}
+                                checked={Boolean(watchedPermissions?.[permission.key])}
                                 onChange={() => togglePermission(permission.key)}
-                                disabled={editingRole?.isSystemRole}
-                                className="h-4 w-4 rounded border-gray-300"
+                                disabled={editingRole?.isSystemRole && !isDevelopmentMode}
+                                className="h-4 w-4 rounded border-gray-300 cursor-pointer"
                               />
                               <span className="text-sm">{permission.label}</span>
                             </label>
@@ -475,7 +502,7 @@ export default function UserRolesPage() {
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                {!editingRole?.isSystemRole && (
+                {(!editingRole?.isSystemRole || isDevelopmentMode) && (
                   <Button type="submit">
                     <Save className="h-4 w-4 mr-2" />
                     {editingRole ? 'Update Role' : 'Create Role'}
@@ -500,7 +527,9 @@ export default function UserRolesPage() {
           {loadingRoles ? (
             <div className="text-center py-8 text-muted-foreground">Loading roles...</div>
           ) : roles.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No roles found. Create your first role to get started.</div>
+            <div className="text-center py-8 text-muted-foreground">
+              No roles found. Create your first role to get started.
+            </div>
           ) : (
             <div className="space-y-4">
               {roles.map((role) => (
@@ -510,14 +539,12 @@ export default function UserRolesPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="flex justify-center items-center rounded-full w-10 h-10 flex-shrink-0 bg-primary">
+                      <div className="flex justify-center items-center rounded-full w-10 h-10 shrink-0 bg-primary">
                         <Shield className="w-5 h-5 text-primary-foreground" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-lg truncate">
-                            {role.name}
-                          </h3>
+                          <h3 className="font-semibold text-lg truncate">{role.name}</h3>
                           {role.isSystemRole && (
                             <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-800 font-medium flex items-center gap-1">
                               <Lock className="h-3 w-3" />
@@ -535,7 +562,8 @@ export default function UserRolesPage() {
                         )}
                         <div className="mt-2">
                           <span className="text-xs text-muted-foreground">
-                            {Object.values(role.permissions || {}).filter(Boolean).length} permissions enabled
+                            {Object.values(role.permissions || {}).filter(Boolean).length}{' '}
+                            permissions enabled
                           </span>
                         </div>
                       </div>
@@ -547,14 +575,14 @@ export default function UserRolesPage() {
                       size="sm"
                       onClick={() => handleEditRole(role)}
                       className="min-h-[44px]"
-                      disabled={role.isSystemRole}
+                      disabled={role.isSystemRole && !isDevelopmentMode}
                     >
                       <Edit className="h-4 w-4 sm:mr-2" />
                       <span className="hidden sm:inline">
-                        {role.isSystemRole ? 'View' : 'Edit'}
+                        {role.isSystemRole && !isDevelopmentMode ? 'View' : 'Edit'}
                       </span>
                     </Button>
-                    {!role.isSystemRole && (
+                    {(!role.isSystemRole || isDevelopmentMode) && (
                       <Button
                         variant="destructive"
                         size="sm"
@@ -582,4 +610,3 @@ export default function UserRolesPage() {
     </div>
   )
 }
-

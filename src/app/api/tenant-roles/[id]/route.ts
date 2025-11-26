@@ -204,8 +204,9 @@ export async function PATCH(
       return NextResponse.json({ message: 'Role does not belong to this tenant' }, { status: 403 })
     }
 
-    // Prevent editing system roles (unless super admin)
-    if ((existingRole as { isSystemRole?: boolean }).isSystemRole && !isSuperAdmin) {
+    // Prevent editing system roles (unless super admin or in development mode)
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+    if ((existingRole as { isSystemRole?: boolean }).isSystemRole && !isSuperAdmin && !isDevelopment) {
       return NextResponse.json({ message: 'System roles cannot be edited' }, { status: 403 })
     }
 
@@ -342,8 +343,9 @@ export async function DELETE(
       return NextResponse.json({ message: 'Role does not belong to this tenant' }, { status: 403 })
     }
 
-    // Prevent deleting system roles (unless super admin)
-    if ((existingRole as { isSystemRole?: boolean }).isSystemRole && !isSuperAdmin) {
+    // Prevent deleting system roles (unless super admin or in development mode)
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+    if ((existingRole as { isSystemRole?: boolean }).isSystemRole && !isSuperAdmin && !isDevelopment) {
       return NextResponse.json({ message: 'System roles cannot be deleted' }, { status: 403 })
     }
 

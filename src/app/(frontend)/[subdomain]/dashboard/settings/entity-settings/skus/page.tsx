@@ -1,12 +1,16 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { FormInput, FormSelect, FormTextarea } from '@/components/ui/form-field'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -83,7 +87,7 @@ export default function SKUsPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<TenantUser | null>(null)
+  const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [skus, setSkus] = useState<SKU[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [storageUnits, setStorageUnits] = useState<StorageUnit[]>([])
@@ -110,37 +114,75 @@ export default function SKUsPage() {
 
   // Pagination state
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [limit] = useState(20)
   const [totalDocs, setTotalDocs] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    skuCode: '',
-    description: '',
-    customerId: '',
-    storageUnitId: '',
-    handlingUnitId: '',
-    huPerSu: '',
-    receiveHU: '',
-    pickHU: '',
-    pickStrategy: '',
-    lengthPerHU_mm: '',
-    widthPerHU_mm: '',
-    heightPerHU_mm: '',
-    weightPerHU_kg: '',
-    casesPerLayer: '',
-    layersPerPallet: '',
-    casesPerPallet: '',
-    eachsPerCase: '',
-    isExpriy: false,
-    isAttribute1: false,
-    isAttribute2: false,
-    expiryDate: '',
-    attribute1: '',
-    attribute2: '',
+  const skuSchema = z.object({
+    skuCode: z.string().min(1, 'SKU code is required'),
+    description: z.string().optional(),
+    customerId: z.string().optional(),
+    storageUnitId: z.string().min(1, 'Storage Unit is required'),
+    handlingUnitId: z.string().min(1, 'Handling Unit is required'),
+    huPerSu: z.string().optional(),
+    receiveHU: z.string().optional(),
+    pickHU: z.string().optional(),
+    pickStrategy: z.string().optional(),
+    lengthPerHU_mm: z.string().optional(),
+    widthPerHU_mm: z.string().optional(),
+    heightPerHU_mm: z.string().optional(),
+    weightPerHU_kg: z.string().optional(),
+    casesPerLayer: z.string().optional(),
+    layersPerPallet: z.string().optional(),
+    casesPerPallet: z.string().optional(),
+    eachsPerCase: z.string().optional(),
+    isExpriy: z.boolean().default(false),
+    isAttribute1: z.boolean().default(false),
+    isAttribute2: z.boolean().default(false),
+    expiryDate: z.string().optional(),
+    attribute1: z.string().optional(),
+    attribute2: z.string().optional(),
+  })
+
+  type SKUFormData = z.infer<typeof skuSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<SKUFormData>({
+    resolver: zodResolver(skuSchema),
+    defaultValues: {
+      skuCode: '',
+      description: '',
+      customerId: '',
+      storageUnitId: '',
+      handlingUnitId: '',
+      huPerSu: '',
+      receiveHU: '',
+      pickHU: '',
+      pickStrategy: '',
+      lengthPerHU_mm: '',
+      widthPerHU_mm: '',
+      heightPerHU_mm: '',
+      weightPerHU_kg: '',
+      casesPerLayer: '',
+      layersPerPallet: '',
+      casesPerPallet: '',
+      eachsPerCase: '',
+      isExpriy: false,
+      isAttribute1: false,
+      isAttribute2: false,
+      expiryDate: '',
+      attribute1: '',
+      attribute2: '',
+    },
   })
 
   // Track which fields were auto-calculated to allow manual override
@@ -151,6 +193,15 @@ export default function SKUsPage() {
   useEffect(() => {
     autoCalculatedFieldsRef.current = autoCalculatedFields
   }, [autoCalculatedFields])
+
+  // Watch form values for auto-calculation
+  const watchedCasesPerLayer = watch('casesPerLayer')
+  const watchedLayersPerPallet = watch('layersPerPallet')
+  const watchedHuPerSu = watch('huPerSu')
+  const watchedCasesPerPallet = watch('casesPerPallet')
+  const watchedIsExpriy = watch('isExpriy')
+  const watchedIsAttribute1 = watch('isAttribute1')
+  const watchedIsAttribute2 = watch('isAttribute2')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -178,7 +229,7 @@ export default function SKUsPage() {
           setCurrentUser(data.user)
           setAuthChecked(true)
         }
-      } catch (error) {
+      } catch (_error) {
         router.push('/dashboard')
       }
     }
@@ -193,12 +244,13 @@ export default function SKUsPage() {
       loadSKUs()
       loadRelations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
   // Auto-calculate casesPerPallet when casesPerLayer or layersPerPallet changes
   useEffect(() => {
-    const casesPerLayer = formData.casesPerLayer ? Number(formData.casesPerLayer) : null
-    const layersPerPallet = formData.layersPerPallet ? Number(formData.layersPerPallet) : null
+    const casesPerLayer = watchedCasesPerLayer ? Number(watchedCasesPerLayer) : null
+    const layersPerPallet = watchedLayersPerPallet ? Number(watchedLayersPerPallet) : null
     const isAutoCalculated = autoCalculatedFieldsRef.current.has('casesPerPallet')
 
     // Only auto-calculate if both values are available and valid
@@ -209,48 +261,48 @@ export default function SKUsPage() {
       layersPerPallet > 0
     ) {
       // Only update if field is empty or was previously auto-calculated
-      if (!formData.casesPerPallet || isAutoCalculated) {
+      if (!watchedCasesPerPallet || isAutoCalculated) {
         const calculated = casesPerLayer * layersPerPallet
-        setFormData((prev) => ({ ...prev, casesPerPallet: String(calculated) }))
+        setValue('casesPerPallet', String(calculated), { shouldValidate: false })
         setAutoCalculatedFields((prev) => new Set(prev).add('casesPerPallet'))
       }
-    } else if (formData.casesPerPallet && isAutoCalculated) {
+    } else if (watchedCasesPerPallet && isAutoCalculated) {
       // Clear if dependencies are removed
-      setFormData((prev) => ({ ...prev, casesPerPallet: '' }))
+      setValue('casesPerPallet', '', { shouldValidate: false })
       setAutoCalculatedFields((prev) => {
         const newSet = new Set(prev)
         newSet.delete('casesPerPallet')
         return newSet
       })
     }
-  }, [formData.casesPerLayer, formData.layersPerPallet, formData.casesPerPallet])
+  }, [watchedCasesPerLayer, watchedLayersPerPallet, watchedCasesPerPallet, setValue])
 
   // Auto-calculate layersPerPallet when huPerSu and casesPerLayer are both available
   useEffect(() => {
-    const huPerSu = formData.huPerSu ? Number(formData.huPerSu) : null
-    const casesPerLayer = formData.casesPerLayer ? Number(formData.casesPerLayer) : null
+    const huPerSu = watchedHuPerSu ? Number(watchedHuPerSu) : null
+    const casesPerLayer = watchedCasesPerLayer ? Number(watchedCasesPerLayer) : null
     const isAutoCalculated = autoCalculatedFieldsRef.current.has('layersPerPallet')
 
     // Only auto-calculate if both values are available and valid
     if (huPerSu !== null && casesPerLayer !== null && huPerSu > 0 && casesPerLayer > 0) {
       // Only update if field is empty or was previously auto-calculated
-      if (!formData.layersPerPallet || isAutoCalculated) {
+      if (!watchedLayersPerPallet || isAutoCalculated) {
         const calculated = Math.floor(huPerSu / casesPerLayer)
         if (calculated > 0) {
-          setFormData((prev) => ({ ...prev, layersPerPallet: String(calculated) }))
+          setValue('layersPerPallet', String(calculated), { shouldValidate: false })
           setAutoCalculatedFields((prev) => new Set(prev).add('layersPerPallet'))
         }
       }
-    } else if (formData.layersPerPallet && isAutoCalculated) {
+    } else if (watchedLayersPerPallet && isAutoCalculated) {
       // Clear if dependencies are removed
-      setFormData((prev) => ({ ...prev, layersPerPallet: '' }))
+      setValue('layersPerPallet', '', { shouldValidate: false })
       setAutoCalculatedFields((prev) => {
         const newSet = new Set(prev)
         newSet.delete('layersPerPallet')
         return newSet
       })
     }
-  }, [formData.huPerSu, formData.casesPerLayer, formData.layersPerPallet])
+  }, [watchedHuPerSu, watchedCasesPerLayer, watchedLayersPerPallet, setValue])
 
   const loadRelations = async () => {
     try {
@@ -339,7 +391,7 @@ export default function SKUsPage() {
         const data = await res.json()
         if (data.success && data.customer) {
           await loadRelations()
-          setFormData({ ...formData, customerId: String(data.customer.id) })
+          setValue('customerId', String(data.customer.id))
           setShowQuickCreateCustomer(false)
           setQuickCreateData({
             name: '',
@@ -389,7 +441,7 @@ export default function SKUsPage() {
         const data = await res.json()
         if (data.success && data.storageUnit) {
           await loadRelations()
-          setFormData({ ...formData, storageUnitId: String(data.storageUnit.id) })
+          setValue('storageUnitId', String(data.storageUnit.id))
           setShowQuickCreateStorageUnit(false)
           setQuickCreateData({
             name: '',
@@ -429,7 +481,7 @@ export default function SKUsPage() {
         const data = await res.json()
         if (data.success && data.handlingUnit) {
           await loadRelations()
-          setFormData({ ...formData, handlingUnitId: String(data.handlingUnit.id) })
+          setValue('handlingUnitId', String(data.handlingUnit.id))
           setShowQuickCreateHandlingUnit(false)
           setQuickCreateData({
             name: '',
@@ -452,7 +504,7 @@ export default function SKUsPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       skuCode: '',
       description: '',
       customerId: '',
@@ -510,7 +562,7 @@ export default function SKUsPage() {
           ? String(sku.handlingUnitId)
           : ''
 
-    setFormData({
+    reset({
       skuCode: sku.skuCode || '',
       description: sku.description || '',
       customerId,
@@ -547,41 +599,35 @@ export default function SKUsPage() {
     resetForm()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: SKUFormData) => {
     setError(null)
     setSuccess(null)
 
-    if (!formData.skuCode || !formData.storageUnitId || !formData.handlingUnitId) {
-      setError('SKU code, Storage Unit, and Handling Unit are required')
-      return
-    }
-
     try {
       const submitData: Record<string, unknown> = {
-        skuCode: formData.skuCode,
-        description: formData.description || undefined,
-        customerId: formData.customerId ? Number(formData.customerId) : undefined,
-        storageUnitId: Number(formData.storageUnitId),
-        handlingUnitId: Number(formData.handlingUnitId),
-        huPerSu: formData.huPerSu ? Number(formData.huPerSu) : undefined,
-        receiveHU: formData.receiveHU || undefined,
-        pickHU: formData.pickHU || undefined,
-        pickStrategy: formData.pickStrategy || undefined,
-        lengthPerHU_mm: formData.lengthPerHU_mm ? Number(formData.lengthPerHU_mm) : undefined,
-        widthPerHU_mm: formData.widthPerHU_mm ? Number(formData.widthPerHU_mm) : undefined,
-        heightPerHU_mm: formData.heightPerHU_mm ? Number(formData.heightPerHU_mm) : undefined,
-        weightPerHU_kg: formData.weightPerHU_kg ? Number(formData.weightPerHU_kg) : undefined,
-        casesPerLayer: formData.casesPerLayer ? Number(formData.casesPerLayer) : undefined,
-        layersPerPallet: formData.layersPerPallet ? Number(formData.layersPerPallet) : undefined,
-        casesPerPallet: formData.casesPerPallet ? Number(formData.casesPerPallet) : undefined,
-        eachsPerCase: formData.eachsPerCase ? Number(formData.eachsPerCase) : undefined,
-        isExpriy: formData.isExpriy,
-        isAttribute1: formData.isAttribute1,
-        isAttribute2: formData.isAttribute2,
-        expiryDate: formData.expiryDate || undefined,
-        attribute1: formData.attribute1 || undefined,
-        attribute2: formData.attribute2 || undefined,
+        skuCode: data.skuCode,
+        description: data.description || undefined,
+        customerId: data.customerId ? Number(data.customerId) : undefined,
+        storageUnitId: Number(data.storageUnitId),
+        handlingUnitId: Number(data.handlingUnitId),
+        huPerSu: data.huPerSu ? Number(data.huPerSu) : undefined,
+        receiveHU: data.receiveHU || undefined,
+        pickHU: data.pickHU || undefined,
+        pickStrategy: data.pickStrategy || undefined,
+        lengthPerHU_mm: data.lengthPerHU_mm ? Number(data.lengthPerHU_mm) : undefined,
+        widthPerHU_mm: data.widthPerHU_mm ? Number(data.widthPerHU_mm) : undefined,
+        heightPerHU_mm: data.heightPerHU_mm ? Number(data.heightPerHU_mm) : undefined,
+        weightPerHU_kg: data.weightPerHU_kg ? Number(data.weightPerHU_kg) : undefined,
+        casesPerLayer: data.casesPerLayer ? Number(data.casesPerLayer) : undefined,
+        layersPerPallet: data.layersPerPallet ? Number(data.layersPerPallet) : undefined,
+        casesPerPallet: data.casesPerPallet ? Number(data.casesPerPallet) : undefined,
+        eachsPerCase: data.eachsPerCase ? Number(data.eachsPerCase) : undefined,
+        isExpriy: data.isExpriy,
+        isAttribute1: data.isAttribute1,
+        isAttribute2: data.isAttribute2,
+        expiryDate: data.expiryDate || undefined,
+        attribute1: data.attribute1 || undefined,
+        attribute2: data.attribute2 || undefined,
       }
 
       if (editingSku) {
@@ -598,8 +644,8 @@ export default function SKUsPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update SKU')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update SKU')
         }
       } else {
         const res = await fetch('/api/skus', {
@@ -615,8 +661,8 @@ export default function SKUsPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create SKU')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create SKU')
         }
       }
     } catch (error) {
@@ -736,20 +782,17 @@ export default function SKUsPage() {
               {editingSku ? 'Update SKU information' : 'Create a new SKU'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="SKU Code"
+                required
+                error={errors.skuCode?.message}
+                placeholder="Unique SKU identifier"
+                {...register('skuCode')}
+              />
               <div>
-                <Label htmlFor="skuCode">SKU Code *</Label>
-                <Input
-                  id="skuCode"
-                  value={formData.skuCode}
-                  onChange={(e) => setFormData({ ...formData, skuCode: e.target.value })}
-                  required
-                  placeholder="Unique SKU identifier"
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 mb-2">
                   <Label htmlFor="customerId">Customer</Label>
                   <Button
                     type="button"
@@ -762,22 +805,17 @@ export default function SKUsPage() {
                     New
                   </Button>
                 </div>
-                <select
-                  id="customerId"
-                  value={formData.customerId}
-                  onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                >
-                  <option value="">Select customer</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.customer_name}
-                    </option>
-                  ))}
-                </select>
+                <FormSelect
+                  label=""
+                  placeholder="Select customer"
+                  options={customers.map((c) => ({ value: String(c.id), label: c.customer_name }))}
+                  error={errors.customerId?.message}
+                  {...register('customerId')}
+                  containerClassName="mb-0"
+                />
               </div>
               <div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 mb-2">
                   <Label htmlFor="storageUnitId">Storage Unit *</Label>
                   <Button
                     type="button"
@@ -790,23 +828,18 @@ export default function SKUsPage() {
                     New
                   </Button>
                 </div>
-                <select
-                  id="storageUnitId"
-                  value={formData.storageUnitId}
-                  onChange={(e) => setFormData({ ...formData, storageUnitId: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                <FormSelect
+                  label=""
                   required
-                >
-                  <option value="">Select storage unit</option>
-                  {storageUnits.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select storage unit"
+                  options={storageUnits.map((u) => ({ value: String(u.id), label: u.name }))}
+                  error={errors.storageUnitId?.message}
+                  {...register('storageUnitId')}
+                  containerClassName="mb-0"
+                />
               </div>
               <div>
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 mb-2">
                   <Label htmlFor="handlingUnitId">Handling Unit *</Label>
                   <Button
                     type="button"
@@ -819,41 +852,32 @@ export default function SKUsPage() {
                     New
                   </Button>
                 </div>
-                <select
-                  id="handlingUnitId"
-                  value={formData.handlingUnitId}
-                  onChange={(e) => setFormData({ ...formData, handlingUnitId: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                <FormSelect
+                  label=""
                   required
-                >
-                  <option value="">Select handling unit</option>
-                  {handlingUnits.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <Label htmlFor="description">Description</Label>
-                <textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                  placeholder="Detailed product description"
+                  placeholder="Select handling unit"
+                  options={handlingUnits.map((u) => ({ value: String(u.id), label: u.name }))}
+                  error={errors.handlingUnitId?.message}
+                  {...register('handlingUnitId')}
+                  containerClassName="mb-0"
                 />
               </div>
-              <div>
-                <Label htmlFor="huPerSu">HU per SU</Label>
-                <Input
-                  id="huPerSu"
-                  type="number"
-                  step="0.01"
-                  value={formData.huPerSu}
-                  onChange={(e) => {
-                    setFormData({ ...formData, huPerSu: e.target.value })
-                    // Remove auto-calculated flag if user manually edits
+              <div className="md:col-span-2">
+                <FormTextarea
+                  label="Description"
+                  error={errors.description?.message}
+                  placeholder="Detailed product description"
+                  {...register('description')}
+                />
+              </div>
+              <FormInput
+                label="HU per SU"
+                type="number"
+                step="0.01"
+                error={errors.huPerSu?.message}
+                placeholder="Number of handling units per storage unit"
+                {...register('huPerSu', {
+                  onChange: () => {
                     if (autoCalculatedFields.has('layersPerPallet')) {
                       setAutoCalculatedFields((prev) => {
                         const newSet = new Set(prev)
@@ -861,102 +885,78 @@ export default function SKUsPage() {
                         return newSet
                       })
                     }
-                  }}
-                  placeholder="Number of handling units per storage unit"
-                />
-              </div>
-              <div>
-                <Label htmlFor="receiveHU">Receive HU</Label>
-                <select
-                  id="receiveHU"
-                  value={formData.receiveHU}
-                  onChange={(e) => setFormData({ ...formData, receiveHU: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                >
-                  <option value="">Select option</option>
-                  <option value="YES">YES</option>
-                  <option value="NO">NO</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="pickHU">Pick HU</Label>
-                <select
-                  id="pickHU"
-                  value={formData.pickHU}
-                  onChange={(e) => setFormData({ ...formData, pickHU: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                >
-                  <option value="">Select option</option>
-                  <option value="YES">YES</option>
-                  <option value="NO">NO</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="pickStrategy">Pick Strategy</Label>
-                <select
-                  id="pickStrategy"
-                  value={formData.pickStrategy}
-                  onChange={(e) => setFormData({ ...formData, pickStrategy: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-                >
-                  <option value="">Select strategy</option>
-                  <option value="FIFO">FIFO</option>
-                  <option value="FEFO">FEFO</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="lengthPerHU_mm">Length per HU (mm)</Label>
-                <Input
-                  id="lengthPerHU_mm"
-                  type="number"
-                  step="0.01"
-                  value={formData.lengthPerHU_mm}
-                  onChange={(e) => setFormData({ ...formData, lengthPerHU_mm: e.target.value })}
-                  placeholder="Length in millimeters"
-                />
-              </div>
-              <div>
-                <Label htmlFor="widthPerHU_mm">Width per HU (mm)</Label>
-                <Input
-                  id="widthPerHU_mm"
-                  type="number"
-                  step="0.01"
-                  value={formData.widthPerHU_mm}
-                  onChange={(e) => setFormData({ ...formData, widthPerHU_mm: e.target.value })}
-                  placeholder="Width in millimeters"
-                />
-              </div>
-              <div>
-                <Label htmlFor="heightPerHU_mm">Height per HU (mm)</Label>
-                <Input
-                  id="heightPerHU_mm"
-                  type="number"
-                  step="0.01"
-                  value={formData.heightPerHU_mm}
-                  onChange={(e) => setFormData({ ...formData, heightPerHU_mm: e.target.value })}
-                  placeholder="Height in millimeters"
-                />
-              </div>
-              <div>
-                <Label htmlFor="weightPerHU_kg">Weight per HU (kg)</Label>
-                <Input
-                  id="weightPerHU_kg"
-                  type="number"
-                  step="0.01"
-                  value={formData.weightPerHU_kg}
-                  onChange={(e) => setFormData({ ...formData, weightPerHU_kg: e.target.value })}
-                  placeholder="Weight in kilograms"
-                />
-              </div>
-              <div>
-                <Label htmlFor="casesPerLayer">Cases per Layer</Label>
-                <Input
-                  id="casesPerLayer"
-                  type="number"
-                  value={formData.casesPerLayer}
-                  onChange={(e) => {
-                    setFormData({ ...formData, casesPerLayer: e.target.value })
-                    // Remove auto-calculated flag if user manually edits
+                  },
+                })}
+              />
+              <FormSelect
+                label="Receive HU"
+                placeholder="Select option"
+                options={[
+                  { value: 'YES', label: 'YES' },
+                  { value: 'NO', label: 'NO' },
+                ]}
+                error={errors.receiveHU?.message}
+                {...register('receiveHU')}
+              />
+              <FormSelect
+                label="Pick HU"
+                placeholder="Select option"
+                options={[
+                  { value: 'YES', label: 'YES' },
+                  { value: 'NO', label: 'NO' },
+                ]}
+                error={errors.pickHU?.message}
+                {...register('pickHU')}
+              />
+              <FormSelect
+                label="Pick Strategy"
+                placeholder="Select strategy"
+                options={[
+                  { value: 'FIFO', label: 'FIFO' },
+                  { value: 'FEFO', label: 'FEFO' },
+                ]}
+                error={errors.pickStrategy?.message}
+                {...register('pickStrategy')}
+              />
+              <FormInput
+                label="Length per HU (mm)"
+                type="number"
+                step="0.01"
+                error={errors.lengthPerHU_mm?.message}
+                placeholder="Length in millimeters"
+                {...register('lengthPerHU_mm')}
+              />
+              <FormInput
+                label="Width per HU (mm)"
+                type="number"
+                step="0.01"
+                error={errors.widthPerHU_mm?.message}
+                placeholder="Width in millimeters"
+                {...register('widthPerHU_mm')}
+              />
+              <FormInput
+                label="Height per HU (mm)"
+                type="number"
+                step="0.01"
+                error={errors.heightPerHU_mm?.message}
+                placeholder="Height in millimeters"
+                {...register('heightPerHU_mm')}
+              />
+              <FormInput
+                label="Weight per HU (kg)"
+                type="number"
+                step="0.01"
+                error={errors.weightPerHU_kg?.message}
+                placeholder="Weight in kilograms"
+                {...register('weightPerHU_kg')}
+              />
+              <FormInput
+                label="Cases per Layer"
+                type="number"
+                error={errors.casesPerLayer?.message}
+                placeholder="Number of cases"
+                {...register('casesPerLayer', {
+                  onChange: () => {
                     if (
                       autoCalculatedFields.has('layersPerPallet') ||
                       autoCalculatedFields.has('casesPerPallet')
@@ -968,19 +968,16 @@ export default function SKUsPage() {
                         return newSet
                       })
                     }
-                  }}
-                  placeholder="Number of cases"
-                />
-              </div>
-              <div>
-                <Label htmlFor="layersPerPallet">Layers per Pallet</Label>
-                <Input
-                  id="layersPerPallet"
-                  type="number"
-                  value={formData.layersPerPallet}
-                  onChange={(e) => {
-                    setFormData({ ...formData, layersPerPallet: e.target.value })
-                    // Remove auto-calculated flag if user manually edits
+                  },
+                })}
+              />
+              <FormInput
+                label="Layers per Pallet"
+                type="number"
+                error={errors.layersPerPallet?.message}
+                placeholder="Number of layers"
+                {...register('layersPerPallet', {
+                  onChange: () => {
                     if (autoCalculatedFields.has('layersPerPallet')) {
                       setAutoCalculatedFields((prev) => {
                         const newSet = new Set(prev)
@@ -995,19 +992,16 @@ export default function SKUsPage() {
                         return newSet
                       })
                     }
-                  }}
-                  placeholder="Number of layers"
-                />
-              </div>
-              <div>
-                <Label htmlFor="casesPerPallet">Cases per Pallet</Label>
-                <Input
-                  id="casesPerPallet"
-                  type="number"
-                  value={formData.casesPerPallet}
-                  onChange={(e) => {
-                    setFormData({ ...formData, casesPerPallet: e.target.value })
-                    // Remove auto-calculated flag if user manually edits
+                  },
+                })}
+              />
+              <FormInput
+                label="Cases per Pallet"
+                type="number"
+                error={errors.casesPerPallet?.message}
+                placeholder="Number of cases"
+                {...register('casesPerPallet', {
+                  onChange: () => {
                     if (autoCalculatedFields.has('casesPerPallet')) {
                       setAutoCalculatedFields((prev) => {
                         const newSet = new Set(prev)
@@ -1015,64 +1009,53 @@ export default function SKUsPage() {
                         return newSet
                       })
                     }
-                  }}
-                  placeholder="Number of cases"
-                />
-              </div>
-              <div>
-                <Label htmlFor="eachsPerCase">Eachs per Case</Label>
-                <Input
-                  id="eachsPerCase"
-                  type="number"
-                  value={formData.eachsPerCase}
-                  onChange={(e) => setFormData({ ...formData, eachsPerCase: e.target.value })}
-                  placeholder="Number of units"
-                />
-              </div>
+                  },
+                })}
+              />
+              <FormInput
+                label="Eachs per Case"
+                type="number"
+                error={errors.eachsPerCase?.message}
+                placeholder="Number of units"
+                {...register('eachsPerCase')}
+              />
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2">
                   <input
                     id="isExpriy"
                     type="checkbox"
-                    checked={formData.isExpriy}
-                    onChange={(e) => setFormData({ ...formData, isExpriy: e.target.checked })}
+                    {...register('isExpriy')}
                     className="h-4 w-4 rounded border-gray-300"
                   />
                   <Label htmlFor="isExpriy">Enable Expiry Date</Label>
                 </div>
               </div>
-              {formData.isExpriy && (
-                <div>
-                  <Label htmlFor="expiryDate">Expiry Date</Label>
-                  <Input
-                    id="expiryDate"
-                    type="date"
-                    value={formData.expiryDate}
-                    onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                  />
-                </div>
+              {watchedIsExpriy && (
+                <FormInput
+                  label="Expiry Date"
+                  type="date"
+                  error={errors.expiryDate?.message}
+                  {...register('expiryDate')}
+                />
               )}
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2">
                   <input
                     id="isAttribute1"
                     type="checkbox"
-                    checked={formData.isAttribute1}
-                    onChange={(e) => setFormData({ ...formData, isAttribute1: e.target.checked })}
+                    {...register('isAttribute1')}
                     className="h-4 w-4 rounded border-gray-300"
                   />
                   <Label htmlFor="isAttribute1">Enable Attribute 1</Label>
                 </div>
               </div>
-              {formData.isAttribute1 && (
+              {watchedIsAttribute1 && (
                 <div className="md:col-span-2">
-                  <Label htmlFor="attribute1">Attribute 1</Label>
-                  <textarea
-                    id="attribute1"
-                    value={formData.attribute1}
-                    onChange={(e) => setFormData({ ...formData, attribute1: e.target.value })}
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  <FormTextarea
+                    label="Attribute 1"
+                    error={errors.attribute1?.message}
                     placeholder="Extra notes"
+                    {...register('attribute1')}
                   />
                 </div>
               )}
@@ -1081,32 +1064,34 @@ export default function SKUsPage() {
                   <input
                     id="isAttribute2"
                     type="checkbox"
-                    checked={formData.isAttribute2}
-                    onChange={(e) => setFormData({ ...formData, isAttribute2: e.target.checked })}
+                    {...register('isAttribute2')}
                     className="h-4 w-4 rounded border-gray-300"
                   />
                   <Label htmlFor="isAttribute2">Enable Attribute 2</Label>
                 </div>
               </div>
-              {formData.isAttribute2 && (
+              {watchedIsAttribute2 && (
                 <div className="md:col-span-2">
-                  <Label htmlFor="attribute2">Attribute 2</Label>
-                  <textarea
-                    id="attribute2"
-                    value={formData.attribute2}
-                    onChange={(e) => setFormData({ ...formData, attribute2: e.target.value })}
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                  <FormTextarea
+                    label="Attribute 2"
+                    error={errors.attribute2?.message}
                     placeholder="Extra notes"
+                    {...register('attribute2')}
                   />
                 </div>
               )}
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingSku ? 'Update SKU' : 'Create SKU'}
               </Button>
@@ -1154,7 +1139,7 @@ export default function SKUsPage() {
                       whstoChargeBy: '',
                     })
                   }}
-                  className="flex-shrink-0 min-h-[44px] min-w-[44px]"
+                  className="shrink-0 min-h-[44px] min-w-[44px]"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -1238,7 +1223,7 @@ export default function SKUsPage() {
                       whstoChargeBy: '',
                     })
                   }}
-                  className="flex-shrink-0 min-h-[44px] min-w-[44px]"
+                  className="shrink-0 min-h-[44px] min-w-[44px]"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -1333,7 +1318,7 @@ export default function SKUsPage() {
                       whstoChargeBy: '',
                     })
                   }}
-                  className="flex-shrink-0 min-h-[44px] min-w-[44px]"
+                  className="shrink-0 min-h-[44px] min-w-[44px]"
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -1427,7 +1412,7 @@ export default function SKUsPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {sku.skuCode}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1458,17 +1443,17 @@ export default function SKUsPage() {
                         )}
                         <div className="flex items-start gap-2">
                           <span className="font-medium min-w-[100px]">Customer:</span>
-                          <span className="break-words">{getCustomerName(sku.customerId)}</span>
+                          <span className="wrap-break-word">{getCustomerName(sku.customerId)}</span>
                         </div>
                         <div className="flex items-start gap-2">
                           <span className="font-medium min-w-[100px]">Storage Unit:</span>
-                          <span className="break-words">
+                          <span className="wrap-break-word">
                             {getStorageUnitName(sku.storageUnitId)}
                           </span>
                         </div>
                         <div className="flex items-start gap-2">
                           <span className="font-medium min-w-[100px]">Handling Unit:</span>
-                          <span className="break-words">
+                          <span className="wrap-break-word">
                             {getHandlingUnitName(sku.handlingUnitId)}
                           </span>
                         </div>

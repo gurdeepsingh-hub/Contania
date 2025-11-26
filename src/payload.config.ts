@@ -19,6 +19,9 @@ import { SKUs } from './collections/SKUs'
 import { PayingCustomers } from './collections/PayingCustomers'
 import { Warehouses } from './collections/Warehouses'
 import { TransportCompanies } from './collections/TransportCompanies'
+import { InboundInventory } from './collections/InboundInventory'
+import { InboundProductLine } from './collections/InboundProductLine'
+import { PutAwayStock } from './collections/PutAwayStock'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -31,22 +34,37 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Tenants, TenantUsers, TenantRoles, Customers, HandlingUnits, StorageUnits, SKUs, PayingCustomers, Warehouses, TransportCompanies],
-  email: nodemailerAdapter(
-    // {
-    // defaultFromName: process.env.EMAIL_FROM_NAME || 'Contania',
-    // defaultFromAddress:
-    //   process.env.EMAIL_FROM || `no-reply@${process.env.DEFAULT_HOST || 'localhost'}`,
-    // transportOptions: {
-    //   host: process.env.SMTP_HOST || '',
-    //   port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 0,
-    //   auth: {
-    //     user: process.env.SMTP_USER || '',
-    //     pass: process.env.SMTP_PASS || '',
-    //   },
-    // },
+  collections: [
+    Users,
+    Media,
+    Tenants,
+    TenantUsers,
+    TenantRoles,
+    Customers,
+    HandlingUnits,
+    StorageUnits,
+    SKUs,
+    PayingCustomers,
+    Warehouses,
+    TransportCompanies,
+    InboundInventory,
+    InboundProductLine,
+    PutAwayStock,
+  ],
+  email: nodemailerAdapter(),
+  // {
+  // defaultFromName: process.env.EMAIL_FROM_NAME || 'Contania',
+  // defaultFromAddress:
+  //   process.env.EMAIL_FROM || `no-reply@${process.env.DEFAULT_HOST || 'localhost'}`,
+  // transportOptions: {
+  //   host: process.env.SMTP_HOST || '',
+  //   port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 0,
+  //   auth: {
+  //     user: process.env.SMTP_USER || '',
+  //     pass: process.env.SMTP_PASS || '',
+  //   },
+  // },
   // }
-),
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

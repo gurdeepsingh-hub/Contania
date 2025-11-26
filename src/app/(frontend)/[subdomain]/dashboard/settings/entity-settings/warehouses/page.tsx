@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
@@ -28,6 +31,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { Input } from '@/components/ui/input'
 
 type WarehouseItem = {
   id: number
@@ -53,7 +57,7 @@ export default function WarehousesPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<TenantUser | null>(null)
+  const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([])
   const [loadingWarehouses, setLoadingWarehouses] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -63,27 +67,53 @@ export default function WarehousesPage() {
 
   // Pagination state
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(20)
+  const [limit] = useState(20)
   const [totalDocs, setTotalDocs] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    contact_name: '',
-    contact_phone: '',
-    street: '',
-    city: '',
-    state: '',
-    postcode: '',
-    store: [] as Array<{ store_name: string }>,
-    type: '',
+  const warehouseSchema = z.object({
+    name: z.string().min(1, 'Warehouse name is required'),
+    email: z.string().email('Invalid email address').optional().or(z.literal('')),
+    contact_name: z.string().optional(),
+    contact_phone: z.string().optional(),
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postcode: z.string().optional(),
+    type: z.string().optional(),
+    store: z.array(z.object({ store_name: z.string() })),
+  })
+
+  type WarehouseFormData = z.infer<typeof warehouseSchema>
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+    setValue,
+  } = useForm<WarehouseFormData>({
+    resolver: zodResolver(warehouseSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      contact_name: '',
+      contact_phone: '',
+      street: '',
+      city: '',
+      state: '',
+      postcode: '',
+      type: '',
+      store: [],
+    },
   })
 
   const [storeInput, setStoreInput] = useState('')
+  const watchedStores = watch('store')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -111,7 +141,7 @@ export default function WarehousesPage() {
           setCurrentUser(data.user)
           setAuthChecked(true)
         }
-      } catch (error) {
+      } catch (_error) {
         router.push('/dashboard')
       }
     }
@@ -125,6 +155,7 @@ export default function WarehousesPage() {
     if (authChecked) {
       loadWarehouses()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
   const loadWarehouses = async () => {
@@ -164,7 +195,7 @@ export default function WarehousesPage() {
   }
 
   const resetForm = () => {
-    setFormData({
+    reset({
       name: '',
       email: '',
       contact_name: '',
@@ -173,8 +204,8 @@ export default function WarehousesPage() {
       city: '',
       state: '',
       postcode: '',
-      store: [],
       type: '',
+      store: [],
     })
     setStoreInput('')
     setError(null)
@@ -188,7 +219,7 @@ export default function WarehousesPage() {
   }
 
   const handleEditWarehouse = (warehouse: WarehouseItem) => {
-    setFormData({
+    reset({
       name: warehouse.name || '',
       email: warehouse.email || '',
       contact_name: warehouse.contact_name || '',
@@ -197,8 +228,8 @@ export default function WarehousesPage() {
       city: warehouse.city || '',
       state: warehouse.state || '',
       postcode: warehouse.postcode || '',
-      store: warehouse.store?.map((s) => ({ store_name: s.store_name })) || [],
       type: warehouse.type || '',
+      store: warehouse.store?.map((s) => ({ store_name: s.store_name })) || [],
     })
     setEditingWarehouse(warehouse)
     setShowAddForm(true)
@@ -214,37 +245,33 @@ export default function WarehousesPage() {
 
   const addStore = () => {
     if (storeInput.trim()) {
-      setFormData({
-        ...formData,
-        store: [...formData.store, { store_name: storeInput.trim() }],
+      const currentStores = watchedStores || []
+      setValue('store', [...currentStores, { store_name: storeInput.trim() }], {
+        shouldValidate: true,
       })
       setStoreInput('')
     }
   }
 
   const removeStore = (index: number) => {
-    setFormData({
-      ...formData,
-      store: formData.store.filter((_, i) => i !== index),
-    })
+    const currentStores = watchedStores || []
+    setValue(
+      'store',
+      currentStores.filter((_, i) => i !== index),
+      { shouldValidate: true },
+    )
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const onSubmit = async (data: WarehouseFormData) => {
     setError(null)
     setSuccess(null)
-
-    if (!formData.name) {
-      setError('Warehouse name is required')
-      return
-    }
 
     try {
       if (editingWarehouse) {
         const res = await fetch(`/api/warehouses/${editingWarehouse.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -254,14 +281,14 @@ export default function WarehousesPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to update warehouse')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to update warehouse')
         }
       } else {
         const res = await fetch('/api/warehouses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(data),
         })
 
         if (res.ok) {
@@ -271,8 +298,8 @@ export default function WarehousesPage() {
             handleCancel()
           }, 1500)
         } else {
-          const data = await res.json()
-          setError(data.message || 'Failed to create warehouse')
+          const responseData = await res.json()
+          setError(responseData.message || 'Failed to create warehouse')
         }
       }
     } catch (error) {
@@ -366,102 +393,75 @@ export default function WarehousesPage() {
                 : 'Create a new warehouse or depot'}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name">Warehouse Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  placeholder="Warehouse or depot name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="type">Type</Label>
-                <select
-                  id="type"
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">Select type</option>
-                  <option value="Depot">Depot</option>
-                  <option value="Warehouse">Warehouse</option>
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="warehouse@example.com"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_name">Contact Name</Label>
-                <Input
-                  id="contact_name"
-                  value={formData.contact_name}
-                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                  placeholder="Contact person"
-                />
-              </div>
-              <div>
-                <Label htmlFor="contact_phone">Contact Phone</Label>
-                <Input
-                  id="contact_phone"
-                  type="tel"
-                  value={formData.contact_phone}
-                  onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                  placeholder="+61 2 XXXX XXXX"
-                />
-              </div>
-              <div>
-                <Label htmlFor="street">Street</Label>
-                <Input
-                  id="street"
-                  value={formData.street}
-                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                  placeholder="Street address"
-                />
-              </div>
-              <div>
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  placeholder="City"
-                />
-              </div>
-              <div>
-                <Label htmlFor="state">State</Label>
-                <Input
-                  id="state"
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  placeholder="State/Province"
-                />
-              </div>
-              <div>
-                <Label htmlFor="postcode">Postcode</Label>
-                <Input
-                  id="postcode"
-                  value={formData.postcode}
-                  onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
-                  placeholder="Postal code"
-                />
-              </div>
+              <FormInput
+                label="Warehouse Name"
+                required
+                error={errors.name?.message}
+                placeholder="Warehouse or depot name"
+                {...register('name')}
+              />
+              <FormSelect
+                label="Type"
+                placeholder="Select type"
+                options={[
+                  { value: 'Depot', label: 'Depot' },
+                  { value: 'Warehouse', label: 'Warehouse' },
+                ]}
+                error={errors.type?.message}
+                {...register('type')}
+              />
+              <FormInput
+                label="Email"
+                type="email"
+                error={errors.email?.message}
+                placeholder="warehouse@example.com"
+                {...register('email')}
+              />
+              <FormInput
+                label="Contact Name"
+                error={errors.contact_name?.message}
+                placeholder="Contact person"
+                {...register('contact_name')}
+              />
+              <FormInput
+                label="Contact Phone"
+                type="tel"
+                error={errors.contact_phone?.message}
+                placeholder="+61 2 XXXX XXXX"
+                {...register('contact_phone')}
+              />
+              <FormInput
+                label="Street"
+                error={errors.street?.message}
+                placeholder="Street address"
+                {...register('street')}
+              />
+              <FormInput
+                label="City"
+                error={errors.city?.message}
+                placeholder="City"
+                {...register('city')}
+              />
+              <FormInput
+                label="State"
+                error={errors.state?.message}
+                placeholder="State/Province"
+                {...register('state')}
+              />
+              <FormInput
+                label="Postcode"
+                error={errors.postcode?.message}
+                placeholder="Postal code"
+                {...register('postcode')}
+              />
             </div>
 
             <div className="border-t pt-4">
               <Label htmlFor="store">Stores</Label>
-              <div className="flex gap-2 mt-2">
-                <Input
+              <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                <FormInput
                   id="store"
                   value={storeInput}
                   onChange={(e) => setStoreInput(e.target.value)}
@@ -472,14 +472,16 @@ export default function WarehousesPage() {
                     }
                   }}
                   placeholder="Store name"
+                  containerClassName="flex-1"
+                  label=""
                 />
-                <Button type="button" onClick={addStore} variant="outline">
+                <Button type="button" onClick={addStore} variant="outline" className="min-h-[44px]">
                   Add Store
                 </Button>
               </div>
-              {formData.store.length > 0 && (
+              {watchedStores && watchedStores.length > 0 && (
                 <div className="mt-2 space-y-2">
-                  {formData.store.map((store, index) => (
+                  {watchedStores.map((store, index) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-2 bg-muted rounded"
@@ -500,12 +502,17 @@ export default function WarehousesPage() {
               )}
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCancel}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCancel}
+                className="w-full sm:w-auto"
+              >
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" className="w-full sm:w-auto">
                 <Save className="h-4 w-4 mr-2" />
                 {editingWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
               </Button>
@@ -552,7 +559,7 @@ export default function WarehousesPage() {
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
                           {warehouse.name}
                         </CardTitle>
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -585,7 +592,7 @@ export default function WarehousesPage() {
                         {warehouse.email && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Email:</span>
-                            <span className="break-words">{warehouse.email}</span>
+                            <span className="wrap-break-word">{warehouse.email}</span>
                           </div>
                         )}
                         {warehouse.contact_name && (
@@ -606,7 +613,7 @@ export default function WarehousesPage() {
                           warehouse.postcode) && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Address:</span>
-                            <span className="break-words">
+                            <span className="wrap-break-word">
                               {[
                                 warehouse.street,
                                 warehouse.city,
@@ -621,7 +628,7 @@ export default function WarehousesPage() {
                         {warehouse.store && warehouse.store.length > 0 && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Stores:</span>
-                            <span className="break-words">
+                            <span className="wrap-break-word">
                               {warehouse.store.map((s) => s.store_name).join(', ')}
                             </span>
                           </div>
