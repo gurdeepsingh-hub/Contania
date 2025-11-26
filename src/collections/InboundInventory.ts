@@ -18,11 +18,11 @@ function generateJobCode(length: number = 8): string {
 async function generateUniqueJobCode(
   payload: any,
   tenantId: number | string,
-  maxAttempts: number = 10
+  maxAttempts: number = 10,
 ): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const code = generateJobCode(8) // 8 character code
-    
+
     // Check if this code already exists for this tenant
     const existing = await payload.find({
       collection: 'inbound-inventory',
@@ -164,7 +164,8 @@ export const InboundInventory: CollectionConfig = {
       name: 'deliveryCustomerId',
       type: 'text',
       admin: {
-        description: 'Delivery customer ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")',
+        description:
+          'Delivery customer ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")',
       },
     },
     {
@@ -219,6 +220,14 @@ export const InboundInventory: CollectionConfig = {
       },
     },
     {
+      name: 'customerState',
+      type: 'text',
+      admin: {
+        description: 'Customer state',
+        readOnly: true,
+      },
+    },
+    {
       name: 'customerContactName',
       type: 'text',
       admin: {
@@ -231,7 +240,8 @@ export const InboundInventory: CollectionConfig = {
       name: 'supplierId',
       type: 'text',
       admin: {
-        description: 'Supplier ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")',
+        description:
+          'Supplier ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")',
       },
     },
     {
@@ -255,6 +265,14 @@ export const InboundInventory: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Supplier location',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'supplierState',
+      type: 'text',
+      admin: {
+        description: 'Supplier state',
         readOnly: true,
       },
     },
@@ -343,7 +361,8 @@ export const InboundInventory: CollectionConfig = {
 
         // Generate unique job code when creating a new job
         if (operation === 'create' && !data.jobCode && req?.payload && data.tenantId) {
-          const tenantId = typeof data.tenantId === 'object' ? (data.tenantId as { id: number }).id : data.tenantId
+          const tenantId =
+            typeof data.tenantId === 'object' ? (data.tenantId as { id: number }).id : data.tenantId
           if (tenantId) {
             data.jobCode = await generateUniqueJobCode(req.payload, tenantId)
           }
@@ -359,7 +378,11 @@ export const InboundInventory: CollectionConfig = {
             const [collection, idStr] = customerIdStr.split(':')
             const customerId = parseInt(idStr, 10)
 
-            if (collection && customerId && (collection === 'customers' || collection === 'paying-customers')) {
+            if (
+              collection &&
+              customerId &&
+              (collection === 'customers' || collection === 'paying-customers')
+            ) {
               const customer = await req.payload.findByID({
                 collection: collection as 'customers' | 'paying-customers',
                 id: customerId,
@@ -380,6 +403,7 @@ export const InboundInventory: CollectionConfig = {
                     .filter(Boolean)
                     .join(', ')
                   data.customerLocation = [cust.city, cust.state].filter(Boolean).join(', ')
+                  data.customerState = cust.state || ''
                   data.customerContactName = cust.contact_name || ''
                 } else if (collection === 'paying-customers') {
                   const cust = customer as {
@@ -397,14 +421,21 @@ export const InboundInventory: CollectionConfig = {
                   }
                   data.customerName = cust.customer_name || ''
                   // Use delivery address, fallback to billing if delivery_same_as_billing is true
-                  const street = cust.delivery_street || (cust.delivery_same_as_billing ? cust.billing_street : undefined)
-                  const city = cust.delivery_city || (cust.delivery_same_as_billing ? cust.billing_city : undefined)
-                  const state = cust.delivery_state || (cust.delivery_same_as_billing ? cust.billing_state : undefined)
-                  const postcode = cust.delivery_postcode || (cust.delivery_same_as_billing ? cust.billing_postcode : undefined)
-                  data.customerAddress = [street, city, state, postcode]
-                    .filter(Boolean)
-                    .join(', ')
+                  const street =
+                    cust.delivery_street ||
+                    (cust.delivery_same_as_billing ? cust.billing_street : undefined)
+                  const city =
+                    cust.delivery_city ||
+                    (cust.delivery_same_as_billing ? cust.billing_city : undefined)
+                  const state =
+                    cust.delivery_state ||
+                    (cust.delivery_same_as_billing ? cust.billing_state : undefined)
+                  const postcode =
+                    cust.delivery_postcode ||
+                    (cust.delivery_same_as_billing ? cust.billing_postcode : undefined)
+                  data.customerAddress = [street, city, state, postcode].filter(Boolean).join(', ')
                   data.customerLocation = [city, state].filter(Boolean).join(', ')
+                  data.customerState = state || ''
                   data.customerContactName = cust.contact_name || ''
                 }
               }
@@ -455,6 +486,7 @@ export const InboundInventory: CollectionConfig = {
                     .filter(Boolean)
                     .join(', ')
                   data.supplierLocation = [supp.city, supp.state].filter(Boolean).join(', ')
+                  data.supplierState = supp.state || ''
                   data.supplierContactName = supp.contact_name || ''
                 } else if (collection === 'paying-customers') {
                   const supp = supplier as {
@@ -472,14 +504,21 @@ export const InboundInventory: CollectionConfig = {
                   }
                   data.supplierName = supp.customer_name || ''
                   // Use delivery address, fallback to billing if delivery_same_as_billing is true
-                  const street = supp.delivery_street || (supp.delivery_same_as_billing ? supp.billing_street : undefined)
-                  const city = supp.delivery_city || (supp.delivery_same_as_billing ? supp.billing_city : undefined)
-                  const state = supp.delivery_state || (supp.delivery_same_as_billing ? supp.billing_state : undefined)
-                  const postcode = supp.delivery_postcode || (supp.delivery_same_as_billing ? supp.billing_postcode : undefined)
-                  data.supplierAddress = [street, city, state, postcode]
-                    .filter(Boolean)
-                    .join(', ')
+                  const street =
+                    supp.delivery_street ||
+                    (supp.delivery_same_as_billing ? supp.billing_street : undefined)
+                  const city =
+                    supp.delivery_city ||
+                    (supp.delivery_same_as_billing ? supp.billing_city : undefined)
+                  const state =
+                    supp.delivery_state ||
+                    (supp.delivery_same_as_billing ? supp.billing_state : undefined)
+                  const postcode =
+                    supp.delivery_postcode ||
+                    (supp.delivery_same_as_billing ? supp.billing_postcode : undefined)
+                  data.supplierAddress = [street, city, state, postcode].filter(Boolean).join(', ')
                   data.supplierLocation = [city, state].filter(Boolean).join(', ')
+                  data.supplierState = state || ''
                   data.supplierContactName = supp.contact_name || ''
                 }
               }
@@ -519,9 +558,3 @@ export const InboundInventory: CollectionConfig = {
     ],
   },
 }
-
-
-
-
-
-

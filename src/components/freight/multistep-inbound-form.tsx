@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { FormInput, FormSelect, FormTextarea } from '@/components/ui/form-field'
+import { FormInput, FormTextarea, FormCombobox } from '@/components/ui/form-field'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, Save, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -83,10 +83,12 @@ type InboundInventoryData = {
   customerName?: string
   customerAddress?: string
   customerLocation?: string
+  customerState?: string
   customerContactName?: string
   supplierName?: string
   supplierAddress?: string
   supplierLocation?: string
+  supplierState?: string
   supplierContactName?: string
   transportContact?: string
   transportMobile?: string
@@ -240,10 +242,14 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
   const [showProductLineDialog, setShowProductLineDialog] = useState(false)
   type ProductLineDisplay = {
     id?: number
+    skuId?: number | { id: number; skuCode?: string; description?: string }
     skuDescription?: string
     expectedQty?: number
     batchNumber?: string
     expectedWeight?: number
+    expiryDate?: string
+    attribute1?: string
+    attribute2?: string
     [key: string]: unknown
   }
 
@@ -464,6 +470,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                   .filter(Boolean)
                   .join(', '),
                 customerLocation: [cust.city, cust.state].filter(Boolean).join(', '),
+                customerState: cust.state || '',
                 customerContactName: cust.contact_name || '',
               }))
             } else if (collection === 'paying-customers' && data.payingCustomer) {
@@ -485,6 +492,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                 customerName: cust.customer_name,
                 customerAddress: [street, city, state, postcode].filter(Boolean).join(', '),
                 customerLocation: [city, state].filter(Boolean).join(', '),
+                customerState: state || '',
                 customerContactName: cust.contact_name || '',
               }))
             }
@@ -498,6 +506,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                   .filter(Boolean)
                   .join(', '),
                 supplierLocation: [cust.city, cust.state].filter(Boolean).join(', '),
+                supplierState: cust.state || '',
                 supplierContactName: cust.contact_name || '',
               }))
             } else if (collection === 'paying-customers' && data.payingCustomer) {
@@ -519,6 +528,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                 supplierName: cust.customer_name,
                 supplierAddress: [street, city, state, postcode].filter(Boolean).join(', '),
                 supplierLocation: [city, state].filter(Boolean).join(', '),
+                supplierState: state || '',
                 supplierContactName: cust.contact_name || '',
               }))
             }
@@ -802,18 +812,22 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex gap-2">
-                  <FormSelect
+                  <FormCombobox
                     label="Warehouse"
                     placeholder="Select warehouse..."
+                    searchPlaceholder="Search warehouses..."
                     options={warehouses.map((wh) => ({
                       value: wh.id,
                       label: wh.name,
                     }))}
-                    value={formData.warehouseId?.toString() || ''}
-                    onChange={(e) =>
+                    value={formData.warehouseId}
+                    onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        warehouseId: parseInt(e.target.value) || undefined,
+                        warehouseId:
+                          typeof value === 'number'
+                            ? value
+                            : parseInt(value.toString()) || undefined,
                       }))
                     }
                     containerClassName="flex-1"
@@ -906,15 +920,18 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                 <h3 className="font-semibold text-lg">Delivery Customer</h3>
                 <div className="flex gap-2 mb-4">
                   <div className="flex-1">
-                    <FormSelect
+                    <FormCombobox
                       label="Delivery Customer"
                       placeholder="Select delivery customer..."
+                      searchPlaceholder="Search customers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
-                      value={formData.deliveryCustomerId || ''}
-                      onChange={(e) => handleCustomerChange('deliveryCustomerId', e.target.value)}
+                      value={formData.deliveryCustomerId}
+                      onValueChange={(value) =>
+                        handleCustomerChange('deliveryCustomerId', value.toString())
+                      }
                       containerClassName="flex-1"
                     />
                     {validationErrors[1]?.deliveryCustomerId && (
@@ -945,6 +962,12 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                     className="bg-muted"
                   />
                   <FormInput
+                    label="State"
+                    value={formData.customerState || ''}
+                    readOnly
+                    className="bg-muted"
+                  />
+                  <FormInput
                     label="Location"
                     value={formData.customerLocation || ''}
                     readOnly
@@ -964,15 +987,18 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                 <h3 className="font-semibold text-lg">Supplier</h3>
                 <div className="flex gap-2 mb-4">
                   <div className="flex-1">
-                    <FormSelect
+                    <FormCombobox
                       label="Supplier"
                       placeholder="Select supplier..."
+                      searchPlaceholder="Search suppliers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
-                      value={formData.supplierId || ''}
-                      onChange={(e) => handleCustomerChange('supplierId', e.target.value)}
+                      value={formData.supplierId}
+                      onValueChange={(value) =>
+                        handleCustomerChange('supplierId', value.toString())
+                      }
                       containerClassName="flex-1"
                     />
                     {validationErrors[1]?.supplierId && (
@@ -1001,6 +1027,12 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                     className="bg-muted"
                   />
                   <FormInput
+                    label="State"
+                    value={formData.supplierState || ''}
+                    readOnly
+                    className="bg-muted"
+                  />
+                  <FormInput
                     label="Location"
                     value={formData.supplierLocation || ''}
                     readOnly
@@ -1022,18 +1054,19 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
               {/* Section 1: Transport Mode */}
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Transport</h3>
-                <FormSelect
+                <FormCombobox
                   label="Transport Mode"
                   placeholder="Select mode..."
+                  searchPlaceholder="Search transport mode..."
                   options={[
                     { value: 'our', label: 'Our' },
                     { value: 'third_party', label: 'Third Party' },
                   ]}
-                  value={formData.transportMode || ''}
-                  onChange={(e) =>
+                  value={formData.transportMode}
+                  onValueChange={(value) =>
                     setFormData((prev) => ({
                       ...prev,
-                      transportMode: e.target.value as 'our' | 'third_party',
+                      transportMode: value as 'our' | 'third_party',
                     }))
                   }
                   containerClassName="mb-4"
@@ -1042,15 +1075,20 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                   <div className="space-y-4">
                     <div className="flex gap-2 mb-4">
                       <div className="flex-1">
-                        <FormSelect
+                        <FormCombobox
                           label="Transport Company"
                           placeholder="Select transport company..."
+                          searchPlaceholder="Search transport companies..."
                           options={transportCompanies.map((tc) => ({
                             value: tc.id,
                             label: tc.name,
                           }))}
-                          value={formData.transportCompanyId?.toString() || ''}
-                          onChange={(e) => handleTransportCompanyChange(parseInt(e.target.value))}
+                          value={formData.transportCompanyId}
+                          onValueChange={(value) =>
+                            handleTransportCompanyChange(
+                              typeof value === 'number' ? value : parseInt(value.toString()),
+                            )
+                          }
                           containerClassName="flex-1"
                         />
                         {validationErrors[2]?.transportCompanyId && (
@@ -1173,11 +1211,18 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
               {productLines.length > 0 ? (
                 <div className="space-y-2">
                   {productLines.map((line, index) => (
-                    <div key={line.id || index} className="border rounded-lg p-4">
+                    <div key={line.id || index} className="border rounded-lg p-4 space-y-3">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
                           <span className="text-sm font-medium text-muted-foreground">SKU:</span>
-                          <p>{line.skuDescription || 'N/A'}</p>
+                          <p className="font-semibold">
+                            {typeof line.skuId === 'object' && line.skuId?.skuCode
+                              ? line.skuId.skuCode
+                              : 'N/A'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {line.skuDescription || 'N/A'}
+                          </p>
                         </div>
                         <div>
                           <span className="text-sm font-medium text-muted-foreground">
@@ -1194,6 +1239,27 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                           <p>{line.expectedWeight || 0} kg</p>
                         </div>
                       </div>
+                      {/* Expiry and Attributes */}
+                      {(line.expiryDate || line.attribute1 || line.attribute2) && (
+                        <div className="flex flex-wrap gap-4 pt-2 border-t text-sm">
+                          {line.expiryDate && (
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Expiry:</span>{' '}
+                              {new Date(line.expiryDate).toLocaleDateString()}
+                            </div>
+                          )}
+                          {line.attribute1 && (
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Attribute 1:</span> {line.attribute1}
+                            </div>
+                          )}
+                          {line.attribute2 && (
+                            <div className="text-muted-foreground">
+                              <span className="font-medium">Attribute 2:</span> {line.attribute2}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1415,7 +1481,24 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
             {showProductLineDialog && formData.id && (
               <ProductLineForm
                 inboundInventoryId={formData.id}
-                initialData={editingProductLine || undefined}
+                initialData={
+                  editingProductLine
+                    ? {
+                        id: editingProductLine.id,
+                        skuId:
+                          typeof editingProductLine.skuId === 'object'
+                            ? editingProductLine.skuId.id
+                            : editingProductLine.skuId,
+                        skuDescription: editingProductLine.skuDescription,
+                        batchNumber: editingProductLine.batchNumber,
+                        expectedQty: editingProductLine.expectedQty,
+                        expectedWeight: editingProductLine.expectedWeight,
+                        expiryDate: editingProductLine.expiryDate,
+                        attribute1: editingProductLine.attribute1,
+                        attribute2: editingProductLine.attribute2,
+                      }
+                    : undefined
+                }
                 onSave={handleSaveProductLine}
                 onCancel={() => {
                   setShowProductLineDialog(false)

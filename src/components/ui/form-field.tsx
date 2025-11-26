@@ -5,6 +5,7 @@ import { Input } from './input'
 import { Label } from './label'
 import { Select } from './select'
 import { Textarea } from './textarea'
+import { Combobox, type ComboboxOption } from './combobox'
 import { cn } from '@/lib/utils'
 import { AlertCircle } from 'lucide-react'
 
@@ -28,7 +29,10 @@ export function FormField({
   return (
     <div className={cn('space-y-2', className)}>
       {label && (
-        <Label htmlFor={htmlFor} className={cn(required && 'after:content-["*"] after:ml-0.5 after:text-destructive')}>
+        <Label
+          htmlFor={htmlFor}
+          className={cn(required && 'after:content-["*"] after:ml-0.5 after:text-destructive')}
+        >
           {label}
         </Label>
       )}
@@ -53,7 +57,7 @@ export interface FormInputProps extends React.ComponentProps<typeof Input> {
 export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
   ({ label, error, required, containerClassName, className, id, ...props }, ref) => {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`
-    
+
     return (
       <FormField
         label={label}
@@ -65,17 +69,14 @@ export const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
         <Input
           id={inputId}
           ref={ref}
-          className={cn(
-            error && 'border-destructive focus-visible:ring-destructive',
-            className
-          )}
+          className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${inputId}-error` : undefined}
           {...props}
         />
       </FormField>
     )
-  }
+  },
 )
 FormInput.displayName = 'FormInput'
 
@@ -89,9 +90,23 @@ export interface FormSelectProps extends React.ComponentProps<typeof Select> {
 }
 
 export const FormSelect = React.forwardRef<HTMLSelectElement, FormSelectProps>(
-  ({ label, error, required, containerClassName, className, id, placeholder, options, children, ...props }, ref) => {
+  (
+    {
+      label,
+      error,
+      required,
+      containerClassName,
+      className,
+      id,
+      placeholder,
+      options,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
     const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`
-    
+
     return (
       <FormField
         label={label}
@@ -103,10 +118,7 @@ export const FormSelect = React.forwardRef<HTMLSelectElement, FormSelectProps>(
         <Select
           id={selectId}
           ref={ref}
-          className={cn(
-            error && 'border-destructive focus-visible:ring-destructive',
-            className
-          )}
+          className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${selectId}-error` : undefined}
           {...props}
@@ -121,7 +133,7 @@ export const FormSelect = React.forwardRef<HTMLSelectElement, FormSelectProps>(
         </Select>
       </FormField>
     )
-  }
+  },
 )
 FormSelect.displayName = 'FormSelect'
 
@@ -135,7 +147,7 @@ export interface FormTextareaProps extends React.ComponentProps<typeof Textarea>
 export const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaProps>(
   ({ label, error, required, containerClassName, className, id, ...props }, ref) => {
     const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`
-    
+
     return (
       <FormField
         label={label}
@@ -147,17 +159,50 @@ export const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaPr
         <Textarea
           id={textareaId}
           ref={ref}
-          className={cn(
-            error && 'border-destructive focus-visible:ring-destructive',
-            className
-          )}
+          className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
           aria-invalid={error ? 'true' : 'false'}
           aria-describedby={error ? `${textareaId}-error` : undefined}
           {...props}
         />
       </FormField>
     )
-  }
+  },
 )
 FormTextarea.displayName = 'FormTextarea'
 
+export interface FormComboboxProps {
+  label?: string
+  error?: string
+  required?: boolean
+  containerClassName?: string
+  placeholder?: string
+  searchPlaceholder?: string
+  emptyText?: string
+  options?: ComboboxOption[]
+  value?: string | number
+  onValueChange?: (value: string | number) => void
+  disabled?: boolean
+  className?: string
+}
+
+export const FormCombobox = React.forwardRef<HTMLButtonElement, FormComboboxProps>(
+  ({ label, error, required, containerClassName, className, id, ...props }, ref) => {
+    const comboboxId = id || `combobox-${Math.random().toString(36).substr(2, 9)}`
+
+    return (
+      <FormField
+        label={label}
+        error={error}
+        required={required}
+        htmlFor={comboboxId}
+        className={containerClassName}
+      >
+        <Combobox
+          {...props}
+          className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
+        />
+      </FormField>
+    )
+  },
+)
+FormCombobox.displayName = 'FormCombobox'

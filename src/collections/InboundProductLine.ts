@@ -161,6 +161,30 @@ export const InboundProductLine: CollectionConfig = {
         step: 0.01,
       },
     },
+    {
+      name: 'expiryDate',
+      type: 'date',
+      admin: {
+        description: 'Expiry date (auto-fetched from SKU if enabled)',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'attribute1',
+      type: 'textarea',
+      admin: {
+        description: 'Attribute 1 (auto-fetched from SKU if enabled)',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'attribute2',
+      type: 'textarea',
+      admin: {
+        description: 'Attribute 2 (auto-fetched from SKU if enabled)',
+        readOnly: true,
+      },
+    },
   ],
   timestamps: true,
   hooks: {
@@ -187,10 +211,27 @@ export const InboundProductLine: CollectionConfig = {
                   lengthPerHU_mm?: number
                   widthPerHU_mm?: number
                   heightPerHU_mm?: number
+                  isExpriy?: boolean
+                  isAttribute1?: boolean
+                  isAttribute2?: boolean
+                  expiryDate?: string
+                  attribute1?: string
+                  attribute2?: string
                 }
                 data.skuDescription = skuData.description || ''
                 data.lpnQty = skuData.huPerSu?.toString() || ''
                 data.weightPerHU = skuData.weightPerHU_kg || undefined
+
+                // Auto-populate expiry, attribute1, attribute2 if SKU has them enabled
+                if (skuData.isExpriy && skuData.expiryDate) {
+                  data.expiryDate = skuData.expiryDate
+                }
+                if (skuData.isAttribute1 && skuData.attribute1) {
+                  data.attribute1 = skuData.attribute1
+                }
+                if (skuData.isAttribute2 && skuData.attribute2) {
+                  data.attribute2 = skuData.attribute2
+                }
 
                 // Auto-calculate cubic from SKU dimensions (length × width × height in m³)
                 if (skuData.lengthPerHU_mm && skuData.widthPerHU_mm && skuData.heightPerHU_mm) {

@@ -1019,6 +1019,10 @@ export interface InboundInventory {
    */
   customerLocation?: string | null;
   /**
+   * Customer state
+   */
+  customerState?: string | null;
+  /**
    * Customer contact name
    */
   customerContactName?: string | null;
@@ -1038,6 +1042,10 @@ export interface InboundInventory {
    * Supplier location
    */
   supplierLocation?: string | null;
+  /**
+   * Supplier state
+   */
+  supplierState?: string | null;
   /**
    * Supplier contact name
    */
@@ -1135,6 +1143,18 @@ export interface InboundProductLine {
    * Volume per handling unit (m³)
    */
   recievedCubicPerHU?: number | null;
+  /**
+   * Expiry date (auto-fetched from SKU if enabled)
+   */
+  expiryDate?: string | null;
+  /**
+   * Attribute 1 (auto-fetched from SKU if enabled)
+   */
+  attribute1?: string | null;
+  /**
+   * Attribute 2 (auto-fetched from SKU if enabled)
+   */
+  attribute2?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1631,11 +1651,13 @@ export interface InboundInventorySelect<T extends boolean = true> {
   customerName?: T;
   customerAddress?: T;
   customerLocation?: T;
+  customerState?: T;
   customerContactName?: T;
   supplierId?: T;
   supplierName?: T;
   supplierAddress?: T;
   supplierLocation?: T;
+  supplierState?: T;
   supplierContactName?: T;
   transportCompanyId?: T;
   transportContact?: T;
@@ -1666,6 +1688,9 @@ export interface InboundProductLineSelect<T extends boolean = true> {
   weightPerHU?: T;
   expectedCubicPerHU?: T;
   recievedCubicPerHU?: T;
+  expiryDate?: T;
+  attribute1?: T;
+  attribute2?: T;
   updatedAt?: T;
   createdAt?: T;
 }

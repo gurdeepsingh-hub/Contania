@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { FormInput, FormSelect, FormTextarea } from '@/components/ui/form-field'
+import { FormInput, FormSelect, FormTextarea, FormCombobox } from '@/components/ui/form-field'
 
 type SKU = {
   id: number
@@ -17,6 +17,12 @@ type SKU = {
   lengthPerHU_mm?: number
   widthPerHU_mm?: number
   heightPerHU_mm?: number
+  isExpriy?: boolean
+  isAttribute1?: boolean
+  isAttribute2?: boolean
+  expiryDate?: string
+  attribute1?: string
+  attribute2?: string
 }
 
 type ProductLine = {
@@ -34,16 +40,22 @@ type ProductLine = {
   weightPerHU?: number
   expectedCubicPerHU?: number
   recievedCubicPerHU?: number
+  expiryDate?: string
+  attribute1?: string
+  attribute2?: string
 }
 
 const productLineSchema = z.object({
   skuId: z.number().min(1, 'SKU is required'),
-  batchNumber: z.string().optional(),
+  batchNumber: z.string().min(1, 'Batch number is required'),
   expectedQty: z.number().min(1, 'Expected quantity must be at least 1'),
   weightPerHU: z.number().min(0, 'Weight per HU must be 0 or greater').optional(),
   expectedWeight: z.number().min(0, 'Expected weight must be 0 or greater').optional(),
   sqmPerSU: z.number().min(0, 'SQM per SU must be 0 or greater').optional(),
   expectedCubicPerHU: z.number().min(0, 'Expected cubic per HU must be 0 or greater').optional(),
+  expiryDate: z.string().optional(),
+  attribute1: z.string().optional(),
+  attribute2: z.string().optional(),
 })
 
 type ProductLineFormData = z.infer<typeof productLineSchema>
@@ -68,6 +80,10 @@ export function ProductLineForm({
   const [palletSpaces, setPalletSpaces] = useState<number | undefined>()
   const [sqmPerSU, setSqmPerSU] = useState<number | undefined>()
   const [expectedCubicPerHU, setExpectedCubicPerHU] = useState<number | undefined>()
+  const [selectedSku, setSelectedSku] = useState<SKU | null>(null)
+  const [expiryDate, setExpiryDate] = useState<string>('')
+  const [attribute1, setAttribute1] = useState<string>('')
+  const [attribute2, setAttribute2] = useState<string>('')
 
   const {
     register,
@@ -85,6 +101,9 @@ export function ProductLineForm({
       expectedWeight: initialData?.expectedWeight,
       sqmPerSU: initialData?.sqmPerSU,
       expectedCubicPerHU: initialData?.expectedCubicPerHU,
+      expiryDate: initialData?.expiryDate || '',
+      attribute1: initialData?.attribute1 || '',
+      attribute2: initialData?.attribute2 || '',
     },
   })
 
@@ -99,6 +118,35 @@ export function ProductLineForm({
       setPalletSpaces(initialData.palletSpaces)
       setSqmPerSU(initialData.sqmPerSU)
       setExpectedCubicPerHU(initialData.expectedCubicPerHU)
+      setExpiryDate(initialData.expiryDate || '')
+      setAttribute1(initialData.attribute1 || '')
+      setAttribute2(initialData.attribute2 || '')
+      // Load SKU if we have skuId to get optional fields info
+      if (initialData.skuId) {
+        // Fetch SKU to check optional fields
+        fetch(`/api/skus/${initialData.skuId}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.sku) {
+              const sku = data.sku as SKU
+              setSelectedSku(sku)
+              // Set expiry/attributes if SKU has them and initialData doesn't
+              if (sku.isExpriy && sku.expiryDate && !initialData.expiryDate) {
+                setExpiryDate(sku.expiryDate)
+                setValue('expiryDate', sku.expiryDate)
+              }
+              if (sku.isAttribute1 && sku.attribute1 && !initialData.attribute1) {
+                setAttribute1(sku.attribute1)
+                setValue('attribute1', sku.attribute1)
+              }
+              if (sku.isAttribute2 && sku.attribute2 && !initialData.attribute2) {
+                setAttribute2(sku.attribute2)
+                setValue('attribute2', sku.attribute2)
+              }
+            }
+          })
+          .catch((error) => console.error('Error fetching SKU:', error))
+      }
     }
   }, [initialData])
 
@@ -137,9 +185,38 @@ export function ProductLineForm({
         const data = await res.json()
         if (data.success && data.sku) {
           const sku = data.sku as SKU
+          setSelectedSku(sku)
           setSkuDescription(sku.description || '')
           setLpnQty(sku.huPerSu?.toString() || '')
           setValue('weightPerHU', sku.weightPerHU_kg)
+
+          // Auto-populate expiry, attribute1, attribute2 if SKU has them enabled
+          if (sku.isExpriy && sku.expiryDate) {
+            // Format date for input (YYYY-MM-DD)
+            const dateStr =
+              typeof sku.expiryDate === 'string'
+                ? sku.expiryDate.split('T')[0]
+                : new Date(sku.expiryDate).toISOString().split('T')[0]
+            setExpiryDate(dateStr)
+            setValue('expiryDate', dateStr)
+          } else {
+            setExpiryDate('')
+            setValue('expiryDate', '')
+          }
+          if (sku.isAttribute1 && sku.attribute1) {
+            setAttribute1(sku.attribute1)
+            setValue('attribute1', sku.attribute1)
+          } else {
+            setAttribute1('')
+            setValue('attribute1', '')
+          }
+          if (sku.isAttribute2 && sku.attribute2) {
+            setAttribute2(sku.attribute2)
+            setValue('attribute2', sku.attribute2)
+          } else {
+            setAttribute2('')
+            setValue('attribute2', '')
+          }
 
           // Auto-calculate cubic from SKU dimensions (length × width × height in m³)
           if (sku.lengthPerHU_mm && sku.widthPerHU_mm && sku.heightPerHU_mm) {
@@ -205,12 +282,15 @@ export function ProductLineForm({
       palletSpaces,
       sqmPerSU,
       expectedCubicPerHU,
+      expiryDate: selectedSku?.isExpriy ? data.expiryDate : undefined,
+      attribute1: selectedSku?.isAttribute1 ? data.attribute1 : undefined,
+      attribute2: selectedSku?.isAttribute2 ? data.attribute2 : undefined,
     } as ProductLine)
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-      <FormSelect
+      <FormCombobox
         label="SKU"
         required
         error={errors.skuId?.message}
@@ -219,10 +299,13 @@ export function ProductLineForm({
           label: `${sku.skuCode} - ${sku.description || ''}`,
         }))}
         placeholder="Select SKU..."
-        {...register('skuId', {
-          valueAsNumber: true,
-          onChange: (e) => handleSKUChange(parseInt(e.target.value)),
-        })}
+        searchPlaceholder="Search SKUs..."
+        value={watch('skuId')}
+        onValueChange={(value) => {
+          const skuId = typeof value === 'number' ? value : parseInt(value.toString())
+          setValue('skuId', skuId)
+          handleSKUChange(skuId)
+        }}
       />
 
       <FormInput label="SKU Description" value={skuDescription} readOnly className="bg-muted" />
@@ -242,6 +325,7 @@ export function ProductLineForm({
 
       <FormInput
         label="Batch Number"
+        required
         error={errors.batchNumber?.message}
         placeholder="Enter batch number"
         {...register('batchNumber')}
@@ -288,6 +372,25 @@ export function ProductLineForm({
           className="bg-muted"
         />
       </div>
+
+      {/* Optional fields from SKU - only show if SKU has them enabled, auto-populated and non-editable */}
+      {selectedSku?.isExpriy && (
+        <FormInput
+          label="Expiry Date"
+          type="date"
+          value={expiryDate}
+          readOnly
+          className="bg-muted"
+        />
+      )}
+
+      {selectedSku?.isAttribute1 && (
+        <FormTextarea label="Attribute 1" value={attribute1} readOnly className="bg-muted" />
+      )}
+
+      {selectedSku?.isAttribute2 && (
+        <FormTextarea label="Attribute 2" value={attribute2} readOnly className="bg-muted" />
+      )}
 
       <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">

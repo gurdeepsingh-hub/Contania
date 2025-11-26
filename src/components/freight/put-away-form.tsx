@@ -170,14 +170,30 @@ export function PutAwayForm({
   }
 
   // Calculate HU quantity per pallet
-  const getHuQtyPerPallet = (line: ProductLine, palletCount: number): number => {
-    if (line.recievedQty && palletCount > 0) {
-      return Math.floor(line.recievedQty / palletCount)
+  // Logic: Fill pallets with capacity (lpnQty), then assign remaining qty to last pallet
+  const getHuQtyPerPallet = (
+    line: ProductLine,
+    palletIndex: number,
+    palletCount: number,
+  ): number => {
+    if (!line.recievedQty || !line.lpnQty || palletCount === 0) {
+      return 0
     }
-    if (line.lpnQty) {
-      return parseFloat(line.lpnQty)
+
+    const lpnQtyNum = parseFloat(line.lpnQty)
+    if (lpnQtyNum <= 0) {
+      return 0
     }
-    return 0
+
+    // Fill all pallets except the last one with full capacity
+    if (palletIndex < palletCount - 1) {
+      return lpnQtyNum
+    }
+
+    // Last pallet gets the remaining quantity
+    const fullPalletsQty = lpnQtyNum * (palletCount - 1)
+    const remainingQty = line.recievedQty - fullPalletsQty
+    return remainingQty > 0 ? remainingQty : 0
   }
 
   // Get SKU ID from product line
@@ -325,7 +341,6 @@ export function PutAwayForm({
         // Skip if already fully put away
         if (isProductLineFullyPutAway(line)) continue
 
-        const huQtyPerPallet = getHuQtyPerPallet(line, palletCount)
         const skuId = getSkuId(line)
         const isBulk = bulkPutAway[line.id] ?? true
         const lineLpns = lpns[line.id] || []
@@ -337,11 +352,12 @@ export function PutAwayForm({
           if (location) {
             // Create records for remaining pallets with same location
             for (let i = startIndex; i < palletCount; i++) {
+              const huQty = getHuQtyPerPallet(line, i, palletCount)
               putAwayRecords.push({
                 inboundProductLineId: line.id,
                 skuId,
                 location,
-                huQty: huQtyPerPallet,
+                huQty,
                 lpnNumber: lineLpns[i] || '',
               })
             }
@@ -351,11 +367,12 @@ export function PutAwayForm({
           for (let i = startIndex; i < palletCount; i++) {
             const location = locations[line.id]?.[i]
             if (location) {
+              const huQty = getHuQtyPerPallet(line, i, palletCount)
               putAwayRecords.push({
                 inboundProductLineId: line.id,
                 skuId,
                 location,
-                huQty: huQtyPerPallet,
+                huQty,
                 lpnNumber: lineLpns[i] || '',
               })
             }
@@ -404,7 +421,6 @@ export function PutAwayForm({
           return null
         }
 
-        const huQtyPerPallet = getHuQtyPerPallet(line, palletCount)
         const skuId = getSkuId(line)
         const skuDescription = getSkuDescription(line)
         const isBulk = bulkPutAway[line.id] ?? true
@@ -418,45 +434,34 @@ export function PutAwayForm({
           <Card key={line.id} className="overflow-hidden">
             {/* Compact Product Line Header */}
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <CardTitle className="text-base font-semibold truncate">
-                      {truncateText(skuDescription, 60)}
-                    </CardTitle>
-                    {line.batchNumber && (
+              <div className="flex flex-col items-start justify-between gap-4">
+                <div className="flex-1 flex justify-between items-center w-full min-w-0">
+                  <div className="">
+                    <div className="flex items-center gap-3">
+                      <CardTitle className="text-base font-semibold truncate">
+                        {truncateText(skuDescription, 60)}
+                      </CardTitle>
+                      {line.batchNumber && (
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          Batch: {line.batchNumber}
+                        </span>
+                      )}
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        Batch: {line.batchNumber}
+                        {palletCount} pallet{palletCount !== 1 ? 's' : ''}
                       </span>
-                    )}
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {palletCount} pallet{palletCount !== 1 ? 's' : ''}
-                    </span>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      Qty: {line.recievedQty || 0}
-                    </span>
-                    {isFullyPutAway && (
-                      <span className="text-xs text-green-600 font-medium whitespace-nowrap">
-                        ✓ All Put Away
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        Qty: {line.recievedQty || 0}
                       </span>
-                    )}
+                      {isFullyPutAway && (
+                        <span className="text-xs text-green-600 font-medium whitespace-nowrap">
+                          ✓ All Put Away
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {line.skuDescription}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {line.skuDescription}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  {!isFullyPutAway && (
-                    <label className="flex items-center gap-2 cursor-pointer text-sm">
-                      <input
-                        type="checkbox"
-                        checked={isBulk}
-                        onChange={() => toggleBulkPutAway(line.id)}
-                        className="w-4 h-4"
-                      />
-                      <span>Bulk</span>
-                    </label>
-                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -469,6 +474,33 @@ export function PutAwayForm({
                       <ChevronDown className="h-4 w-4" />
                     )}
                   </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!isFullyPutAway && (
+                    <>
+                      <label className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={isBulk}
+                          onChange={() => toggleBulkPutAway(line.id)}
+                          className="w-4 h-4"
+                        />
+                        <span>Bulk</span>
+                      </label>
+                      {isBulk && (
+                        <FormSelect
+                          value={bulkLocation}
+                          onChange={(e) => handleBulkLocationChange(line.id, e.target.value)}
+                          options={storeLocations.map((loc) => ({
+                            value: loc,
+                            label: loc,
+                          }))}
+                          placeholder="Select location..."
+                          containerClassName="min-w-[200px]"
+                        />
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </CardHeader>
@@ -514,7 +546,11 @@ export function PutAwayForm({
                                 <span>{skuId}</span>
                               </td>
                               <td className="p-2">
-                                <span>{isPutAway ? existingRecord.huQty : huQtyPerPallet}</span>
+                                <span>
+                                  {isPutAway
+                                    ? existingRecord.huQty
+                                    : getHuQtyPerPallet(line, index, palletCount)}
+                                </span>
                               </td>
                               <td className="p-2">
                                 {isPutAway ? (

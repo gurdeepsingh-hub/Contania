@@ -12,6 +12,7 @@ import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
 import { PutAwayDialog } from '@/components/freight/put-away-dialog'
 import { toast } from 'sonner'
+import { ReceiveStockForm } from '@/components/freight/receive-stock-form'
 
 type ProductLine = {
   id: number
@@ -196,96 +197,78 @@ export default function ReceiveStockPage() {
           {productLines.length === 0 ? (
             <p className="text-muted-foreground">No product lines to receive.</p>
           ) : (
-            productLines.map((line, index) => (
-              <div key={line.id} className="border rounded-lg p-4 space-y-4">
-                <div>
-                  <h3 className="font-medium">
-                    {typeof line.skuId === 'object' ? line.skuId.skuCode : 'SKU'} - {line.skuDescription || 'N/A'}
-                  </h3>
-                  {line.batchNumber && (
-                    <p className="text-sm text-muted-foreground">Batch: {line.batchNumber}</p>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <Label>Expected Qty</Label>
-                    <Input value={line.expectedQty || 0} readOnly />
-                  </div>
-                  <div>
-                    <Label>Received Qty</Label>
-                    <Input
-                      type="number"
-                      value={line.recievedQty || ''}
-                      onChange={(e) => updateProductLine(index, 'recievedQty', parseInt(e.target.value) || undefined)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Expected Weight</Label>
-                    <Input value={line.expectedWeight || 0} readOnly />
-                  </div>
-                  <div>
-                    <Label>Received Weight</Label>
-                    <Input
-                      type="number"
-                      value={line.recievedWeight || ''}
-                      onChange={(e) => updateProductLine(index, 'recievedWeight', parseInt(e.target.value) || undefined)}
-                    />
-                  </div>
-                  {line.expectedCubicPerHU !== undefined && (
-                    <>
-                      <div>
-                        <Label>Expected Cubic (m³)</Label>
-                        <Input value={line.expectedCubicPerHU || 0} readOnly />
-                      </div>
-                      <div>
-                        <Label>Received Cubic (m³)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={line.recievedCubicPerHU || ''}
-                          onChange={(e) => updateProductLine(index, 'recievedCubicPerHU', parseFloat(e.target.value) || undefined)}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))
+            // productLines.map((line, index) => (
+            //   <div key={line.id} className="border rounded-lg p-4 space-y-4">
+            //     <div>
+            //       <h3 className="font-medium">
+            //         {typeof line.skuId === 'object' ? line.skuId.skuCode : 'SKU'} - {line.skuDescription || 'N/A'}
+            //       </h3>
+            //       {line.batchNumber && (
+            //         <p className="text-sm text-muted-foreground">Batch: {line.batchNumber}</p>
+            //       )}
+            //     </div>
+            //     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            //       <div>
+            //         <Label>Expected Qty</Label>
+            //         <Input value={line.expectedQty || 0} readOnly />
+            //       </div>
+            //       <div>
+            //         <Label>Received Qty</Label>
+            //         <Input
+            //           type="number"
+            //           value={line.recievedQty || ''}
+            //           onChange={(e) => updateProductLine(index, 'recievedQty', parseInt(e.target.value) || undefined)}
+            //         />
+            //       </div>
+            //       <div>
+            //         <Label>Expected Weight</Label>
+            //         <Input value={line.expectedWeight || 0} readOnly />
+            //       </div>
+            //       <div>
+            //         <Label>Received Weight</Label>
+            //         <Input
+            //           type="number"
+            //           value={line.recievedWeight || ''}
+            //           onChange={(e) => updateProductLine(index, 'recievedWeight', parseInt(e.target.value) || undefined)}
+            //         />
+            //       </div>
+            //       {line.expectedCubicPerHU !== undefined && (
+            //         <>
+            //           <div>
+            //             <Label>Expected Cubic (m³)</Label>
+            //             <Input value={line.expectedCubicPerHU || 0} readOnly />
+            //           </div>
+            //           <div>
+            //             <Label>Received Cubic (m³)</Label>
+            //             <Input
+            //               type="number"
+            //               step="0.01"
+            //               value={line.recievedCubicPerHU || ''}
+            //               onChange={(e) => updateProductLine(index, 'recievedCubicPerHU', parseFloat(e.target.value) || undefined)}
+            //             />
+            //           </div>
+            //         </>
+            //       )}
+            //     </div>
+            //   </div>
+            // ))
+            <ReceiveStockForm productLines={productLines} onProductLineChange={updateProductLine} />
           )}
         </CardContent>
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button
-          onClick={() => handleSave('save')}
-          disabled={saving}
-        >
+        <Button onClick={() => handleSave('save')} disabled={saving}>
           <Save className="h-4 w-4 mr-2" />
           {saving ? 'Saving...' : 'Save Receive'}
         </Button>
-        <Button
-          onClick={() => handleSave('putAway')}
-          variant="outline"
-          disabled={saving}
-        >
+        <Button onClick={() => handleSave('putAway')} variant="outline" disabled={saving}>
           <PackageCheck className="h-4 w-4 mr-2" />
           Put Away Stock
         </Button>
       </div>
 
-      <PutAwayDialog
-        open={showPutAwayDialog}
-        onOpenChange={setShowPutAwayDialog}
-        jobId={job?.id}
-      />
+      <PutAwayDialog open={showPutAwayDialog} onOpenChange={setShowPutAwayDialog} jobId={job?.id} />
     </div>
   )
 }
-
-
-
-
-
-
-
-
