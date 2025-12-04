@@ -85,6 +85,10 @@ export interface Config {
     'put-away-stock': PutAwayStock;
     'outbound-inventory': OutboundInventory;
     'outbound-product-line': OutboundProductLine;
+    'trailer-types': TrailerType;
+    trailers: Trailer;
+    vehicles: Vehicle;
+    drivers: Driver;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -108,6 +112,10 @@ export interface Config {
     'put-away-stock': PutAwayStockSelect<false> | PutAwayStockSelect<true>;
     'outbound-inventory': OutboundInventorySelect<false> | OutboundInventorySelect<true>;
     'outbound-product-line': OutboundProductLineSelect<false> | OutboundProductLineSelect<true>;
+    'trailer-types': TrailerTypesSelect<false> | TrailerTypesSelect<true>;
+    trailers: TrailersSelect<false> | TrailersSelect<true>;
+    vehicles: VehiclesSelect<false> | VehiclesSelect<true>;
+    drivers: DriversSelect<false> | DriversSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -1424,6 +1432,242 @@ export interface OutboundProductLine {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trailer-types".
+ */
+export interface TrailerType {
+  id: number;
+  /**
+   * Links trailer type to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Trailer type name
+   */
+  name: string;
+  /**
+   * Maximum weight capacity in kg
+   */
+  maxWeightKg?: number | null;
+  /**
+   * Maximum cubic volume in m³
+   */
+  maxCubicM3?: number | null;
+  /**
+   * Maximum pallet capacity
+   */
+  maxPallet?: number | null;
+  /**
+   * Whether this type supports Trailer A
+   */
+  trailerA?: boolean | null;
+  /**
+   * Whether this type supports Trailer B
+   */
+  trailerB?: boolean | null;
+  /**
+   * Whether this type supports Trailer C
+   */
+  trailerC?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trailers".
+ */
+export interface Trailer {
+  id: number;
+  /**
+   * Links trailer to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Trailer fleet ID
+   */
+  fleetNumber: string;
+  /**
+   * Trailer registration number
+   */
+  rego: string;
+  /**
+   * Registration expiry date
+   */
+  regoExpiryDate?: string | null;
+  /**
+   * Trailer type reference
+   */
+  trailerTypeId?: (number | null) | TrailerType;
+  /**
+   * Max allowed weight (kg)
+   */
+  maxWeightKg?: number | null;
+  /**
+   * Max cubic volume (m³)
+   */
+  maxCubeM3?: number | null;
+  /**
+   * Max pallet capacity
+   */
+  maxPallet?: number | null;
+  /**
+   * Default warehouse
+   */
+  defaultWarehouseId?: (number | null) | Warehouse;
+  /**
+   * Dangerous goods certificate number
+   */
+  dangerousCertNumber?: string | null;
+  /**
+   * Dangerous goods certificate expiry
+   */
+  dangerousCertExpiry?: string | null;
+  /**
+   * Notes or description
+   */
+  description?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vehicles".
+ */
+export interface Vehicle {
+  id: number;
+  /**
+   * Links vehicle to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Internal fleet identification number
+   */
+  fleetNumber: string;
+  /**
+   * Vehicle registration number
+   */
+  rego: string;
+  /**
+   * Expiry date of the vehicle registration
+   */
+  regoExpiryDate?: string | null;
+  /**
+   * External GPS device ID linked to the vehicle
+   */
+  gpsId?: string | null;
+  /**
+   * Optional vehicle description or notes
+   */
+  description?: string | null;
+  /**
+   * Default depot/warehouse where vehicle is based
+   */
+  defaultDepotId?: (number | null) | Warehouse;
+  /**
+   * Assigned A trailer type
+   */
+  aTrailerId?: (number | null) | TrailerType;
+  /**
+   * Assigned B trailer type
+   */
+  bTrailerId?: (number | null) | TrailerType;
+  /**
+   * Assigned C trailer type
+   */
+  cTrailerId?: (number | null) | TrailerType;
+  /**
+   * Whether vehicle is equipped with sideloader (YES/NO)
+   */
+  sideloader: boolean;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "drivers".
+ */
+export interface Driver {
+  id: number;
+  /**
+   * Links driver to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Full name of driver
+   */
+  name: string;
+  /**
+   * Driver contact number
+   */
+  phoneNumber: string;
+  /**
+   * Assigned vehicle
+   */
+  vehicleId?: (number | null) | Vehicle;
+  /**
+   * Default depot/warehouse for the driver
+   */
+  defaultDepotId?: (number | null) | Warehouse;
+  /**
+   * Australian Business Number (if applicable)
+   */
+  abn?: string | null;
+  /**
+   * Street address
+   */
+  addressStreet?: string | null;
+  /**
+   * City
+   */
+  city?: string | null;
+  /**
+   * State/Province
+   */
+  state?: string | null;
+  /**
+   * Postcode/ZIP
+   */
+  postcode?: string | null;
+  /**
+   * Casual or Permanent
+   */
+  employeeType: 'Casual' | 'Permanent';
+  /**
+   * Driver licence number
+   */
+  drivingLicenceNumber: string;
+  /**
+   * Driver licence expiry date
+   */
+  licenceExpiry?: string | null;
+  /**
+   * URL or file path to uploaded licence photo
+   */
+  licencePhotoUrl?: (number | null) | Media;
+  /**
+   * Dangerous Goods certificate number
+   */
+  dangerousGoodsCertNumber?: string | null;
+  /**
+   * DG certificate expiry date
+   */
+  dangerousGoodsCertExpiry?: string | null;
+  /**
+   * Maritime Security Identification Card number
+   */
+  msicNumber?: string | null;
+  /**
+   * MSIC expiry date
+   */
+  msicExpiry?: string | null;
+  /**
+   * URL or file path to uploaded MSIC photo
+   */
+  msicPhotoUrl?: (number | null) | Media;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -1496,6 +1740,22 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'outbound-product-line';
         value: number | OutboundProductLine;
+      } | null)
+    | ({
+        relationTo: 'trailer-types';
+        value: number | TrailerType;
+      } | null)
+    | ({
+        relationTo: 'trailers';
+        value: number | Trailer;
+      } | null)
+    | ({
+        relationTo: 'vehicles';
+        value: number | Vehicle;
+      } | null)
+    | ({
+        relationTo: 'drivers';
+        value: number | Driver;
       } | null);
   globalSlug?: string | null;
   user:
@@ -2008,6 +2268,88 @@ export interface OutboundProductLineSelect<T extends boolean = true> {
         id?: T;
       };
   location?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trailer-types_select".
+ */
+export interface TrailerTypesSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  maxWeightKg?: T;
+  maxCubicM3?: T;
+  maxPallet?: T;
+  trailerA?: T;
+  trailerB?: T;
+  trailerC?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trailers_select".
+ */
+export interface TrailersSelect<T extends boolean = true> {
+  tenantId?: T;
+  fleetNumber?: T;
+  rego?: T;
+  regoExpiryDate?: T;
+  trailerTypeId?: T;
+  maxWeightKg?: T;
+  maxCubeM3?: T;
+  maxPallet?: T;
+  defaultWarehouseId?: T;
+  dangerousCertNumber?: T;
+  dangerousCertExpiry?: T;
+  description?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vehicles_select".
+ */
+export interface VehiclesSelect<T extends boolean = true> {
+  tenantId?: T;
+  fleetNumber?: T;
+  rego?: T;
+  regoExpiryDate?: T;
+  gpsId?: T;
+  description?: T;
+  defaultDepotId?: T;
+  aTrailerId?: T;
+  bTrailerId?: T;
+  cTrailerId?: T;
+  sideloader?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "drivers_select".
+ */
+export interface DriversSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  phoneNumber?: T;
+  vehicleId?: T;
+  defaultDepotId?: T;
+  abn?: T;
+  addressStreet?: T;
+  city?: T;
+  state?: T;
+  postcode?: T;
+  employeeType?: T;
+  drivingLicenceNumber?: T;
+  licenceExpiry?: T;
+  licencePhotoUrl?: T;
+  dangerousGoodsCertNumber?: T;
+  dangerousGoodsCertExpiry?: T;
+  msicNumber?: T;
+  msicExpiry?: T;
+  msicPhotoUrl?: T;
   updatedAt?: T;
   createdAt?: T;
 }

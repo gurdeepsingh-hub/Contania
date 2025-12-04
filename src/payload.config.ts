@@ -24,6 +24,10 @@ import { InboundProductLine } from './collections/InboundProductLine'
 import { PutAwayStock } from './collections/PutAwayStock'
 import { OutboundInventory } from './collections/OutboundInventory'
 import { OutboundProductLine } from './collections/OutboundProductLine'
+import { TrailerTypes } from './collections/TrailerTypes'
+import { Trailers } from './collections/Trailers'
+import { Vehicles } from './collections/Vehicles'
+import { Drivers } from './collections/Drivers'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -54,6 +58,10 @@ export default buildConfig({
     PutAwayStock,
     OutboundInventory,
     OutboundProductLine,
+    TrailerTypes,
+    Trailers,
+    Vehicles,
+    Drivers,
   ],
   email: nodemailerAdapter(),
   // {

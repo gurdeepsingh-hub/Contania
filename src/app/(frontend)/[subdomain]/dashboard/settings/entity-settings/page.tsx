@@ -15,6 +15,7 @@ import {
   ArrowRight,
   CreditCard,
   Truck,
+  User,
 } from 'lucide-react'
 import { hasViewPermission, hasPermission, canManageRoles } from '@/lib/permissions'
 
@@ -321,6 +322,131 @@ export default function EntitySettingsPage() {
                 }}
               >
                 Manage Storage Units
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Fleet Management Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Truck className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-2xl font-semibold">Fleet Management</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/trailer-types')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Truck className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Trailer Types</CardTitle>
+              <CardDescription>Configure trailer type specifications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/trailer-types')
+                }}
+              >
+                Manage Trailer Types
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/trailers')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Truck className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Trailers</CardTitle>
+              <CardDescription>Manage trailer fleet information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/trailers')
+                }}
+              >
+                Manage Trailers
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/vehicles')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Truck className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Vehicles</CardTitle>
+              <CardDescription>Manage vehicle fleet information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/vehicles')
+                }}
+              >
+                Manage Vehicles
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/drivers')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <User className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Drivers</CardTitle>
+              <CardDescription>Manage driver information and certifications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/drivers')
+                }}
+              >
+                Manage Drivers
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>
