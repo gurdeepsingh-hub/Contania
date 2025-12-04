@@ -1,45 +1,84 @@
 # Database Migrations
 
-## Rename Inbound Inventory Fields
+## Reset Freight/Inventory Tables
 
-This migration renames columns in the `inbound_inventory` table to match the updated field names in the collection.
+This migration completely resets all freight/inventory tables by dropping and recreating them. Use this when you have schema inconsistencies or foreign key constraint issues that are difficult to fix manually.
 
-### Option 1: Let Payload Auto-Sync (Recommended)
+### When to Use This Migration
 
-Payload CMS should automatically sync schema changes. Try restarting your development server:
+Use this migration when:
 
-```bash
-# Stop the server (Ctrl+C)
-# Then restart
-pnpm dev
-```
+- You're experiencing persistent foreign key constraint errors
+- Schema inconsistencies between Payload collections and database tables
+- You want a clean slate for freight/inventory data
+- You're okay with losing all existing freight/inventory data (inbound/outbound jobs, product lines, put-away stock)
 
-If Payload doesn't auto-sync, you may need to run the SQL migration manually.
+### What Gets Preserved
 
-### Option 2: Manual SQL Migration
+The following data will be **preserved**:
 
-If auto-sync doesn't work, run the SQL migration script:
+- ✅ Tenants
+- ✅ Tenant Users
+- ✅ Tenant Roles
+- ✅ Users (super admin)
+- ✅ Customers
+- ✅ Paying Customers
+- ✅ Warehouses
+- ✅ SKUs
+- ✅ Storage Units
+- ✅ Handling Units
+- ✅ Transport Companies
+- ✅ Media files
+
+### What Gets Deleted
+
+The following tables and their data will be **deleted**:
+
+- ❌ `inbound_inventory` - All inbound job records
+- ❌ `inbound_product_line` - All inbound product line records
+- ❌ `outbound_inventory` - All outbound job records
+- ❌ `outbound_product_line` - All outbound product line records
+- ❌ `put_away_stock` - All put-away stock records
+
+### How to Run
+
+**⚠️ IMPORTANT: BACKUP YOUR DATABASE BEFORE RUNNING THIS MIGRATION**
 
 ```bash
 # Using psql
-psql -U your_username -d your_database -f migrations/rename_inbound_inventory_fields.sql
+psql -U your_username -d your_database -f migrations/reset_freight_tables.sql
 
 # Or using a database GUI tool like pgAdmin, DBeaver, etc.
-# Just copy and paste the contents of rename_inbound_inventory_fields.sql
+# Just copy and paste the contents of reset_freight_tables.sql
 ```
+
+### After Running the Migration
+
+1. **Restart your Payload server**:
+
+   ```bash
+   # Stop the server (Ctrl+C)
+   pnpm dev
+   ```
+
+2. **Payload will automatically recreate the tables** with the correct schema based on your collection definitions
+
+3. **Verify tables are created correctly** by checking:
+   - Tables exist in your database
+   - You can create new inbound/outbound jobs
+   - No foreign key constraint errors
 
 ### What This Migration Does
 
-1. Renames `delivery_customer_ref` → `delivery_customer_reference_number`
-2. Renames `customer_reference` → `ordering_customer_reference_number`
-3. Ensures `delivery_customer_id` column exists (TEXT type)
-4. Converts `supplier_id` from INTEGER to TEXT (if it was a relationship field)
-   - Existing integer IDs are converted to "customers:ID" format
+1. **Drops freight/inventory tables** in the correct order (handling dependencies)
+2. **Uses CASCADE** to automatically drop foreign key constraints
+3. **Verifies tables are dropped** before completion
+4. **Provides clear next steps** for recreating tables
 
 ### Important Notes
 
-- **Backup your database** before running migrations in production
-- The migration converts existing `supplier_id` integer values to "customers:ID" format
-- If you have `supplier_id` values that should be from `paying-customers` collection, you'll need to update them manually after migration
-
-
+- **This is a destructive operation** - all freight/inventory data will be permanently deleted
+- **Backup your database** before running in production
+- Tenant, user, and entity data will be preserved
+- Tables will be automatically recreated by Payload on server restart
+- This is the recommended approach when dealing with complex schema issues

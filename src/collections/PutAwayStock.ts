@@ -18,11 +18,11 @@ function generateLPNCode(length: number = 8): string {
 async function generateUniqueLPN(
   payload: any,
   tenantId: number | string,
-  maxAttempts: number = 10
+  maxAttempts: number = 10,
 ): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const lpn = generateLPNCode(8) // 8 character code after "LPN"
-    
+
     // Check if this LPN already exists for this tenant
     const existing = await payload.find({
       collection: 'put-away-stock',
@@ -183,11 +183,58 @@ export const PutAwayStock: CollectionConfig = {
         description: 'Quantity of handling units per pallet',
       },
     },
+    // Outbound allocation tracking fields
+    {
+      name: 'outboundInventoryId',
+      type: 'relationship',
+      relationTo: 'outbound-inventory',
+      admin: {
+        description: 'Outbound job this LPN is allocated to (if allocated)',
+      },
+    },
+    {
+      name: 'outboundProductLineId',
+      type: 'relationship',
+      relationTo: 'outbound-product-line',
+      admin: {
+        description: 'Outbound product line this LPN is allocated to (if allocated)',
+      },
+    },
+    {
+      name: 'allocationStatus',
+      type: 'select',
+      options: [
+        { label: 'Available', value: 'available' },
+        { label: 'Reserved', value: 'reserved' },
+        { label: 'Allocated', value: 'allocated' },
+        { label: 'Picked', value: 'picked' },
+        { label: 'Dispatched', value: 'dispatched' },
+      ],
+      defaultValue: 'available',
+      admin: {
+        description: 'Current allocation status of this LPN',
+      },
+    },
+    {
+      name: 'allocatedAt',
+      type: 'date',
+      admin: {
+        description: 'Timestamp when this LPN was allocated to an outbound job',
+      },
+    },
+    {
+      name: 'allocatedBy',
+      type: 'relationship',
+      relationTo: 'tenant-users',
+      admin: {
+        description: 'User who allocated this LPN',
+      },
+    },
   ],
   timestamps: true,
   hooks: {
     beforeChange: [
-      async ({ req, data, operation }) => {
+      async ({ req, data, operation, originalDoc }) => {
         const user = (
           req as unknown as {
             user?: { role?: string; tenantId?: number | string; collection?: string }
@@ -211,9 +258,37 @@ export const PutAwayStock: CollectionConfig = {
         }
         // If LPN is provided, use it (from form generation)
 
+        // Prevent double allocation: if trying to allocate an already allocated LPN
+        if (operation === 'update' && (data as any).allocationStatus === 'allocated' && originalDoc) {
+          // Use originalDoc which contains the existing document for update operations
+          const existing = originalDoc as any
+
+          // If LPN is already allocated to a different outbound job, prevent re-allocation
+          const existingAllocationStatus = existing.allocationStatus
+          const existingOutboundId = existing.outboundInventoryId
+
+          if (existingAllocationStatus === 'allocated' && existingOutboundId) {
+            const existingOutboundIdValue =
+              typeof existingOutboundId === 'object' ? existingOutboundId.id : existingOutboundId
+            const newOutboundId =
+              typeof (data as any).outboundInventoryId === 'object'
+                ? ((data as any).outboundInventoryId as { id: number }).id
+                : (data as any).outboundInventoryId
+
+            if (
+              existingOutboundIdValue &&
+              newOutboundId &&
+              existingOutboundIdValue !== newOutboundId
+            ) {
+              throw new Error(
+                `LPN ${existing.lpnNumber} is already allocated to another outbound job`,
+              )
+            }
+          }
+        }
+
         return data
       },
     ],
   },
 }
-

@@ -17,10 +17,22 @@ type InboundJob = {
   createdAt: string
 }
 
+type OutboundJob = {
+  id: number
+  jobCode?: string
+  status?: string
+  requiredDateTime?: string
+  customerName?: string
+  customerToName?: string
+  customerFromName?: string
+  createdAt: string
+}
+
 export default function FreightPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [inboundJobs, setInboundJobs] = useState<InboundJob[]>([])
+  const [outboundJobs, setOutboundJobs] = useState<OutboundJob[]>([])
   const [loadingJobs, setLoadingJobs] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id?: number; role?: number | string | { id: number; permissions?: Record<string, boolean> } } | null>(null)
@@ -63,8 +75,12 @@ export default function FreightPage() {
   }, [loading, tenant, router])
 
   useEffect(() => {
-    if (tenant && authChecked && activeTab === 'inbound') {
-      loadInboundJobs()
+    if (tenant && authChecked) {
+      if (activeTab === 'inbound') {
+        loadInboundJobs()
+      } else {
+        loadOutboundJobs()
+      }
     }
   }, [tenant, authChecked, activeTab])
 
@@ -78,6 +94,21 @@ export default function FreightPage() {
       }
     } catch (error) {
       console.error('Error loading inbound jobs:', error)
+    } finally {
+      setLoadingJobs(false)
+    }
+  }
+
+  const loadOutboundJobs = async () => {
+    try {
+      setLoadingJobs(true)
+      const res = await fetch('/api/outbound-inventory?limit=10')
+      if (res.ok) {
+        const data = await res.json()
+        setOutboundJobs(data.jobs || [])
+      }
+    } catch (error) {
+      console.error('Error loading outbound jobs:', error)
     } finally {
       setLoadingJobs(false)
     }
@@ -111,6 +142,14 @@ export default function FreightPage() {
             <Button>
               <Plus className="h-4 w-4 mr-2" />
               New Inbound Job
+            </Button>
+          </Link>
+        )}
+        {activeTab === 'outbound' && (
+          <Link href="/dashboard/freight/outbound/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Outbound Job
             </Button>
           </Link>
         )}
@@ -198,15 +237,103 @@ export default function FreightPage() {
           )}
         </div>
       ) : (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">
-              <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">Outbound Freight</p>
-              <p>Outbound freight functionality coming soon.</p>
+        <div className="space-y-4">
+          {loadingJobs ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">Loading jobs...</div>
+              </CardContent>
+            </Card>
+          ) : outboundJobs.length === 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No outbound jobs yet</p>
+                  <p className="mb-4">Create your first outbound freight job to get started.</p>
+                  <Link href="/dashboard/freight/outbound/new">
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Outbound Job
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {outboundJobs.map((job) => {
+                const getStatusColor = (status?: string) => {
+                  switch (status) {
+                    case 'allocated':
+                      return 'text-blue-600'
+                    case 'ready_to_pick':
+                      return 'text-yellow-600'
+                    case 'picked':
+                      return 'text-orange-600'
+                    case 'ready_to_dispatch':
+                      return 'text-green-600'
+                    default:
+                      return 'text-gray-600'
+                  }
+                }
+
+                const getStatusLabel = (status?: string) => {
+                  switch (status) {
+                    case 'draft':
+                      return 'Draft'
+                    case 'allocated':
+                      return 'Allocated'
+                    case 'ready_to_pick':
+                      return 'Ready to Pick'
+                    case 'picked':
+                      return 'Picked'
+                    case 'ready_to_dispatch':
+                      return 'Ready to Dispatch'
+                    default:
+                      return 'Draft'
+                  }
+                }
+
+                return (
+                  <Card key={job.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <CardTitle>
+                              {job.jobCode ? `Job ${job.jobCode}` : `Job #${job.id}`}
+                            </CardTitle>
+                            <span className={`text-sm font-medium ${getStatusColor(job.status)}`}>
+                              {getStatusLabel(job.status)}
+                            </span>
+                          </div>
+                          <CardDescription>
+                            {job.requiredDateTime &&
+                              `Required: ${new Date(job.requiredDateTime).toLocaleDateString()}`}
+                            {job.customerName && ` • Customer: ${job.customerName}`}
+                            {job.customerToName && ` • To: ${job.customerToName}`}
+                            {job.customerFromName && ` • From: ${job.customerFromName}`}
+                          </CardDescription>
+                        </div>
+                        <Link href={`/dashboard/freight/outbound/${job.id}`}>
+                          <Button variant="outline" size="sm">
+                            View
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                )
+              })}
+              <div className="text-center">
+                <Link href="/dashboard/freight/outbound">
+                  <Button variant="outline">View All Outbound Jobs</Button>
+                </Link>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
     </div>
   )

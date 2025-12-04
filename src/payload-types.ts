@@ -83,6 +83,8 @@ export interface Config {
     'inbound-inventory': InboundInventory;
     'inbound-product-line': InboundProductLine;
     'put-away-stock': PutAwayStock;
+    'outbound-inventory': OutboundInventory;
+    'outbound-product-line': OutboundProductLine;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -104,6 +106,8 @@ export interface Config {
     'inbound-inventory': InboundInventorySelect<false> | InboundInventorySelect<true>;
     'inbound-product-line': InboundProductLineSelect<false> | InboundProductLineSelect<true>;
     'put-away-stock': PutAwayStockSelect<false> | PutAwayStockSelect<true>;
+    'outbound-inventory': OutboundInventorySelect<false> | OutboundInventorySelect<true>;
+    'outbound-product-line': OutboundProductLineSelect<false> | OutboundProductLineSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -1196,6 +1200,225 @@ export interface PutAwayStock {
    * Quantity of handling units per pallet
    */
   huQty: number;
+  /**
+   * Outbound job this LPN is allocated to (if allocated)
+   */
+  outboundInventoryId?: (number | null) | OutboundInventory;
+  /**
+   * Outbound product line this LPN is allocated to (if allocated)
+   */
+  outboundProductLineId?: (number | null) | OutboundProductLine;
+  /**
+   * Current allocation status of this LPN
+   */
+  allocationStatus?: ('available' | 'reserved' | 'allocated' | 'picked' | 'dispatched') | null;
+  /**
+   * Timestamp when this LPN was allocated to an outbound job
+   */
+  allocatedAt?: string | null;
+  /**
+   * User who allocated this LPN
+   */
+  allocatedBy?: (number | null) | TenantUser;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "outbound-inventory".
+ */
+export interface OutboundInventory {
+  id: number;
+  /**
+   * Links outbound inventory to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Unique job code for this tenant (auto-generated)
+   */
+  jobCode: string;
+  /**
+   * Current status of the outbound job
+   */
+  status?: ('draft' | 'allocated' | 'ready_to_pick' | 'picked' | 'ready_to_dispatch') | null;
+  /**
+   * Customer-provided reference number for this outbound job
+   */
+  customerRefNumber: string;
+  /**
+   * Reference number provided by the consignee/receiver
+   */
+  consigneeRefNumber: string;
+  /**
+   * Container number assigned to this outbound job
+   */
+  containerNumber: string;
+  /**
+   * Inspection or quality check reference number
+   */
+  inspectionNumber: string;
+  /**
+   * Warehouse responsible for processing this outbound job
+   */
+  warehouseId: number | Warehouse;
+  /**
+   * Inbound job number from which stock will be allocated
+   */
+  inboundJobNumber: string;
+  /**
+   * Customer ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")
+   */
+  customerId?: string | null;
+  /**
+   * Auto-fetched customer name
+   */
+  customerName?: string | null;
+  /**
+   * Customer location
+   */
+  customerLocation?: string | null;
+  /**
+   * Customer state
+   */
+  customerState?: string | null;
+  /**
+   * Customer primary contact/phone
+   */
+  customerContact?: string | null;
+  /**
+   * Delivery destination ID in format "collection:id" (can be customer or warehouse)
+   */
+  customerToId?: string | null;
+  /**
+   * Destination name (customer/warehouse)
+   */
+  customerToName?: string | null;
+  /**
+   * Destination city/location
+   */
+  customerToLocation?: string | null;
+  /**
+   * Destination state/region
+   */
+  customerToState?: string | null;
+  /**
+   * Destination primary contact
+   */
+  customerToContact?: string | null;
+  /**
+   * Pickup location ID in format "collection:id" (can be customer or warehouse)
+   */
+  customerFromId?: string | null;
+  /**
+   * Pickup party/warehouse name
+   */
+  customerFromName?: string | null;
+  /**
+   * Pickup location city
+   */
+  customerFromLocation?: string | null;
+  /**
+   * Pickup location state
+   */
+  customerFromState?: string | null;
+  /**
+   * Pickup party contact number
+   */
+  customerFromContact?: string | null;
+  /**
+   * Requested date/time for dispatch or pickup
+   */
+  requiredDateTime?: string | null;
+  /**
+   * Special handling notes or instructions from the customer
+   */
+  orderNotes?: string | null;
+  /**
+   * Total number of pallets planned for this outbound job
+   */
+  palletCount?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "outbound-product-line".
+ */
+export interface OutboundProductLine {
+  id: number;
+  /**
+   * Links product line to outbound job header
+   */
+  outboundInventoryId: number | OutboundInventory;
+  /**
+   * Batch number searched from inbound product lines of same tenant
+   */
+  batchNumber: string;
+  /**
+   * SKU linked to this batch
+   */
+  skuId?: (number | null) | Skus;
+  /**
+   * Description of SKU (cached from SKU master)
+   */
+  skuDescription?: string | null;
+  /**
+   * Expiry date of product (pulled from SKU or inbound batch)
+   */
+  expiry?: string | null;
+  /**
+   * Custom attribute 1 (from SKU), e.g., colour/grade
+   */
+  attribute1?: string | null;
+  /**
+   * Custom attribute 2 (from SKU), e.g., size/variant
+   */
+  attribute2?: string | null;
+  /**
+   * Quantity requested by customer for outbound
+   */
+  requiredQty?: number | null;
+  /**
+   * Quantity actually allocated from inventory
+   */
+  allocatedQty?: number | null;
+  /**
+   * Requested weight for the order
+   */
+  requiredWeight?: number | null;
+  /**
+   * Actual allocated weight
+   */
+  allocatedWeight?: number | null;
+  /**
+   * Requested cubic volume per handling unit
+   */
+  requiredCubicPerHU?: number | null;
+  /**
+   * Allocated cubic volume per handling unit
+   */
+  allocatedCubicPerHU?: number | null;
+  /**
+   * Container number used at line level if different
+   */
+  containerNumber?: string | null;
+  /**
+   * Pallet quantity allocated for this specific batch line calculated automatically
+   */
+  pltQty?: number | null;
+  /**
+   * List of LPN (License Plate Numbers) assigned for outbound
+   */
+  LPN?:
+    | {
+        lpnNumber?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Warehouse storage location from where goods are picked
+   */
+  location?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1265,6 +1488,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'put-away-stock';
         value: number | PutAwayStock;
+      } | null)
+    | ({
+        relationTo: 'outbound-inventory';
+        value: number | OutboundInventory;
+      } | null)
+    | ({
+        relationTo: 'outbound-product-line';
+        value: number | OutboundProductLine;
       } | null);
   globalSlug?: string | null;
   user:
@@ -1707,6 +1938,76 @@ export interface PutAwayStockSelect<T extends boolean = true> {
   warehouseId?: T;
   location?: T;
   huQty?: T;
+  outboundInventoryId?: T;
+  outboundProductLineId?: T;
+  allocationStatus?: T;
+  allocatedAt?: T;
+  allocatedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "outbound-inventory_select".
+ */
+export interface OutboundInventorySelect<T extends boolean = true> {
+  tenantId?: T;
+  jobCode?: T;
+  status?: T;
+  customerRefNumber?: T;
+  consigneeRefNumber?: T;
+  containerNumber?: T;
+  inspectionNumber?: T;
+  warehouseId?: T;
+  inboundJobNumber?: T;
+  customerId?: T;
+  customerName?: T;
+  customerLocation?: T;
+  customerState?: T;
+  customerContact?: T;
+  customerToId?: T;
+  customerToName?: T;
+  customerToLocation?: T;
+  customerToState?: T;
+  customerToContact?: T;
+  customerFromId?: T;
+  customerFromName?: T;
+  customerFromLocation?: T;
+  customerFromState?: T;
+  customerFromContact?: T;
+  requiredDateTime?: T;
+  orderNotes?: T;
+  palletCount?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "outbound-product-line_select".
+ */
+export interface OutboundProductLineSelect<T extends boolean = true> {
+  outboundInventoryId?: T;
+  batchNumber?: T;
+  skuId?: T;
+  skuDescription?: T;
+  expiry?: T;
+  attribute1?: T;
+  attribute2?: T;
+  requiredQty?: T;
+  allocatedQty?: T;
+  requiredWeight?: T;
+  allocatedWeight?: T;
+  requiredCubicPerHU?: T;
+  allocatedCubicPerHU?: T;
+  containerNumber?: T;
+  pltQty?: T;
+  LPN?:
+    | T
+    | {
+        lpnNumber?: T;
+        id?: T;
+      };
+  location?: T;
   updatedAt?: T;
   createdAt?: T;
 }

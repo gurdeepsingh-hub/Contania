@@ -4,11 +4,7 @@ import * as React from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Command,
   CommandEmpty,
@@ -46,9 +42,7 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
-  const selectedOption = options.find(
-    (option) => String(option.value) === String(value),
-  )
+  const selectedOption = options.find((option) => String(option.value) === String(value))
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -78,6 +72,9 @@ export function Combobox({
                     onValueChange?.(option.value)
                     setOpen(false)
                   }}
+                  onClick={() => {
+                    onValueChange?.(option.value)
+                  }}
                 >
                   <Check
                     className={cn(
@@ -95,4 +92,3 @@ export function Combobox({
     </Popover>
   )
 }
-

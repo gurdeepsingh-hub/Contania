@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Fetch the job
     const job = await payload.findByID({
-      collection: 'inbound-inventory',
+      collection: 'outbound-inventory',
       id: jobId,
       depth,
     })
@@ -35,9 +35,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     // Fetch product lines for this job
     const productLines = await payload.find({
-      collection: 'inbound-product-line',
+      collection: 'outbound-product-line',
       where: {
-        inboundInventoryId: {
+        outboundInventoryId: {
           equals: jobId,
         },
       },
@@ -52,8 +52,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     })
   } catch (error) {
-    console.error('Error fetching inbound inventory job:', error)
-    return NextResponse.json({ message: 'Failed to fetch inbound inventory job' }, { status: 500 })
+    console.error('Error fetching outbound inventory job:', error)
+    return NextResponse.json({ message: 'Failed to fetch outbound inventory job' }, { status: 500 })
   }
 }
 
@@ -75,7 +75,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Verify tenant ownership
     const existingJob = await payload.findByID({
-      collection: 'inbound-inventory',
+      collection: 'outbound-inventory',
       id: jobId,
     })
 
@@ -87,51 +87,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Update the job (supports partial updates)
     const updatedJob = await payload.update({
-      collection: 'inbound-inventory',
+      collection: 'outbound-inventory',
       id: jobId,
-      data: {
-        jobCode: body.jobCode !== undefined ? body.jobCode : existingJob.jobCode, // Allow job code updates
-        expectedDate:
-          body.expectedDate !== undefined && body.expectedDate !== ''
-            ? body.expectedDate
-            : body.expectedDate === ''
-              ? null
-              : existingJob.expectedDate,
-        completedDate:
-          body.completedDate !== undefined && body.completedDate !== ''
-            ? body.completedDate
-            : body.completedDate === ''
-              ? null
-              : existingJob.completedDate,
-        deliveryCustomerReferenceNumber:
-          body.deliveryCustomerReferenceNumber !== undefined
-            ? body.deliveryCustomerReferenceNumber
-            : existingJob.deliveryCustomerReferenceNumber,
-        orderingCustomerReferenceNumber:
-          body.orderingCustomerReferenceNumber !== undefined
-            ? body.orderingCustomerReferenceNumber
-            : existingJob.orderingCustomerReferenceNumber,
-        deliveryCustomerId:
-          body.deliveryCustomerId !== undefined
-            ? body.deliveryCustomerId
-            : existingJob.deliveryCustomerId,
-        notes: body.notes !== undefined ? body.notes : existingJob.notes,
-        transportMode:
-          body.transportMode !== undefined ? body.transportMode : existingJob.transportMode,
-        warehouseId: body.warehouseId !== undefined ? body.warehouseId : existingJob.warehouseId,
-        supplierId: body.supplierId !== undefined ? body.supplierId : existingJob.supplierId,
-        transportCompanyId:
-          body.transportCompanyId !== undefined
-            ? body.transportCompanyId
-            : existingJob.transportCompanyId,
-        chep: body.chep !== undefined ? body.chep : existingJob.chep,
-        loscam: body.loscam !== undefined ? body.loscam : existingJob.loscam,
-        plain: body.plain !== undefined ? body.plain : existingJob.plain,
-        palletTransferDocket:
-          body.palletTransferDocket !== undefined
-            ? body.palletTransferDocket
-            : existingJob.palletTransferDocket,
-      },
+      data: body,
     })
 
     return NextResponse.json({
@@ -139,8 +97,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       job: updatedJob,
     })
   } catch (error) {
-    console.error('Error updating inbound inventory job:', error)
-    return NextResponse.json({ message: 'Failed to update inbound inventory job' }, { status: 500 })
+    console.error('Error updating outbound inventory job:', error)
+    return NextResponse.json(
+      { message: 'Failed to update outbound inventory job' },
+      { status: 500 },
+    )
   }
 }
 
@@ -164,7 +125,7 @@ export async function DELETE(
 
     // Verify tenant ownership
     const existingJob = await payload.findByID({
-      collection: 'inbound-inventory',
+      collection: 'outbound-inventory',
       id: jobId,
     })
 
@@ -174,13 +135,12 @@ export async function DELETE(
       return NextResponse.json({ message: 'Job not found' }, { status: 404 })
     }
 
-    // Delete put-away-stock records first (they have required foreign key to inbound-inventory)
-    // Use database adapter directly to bypass Payload's cascade behavior that tries to nullify foreign keys
+    // Delete put-away-stock records that reference this outbound job (clear allocations)
+    // Use database adapter directly to bypass Payload's cascade behavior
     try {
       const dbAdapter = payload.db as any
 
       // Try to access the postgres pool directly
-      // The @payloadcms/db-postgres adapter exposes the pool in different ways
       let pool: any = null
 
       if (dbAdapter?.pool) {
@@ -192,10 +152,13 @@ export async function DELETE(
       }
 
       if (pool && typeof pool.query === 'function') {
-        // Execute raw SQL to delete put-away-stock records directly
-        await pool.query('DELETE FROM put_away_stock WHERE inbound_inventory_id_id = $1', [jobId])
+        // Clear outbound references from put-away-stock (set to NULL since they're optional)
+        await pool.query(
+          'UPDATE put_away_stock SET outbound_inventory_id_id = NULL, outbound_product_line_id_id = NULL WHERE outbound_inventory_id_id = $1',
+          [jobId],
+        )
       } else {
-        // Fallback: use Payload API with pagination to ensure we get all records
+        // Fallback: use Payload API to clear references
         let hasMore = true
         let page = 1
         const limit = 100
@@ -204,7 +167,7 @@ export async function DELETE(
           const putAwayStockRecords = await payload.find({
             collection: 'put-away-stock',
             where: {
-              inboundInventoryId: {
+              outboundInventoryId: {
                 equals: jobId,
               },
             },
@@ -213,13 +176,104 @@ export async function DELETE(
           })
 
           for (const stock of putAwayStockRecords.docs) {
-            await payload.delete({
+            await payload.update({
               collection: 'put-away-stock',
               id: stock.id,
+              data: {
+                outboundInventoryId: null,
+                outboundProductLineId: null,
+                allocationStatus: 'available',
+              },
             })
           }
 
           hasMore = putAwayStockRecords.hasNextPage
+          page++
+        }
+      }
+    } catch (dbError) {
+      // If direct DB access fails, fall back to Payload API
+      console.warn('Direct DB update failed, using Payload API:', dbError)
+      let hasMore = true
+      let page = 1
+      const limit = 100
+
+      while (hasMore) {
+        const putAwayStockRecords = await payload.find({
+          collection: 'put-away-stock',
+          where: {
+            outboundInventoryId: {
+              equals: jobId,
+            },
+          },
+          limit,
+          page,
+        })
+
+        for (const stock of putAwayStockRecords.docs) {
+          await payload.update({
+            collection: 'put-away-stock',
+            id: stock.id,
+            data: {
+              outboundInventoryId: null,
+              outboundProductLineId: null,
+              allocationStatus: 'available',
+            },
+          })
+        }
+
+        hasMore = putAwayStockRecords.hasNextPage
+        page++
+      }
+    }
+
+    // Delete outbound-product-line records first (they have required foreign key to outbound-inventory)
+    // Use database adapter directly to bypass Payload's cascade behavior that tries to nullify foreign keys
+    try {
+      const dbAdapter = payload.db as any
+
+      // Try to access the postgres pool directly
+      let pool: any = null
+
+      if (dbAdapter?.pool) {
+        pool = dbAdapter.pool
+      } else if (dbAdapter?.sessions?.default?.schema?.db?.pool) {
+        pool = dbAdapter.sessions.default.schema.db.pool
+      } else if ((dbAdapter as any)?.sessions?.default?.db?.pool) {
+        pool = (dbAdapter as any).sessions.default.db.pool
+      }
+
+      if (pool && typeof pool.query === 'function') {
+        // Execute raw SQL to delete outbound-product-line records directly
+        await pool.query('DELETE FROM outbound_product_line WHERE outbound_inventory_id_id = $1', [
+          jobId,
+        ])
+      } else {
+        // Fallback: use Payload API with pagination to ensure we get all records
+        let hasMore = true
+        let page = 1
+        const limit = 100
+
+        while (hasMore) {
+          const productLines = await payload.find({
+            collection: 'outbound-product-line',
+            where: {
+              outboundInventoryId: {
+                equals: jobId,
+              },
+            },
+            limit,
+            page,
+          })
+
+          for (const line of productLines.docs) {
+            await payload.delete({
+              collection: 'outbound-product-line',
+              id: line.id,
+            })
+          }
+
+          hasMore = productLines.hasNextPage
           page++
         }
       }
@@ -231,10 +285,10 @@ export async function DELETE(
       const limit = 100
 
       while (hasMore) {
-        const putAwayStockRecords = await payload.find({
-          collection: 'put-away-stock',
+        const productLines = await payload.find({
+          collection: 'outbound-product-line',
           where: {
-            inboundInventoryId: {
+            outboundInventoryId: {
               equals: jobId,
             },
           },
@@ -242,38 +296,21 @@ export async function DELETE(
           page,
         })
 
-        for (const stock of putAwayStockRecords.docs) {
+        for (const line of productLines.docs) {
           await payload.delete({
-            collection: 'put-away-stock',
-            id: stock.id,
+            collection: 'outbound-product-line',
+            id: line.id,
           })
         }
 
-        hasMore = putAwayStockRecords.hasNextPage
+        hasMore = productLines.hasNextPage
         page++
       }
     }
 
-    // Delete product lines
-    const productLines = await payload.find({
-      collection: 'inbound-product-line',
-      where: {
-        inboundInventoryId: {
-          equals: jobId,
-        },
-      },
-    })
-
-    for (const line of productLines.docs) {
-      await payload.delete({
-        collection: 'inbound-product-line',
-        id: line.id,
-      })
-    }
-
     // Delete the job
     await payload.delete({
-      collection: 'inbound-inventory',
+      collection: 'outbound-inventory',
       id: jobId,
     })
 
@@ -282,7 +319,10 @@ export async function DELETE(
       message: 'Job deleted successfully',
     })
   } catch (error) {
-    console.error('Error deleting inbound inventory job:', error)
-    return NextResponse.json({ message: 'Failed to delete inbound inventory job' }, { status: 500 })
+    console.error('Error deleting outbound inventory job:', error)
+    return NextResponse.json(
+      { message: 'Failed to delete outbound inventory job' },
+      { status: 500 },
+    )
   }
 }
