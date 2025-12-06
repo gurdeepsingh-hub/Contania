@@ -85,11 +85,61 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ message: 'Job not found' }, { status: 404 })
     }
 
+    // Build update data object, excluding jobCode (read-only, auto-generated)
+    const updateData: Record<string, unknown> = {}
+    
+    // Only include fields that are present in the body (excluding jobCode)
+    if (body.status !== undefined) updateData.status = body.status
+    if (body.customerRefNumber !== undefined) updateData.customerRefNumber = body.customerRefNumber
+    if (body.consigneeRefNumber !== undefined) updateData.consigneeRefNumber = body.consigneeRefNumber
+    if (body.containerNumber !== undefined) updateData.containerNumber = body.containerNumber
+    if (body.inspectionNumber !== undefined) updateData.inspectionNumber = body.inspectionNumber
+    if (body.inboundJobNumber !== undefined) updateData.inboundJobNumber = body.inboundJobNumber
+    if (body.warehouseId !== undefined) updateData.warehouseId = body.warehouseId
+    if (body.customerId !== undefined) {
+      if (typeof body.customerId === 'string' && body.customerId.trim() !== '') {
+        updateData.customerId = body.customerId
+      } else {
+        updateData.customerId = null
+      }
+    }
+    if (body.customerToId !== undefined) {
+      if (typeof body.customerToId === 'string' && body.customerToId.trim() !== '') {
+        updateData.customerToId = body.customerToId
+      } else {
+        updateData.customerToId = null
+      }
+    }
+    if (body.customerFromId !== undefined) {
+      if (typeof body.customerFromId === 'string' && body.customerFromId.trim() !== '') {
+        updateData.customerFromId = body.customerFromId
+      } else {
+        updateData.customerFromId = null
+      }
+    }
+    if (body.requiredDateTime !== undefined) updateData.requiredDateTime = body.requiredDateTime
+    if (body.orderNotes !== undefined) updateData.orderNotes = body.orderNotes
+    if (body.palletCount !== undefined) updateData.palletCount = body.palletCount
+    
+    // Include auto-populated customer fields if present
+    if (body.customerName !== undefined) updateData.customerName = body.customerName
+    if (body.customerLocation !== undefined) updateData.customerLocation = body.customerLocation
+    if (body.customerState !== undefined) updateData.customerState = body.customerState
+    if (body.customerContact !== undefined) updateData.customerContact = body.customerContact
+    if (body.customerToName !== undefined) updateData.customerToName = body.customerToName
+    if (body.customerToLocation !== undefined) updateData.customerToLocation = body.customerToLocation
+    if (body.customerToState !== undefined) updateData.customerToState = body.customerToState
+    if (body.customerToContact !== undefined) updateData.customerToContact = body.customerToContact
+    if (body.customerFromName !== undefined) updateData.customerFromName = body.customerFromName
+    if (body.customerFromLocation !== undefined) updateData.customerFromLocation = body.customerFromLocation
+    if (body.customerFromState !== undefined) updateData.customerFromState = body.customerFromState
+    if (body.customerFromContact !== undefined) updateData.customerFromContact = body.customerFromContact
+
     // Update the job (supports partial updates)
     const updatedJob = await payload.update({
       collection: 'outbound-inventory',
       id: jobId,
-      data: body,
+      data: updateData,
     })
 
     return NextResponse.json({

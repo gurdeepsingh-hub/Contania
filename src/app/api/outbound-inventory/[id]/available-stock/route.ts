@@ -91,59 +91,142 @@ export async function GET(
         continue
       }
 
-      // Find available LPNs from PutAwayStock
-      const availableLPNs = await payload.find({
-        collection: 'put-away-stock',
-        where: {
-          and: [
-            {
-              tenantId: {
-                equals: tenant.id,
+      // Find available LPNs from PutAwayStock - fetch all pages
+      const allAvailableLPNs = []
+      let page = 1
+      let hasMore = true
+      
+      while (hasMore) {
+        const availableLPNsResult = await payload.find({
+          collection: 'put-away-stock',
+          where: {
+            and: [
+              {
+                tenantId: {
+                  equals: tenant.id,
+                },
               },
-            },
-            {
-              skuId: {
-                equals: skuId,
+              {
+                skuId: {
+                  equals: skuId,
+                },
               },
-            },
-            {
-              inboundProductLineId: {
-                in: inboundProductLineIds,
+              {
+                inboundProductLineId: {
+                  in: inboundProductLineIds,
+                },
               },
-            },
-            {
-              allocationStatus: {
-                equals: 'available',
+              {
+                allocationStatus: {
+                  equals: 'available',
+                },
               },
-            },
-            ...(warehouseId
-              ? [
-                  {
-                    warehouseId: {
-                      equals: warehouseId,
+              ...(warehouseId
+                ? [
+                    {
+                      warehouseId: {
+                        equals: warehouseId,
+                      },
                     },
-                  },
-                ]
-              : []),
-          ],
-        },
-        depth: 1,
-      })
+                  ]
+                : []),
+            ],
+          },
+          depth: 1,
+          limit: 1000,
+          page,
+        })
+        allAvailableLPNs.push(...availableLPNsResult.docs)
+        hasMore = availableLPNsResult.hasNextPage
+        page++
+      }
+
+      // Find all LPNs (including allocated ones) for this batch/SKU to show in UI - fetch all pages
+      const allLPNsList = []
+      page = 1
+      hasMore = true
+      
+      while (hasMore) {
+        const allLPNsResult = await payload.find({
+          collection: 'put-away-stock',
+          where: {
+            and: [
+              {
+                tenantId: {
+                  equals: tenant.id,
+                },
+              },
+              {
+                skuId: {
+                  equals: skuId,
+                },
+              },
+              {
+                inboundProductLineId: {
+                  in: inboundProductLineIds,
+                },
+              },
+              ...(warehouseId
+                ? [
+                    {
+                      warehouseId: {
+                        equals: warehouseId,
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          },
+          depth: 2,
+          limit: 1000,
+          page,
+        })
+        allLPNsList.push(...allLPNsResult.docs)
+        hasMore = allLPNsResult.hasNextPage
+        page++
+      }
 
       // Calculate available quantity
-      const availableQty = availableLPNs.docs.reduce((sum, lpn) => sum + (lpn.huQty || 0), 0)
+      const availableQty = allAvailableLPNs.reduce((sum, lpn) => sum + (lpn.huQty || 0), 0)
 
-      // Format LPN data
-      const lpnData = availableLPNs.docs.map((lpn) => ({
-        id: lpn.id,
-        lpnNumber: lpn.lpnNumber,
-        location: lpn.location,
-        huQty: lpn.huQty,
-        inboundProductLineId:
-          typeof lpn.inboundProductLineId === 'object'
-            ? lpn.inboundProductLineId.id
-            : lpn.inboundProductLineId,
-      }))
+      // Format LPN data - include both available and allocated LPNs
+      const lpnData = allLPNsList.map((lpn) => {
+        const isAllocated = lpn.allocationStatus === 'allocated'
+        const allocatedToJobId =
+          isAllocated && lpn.outboundInventoryId
+            ? typeof lpn.outboundInventoryId === 'object'
+              ? lpn.outboundInventoryId.id
+              : lpn.outboundInventoryId
+            : null
+
+        // Get job code if allocated
+        let allocatedToJobCode = null
+        if (allocatedToJobId && allocatedToJobId !== jobId) {
+          try {
+            const allocatedJob = lpn.outboundInventoryId
+            if (typeof allocatedJob === 'object' && allocatedJob.jobCode) {
+              allocatedToJobCode = allocatedJob.jobCode
+            }
+          } catch (error) {
+            // If we can't get job code, just use job ID
+            console.warn('Could not fetch job code for allocated LPN:', error)
+          }
+        }
+
+        return {
+          id: lpn.id,
+          lpnNumber: lpn.lpnNumber,
+          location: lpn.location,
+          huQty: lpn.huQty,
+          inboundProductLineId:
+            typeof lpn.inboundProductLineId === 'object'
+              ? lpn.inboundProductLineId.id
+              : lpn.inboundProductLineId,
+          isAllocatedToOtherJob: isAllocated && allocatedToJobId !== jobId,
+          allocatedToJobId: allocatedToJobId !== jobId ? allocatedToJobId : null,
+          allocatedToJobCode: allocatedToJobCode,
+        }
+      })
 
       availabilityData.push({
         productLineId: productLine.id,

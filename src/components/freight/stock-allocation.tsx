@@ -13,6 +13,9 @@ type AvailableLPN = {
   location: string
   huQty: number
   inboundProductLineId: number
+  isAllocatedToOtherJob?: boolean
+  allocatedToJobId?: number | null
+  allocatedToJobCode?: string | null
 }
 
 type AvailabilityData = {
@@ -27,9 +30,10 @@ type AvailabilityData = {
 interface StockAllocationProps {
   outboundInventoryId: number
   onAllocationComplete?: () => void
+  productLineId?: number // Optional: filter to specific product line
 }
 
-export function StockAllocation({ outboundInventoryId, onAllocationComplete }: StockAllocationProps) {
+export function StockAllocation({ outboundInventoryId, onAllocationComplete, productLineId }: StockAllocationProps) {
   const [loading, setLoading] = useState(false)
   const [allocating, setAllocating] = useState(false)
   const [availability, setAvailability] = useState<AvailabilityData[]>([])
@@ -47,10 +51,14 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete }: S
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.availability) {
-          setAvailability(data.availability)
+          // Filter to specific product line if provided
+          const filteredAvailability = productLineId
+            ? data.availability.filter((item: AvailabilityData) => item.productLineId === productLineId)
+            : data.availability
+          setAvailability(filteredAvailability)
           // Initialize allocation mode as auto for all
           const modes: Record<number, 'manual' | 'auto'> = {}
-          data.availability.forEach((item: AvailabilityData) => {
+          filteredAvailability.forEach((item: AvailabilityData) => {
             modes[item.productLineId] = 'auto'
           })
           setAllocationMode(modes)
@@ -66,7 +74,10 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete }: S
     }
   }
 
-  const toggleLPNSelection = (productLineId: number, lpnNumber: string) => {
+  const toggleLPNSelection = (productLineId: number, lpnNumber: string, isDisabled: boolean) => {
+    if (isDisabled) {
+      return // Don't allow selection of disabled LPNs
+    }
     setSelectedLPNs((prev) => {
       const current = prev[productLineId] || []
       const updated = current.includes(lpnNumber)
@@ -87,8 +98,11 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete }: S
           }
 
           if (allocationMode[item.productLineId] === 'manual') {
-            // Manual allocation - use selected LPNs
-            const lpnIds = selectedLPNs[item.productLineId] || []
+            // Manual allocation - use selected LPNs (filter out disabled ones)
+            const lpnIds = (selectedLPNs[item.productLineId] || []).filter((lpnNumber) => {
+              const lpn = item.availableLPNs.find((l) => l.lpnNumber === lpnNumber)
+              return lpn && !lpn.isAllocatedToOtherJob
+            })
             if (lpnIds.length === 0) {
               return null
             }
@@ -246,27 +260,64 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete }: S
                       Select LPNs manually ({selectedCount} selected, {selectedQty} qty)
                     </p>
                     {item.availableLPNs.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-                        {item.availableLPNs.map((lpn) => (
-                          <div
-                            key={lpn.id}
-                            className="flex items-center space-x-2 p-2 border rounded hover:bg-muted cursor-pointer"
-                            onClick={() => toggleLPNSelection(item.productLineId, lpn.lpnNumber)}
-                          >
-                            <Checkbox
-                              checked={selectedLPNs[item.productLineId]?.includes(lpn.lpnNumber) || false}
-                              onCheckedChange={() =>
-                                toggleLPNSelection(item.productLineId, lpn.lpnNumber)
-                              }
-                            />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">{lpn.lpnNumber}</p>
-                              <p className="text-xs text-muted-foreground">
-                                Qty: {lpn.huQty} | Location: {lpn.location}
-                              </p>
-                            </div>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                          {item.availableLPNs.map((lpn) => {
+                            const isDisabled = lpn.isAllocatedToOtherJob === true
+                            return (
+                              <div
+                                key={lpn.id}
+                                className={`flex items-center space-x-2 p-2 border rounded ${
+                                  isDisabled
+                                    ? 'bg-gray-100 opacity-60 cursor-not-allowed'
+                                    : 'hover:bg-muted cursor-pointer'
+                                }`}
+                                onClick={() =>
+                                  toggleLPNSelection(item.productLineId, lpn.lpnNumber, isDisabled)
+                                }
+                                title={
+                                  isDisabled
+                                    ? `This LPN is allocated to job ${lpn.allocatedToJobCode || lpn.allocatedToJobId || 'another job'}`
+                                    : undefined
+                                }
+                              >
+                                <Checkbox
+                                  checked={
+                                    !isDisabled &&
+                                    (selectedLPNs[item.productLineId]?.includes(lpn.lpnNumber) || false)
+                                  }
+                                  disabled={isDisabled}
+                                  onCheckedChange={() =>
+                                    toggleLPNSelection(item.productLineId, lpn.lpnNumber, isDisabled)
+                                  }
+                                />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">
+                                    {lpn.lpnNumber}
+                                    {isDisabled && (
+                                      <span className="ml-2 text-xs text-red-600">(Allocated)</span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Qty: {lpn.huQty} | Location: {lpn.location}
+                                  </p>
+                                  {isDisabled && lpn.allocatedToJobCode && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                      Allocated to: {lpn.allocatedToJobCode}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {item.availableLPNs.some((lpn) => lpn.isAllocatedToOtherJob) && (
+                          <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                            <p className="text-xs text-yellow-800">
+                              Some LPNs are already allocated to other jobs and cannot be selected.
+                            </p>
                           </div>
-                        ))}
+                        )}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">No available LPNs</p>

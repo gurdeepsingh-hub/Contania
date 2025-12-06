@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { MultistepOutboundForm } from '@/components/freight/multistep-outbound-form'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
 type OutboundJob = {
@@ -45,7 +47,16 @@ export default function EditOutboundJobPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
-          setJob(data.job)
+          const jobData = data.job as OutboundJob & {
+            warehouseId?: number | { id: number }
+          }
+          // Normalize warehouseId - extract ID if it's a relationship object
+          if (jobData.warehouseId) {
+            if (typeof jobData.warehouseId === 'object' && 'id' in jobData.warehouseId) {
+              jobData.warehouseId = jobData.warehouseId.id
+            }
+          }
+          setJob(jobData)
         }
       }
     } catch (error) {
@@ -96,9 +107,19 @@ export default function EditOutboundJobPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Edit Outbound Job</h1>
-        <p className="text-muted-foreground">Update outbound inventory job details</p>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => router.push('/dashboard/freight/outbound')}
+          className="w-8 h-8 !bg-blue-500 text-white hover:bg-blue-600 !rounded-full !sm:rounded-xl"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Edit Outbound Job</h1>
+          <p className="text-muted-foreground">Update outbound inventory job details</p>
+        </div>
       </div>
 
       <MultistepOutboundForm initialData={job} onSave={handleSave} />

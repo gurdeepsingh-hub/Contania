@@ -278,6 +278,12 @@ export function MultistepOutboundForm({
       // Generate a temporary job code (will be replaced by server on save)
       data.jobCode = generateJobCode(8)
     }
+    // Normalize warehouseId - extract ID if it's a relationship object
+    if (data.warehouseId) {
+      if (typeof data.warehouseId === 'object' && 'id' in data.warehouseId) {
+        data.warehouseId = (data.warehouseId as { id: number }).id
+      }
+    }
     return data
   })
 
@@ -291,6 +297,12 @@ export function MultistepOutboundForm({
       // Ensure job code is set
       if (!data.jobCode) {
         data.jobCode = generateJobCode(8)
+      }
+      // Normalize warehouseId - extract ID if it's a relationship object
+      if (data.warehouseId) {
+        if (typeof data.warehouseId === 'object' && 'id' in data.warehouseId) {
+          data.warehouseId = (data.warehouseId as { id: number }).id
+        }
       }
       setFormData(data)
     }
@@ -617,8 +629,6 @@ export function MultistepOutboundForm({
   }
 
   const handleSave = async () => {
-    if (!onSave) return
-
     setSaving(true)
     try {
       // Convert datetime-local string to ISO date string if present
@@ -628,7 +638,36 @@ export function MultistepOutboundForm({
           ? new Date(formData.requiredDateTime).toISOString()
           : formData.requiredDateTime,
       }
-      await onSave(dataToSave)
+
+      // If job already exists, update it instead of creating a new one
+      if (formData.id) {
+        const res = await fetch(`/api/outbound-inventory/${formData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) {
+            toast.success('Job updated successfully')
+            // Don't call onSave here - it would create a duplicate job
+            // The job is already saved, so we're done
+          } else {
+            toast.error('Failed to update job')
+          }
+        } else {
+          toast.error('Failed to update job')
+        }
+      } else {
+        // Job doesn't exist yet, create it via onSave callback
+        if (!onSave) {
+          // Fallback to handleStepSave if onSave is not provided
+          await handleStepSave()
+          return
+        }
+        await onSave(dataToSave)
+      }
     } catch (error) {
       console.error('Error saving:', error)
       toast.error('Failed to save job')

@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { MultistepOutboundForm } from '@/components/freight/multistep-outbound-form'
+import { Button } from '@/components/ui/button'
+import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
 type OutboundJob = {
@@ -68,9 +70,19 @@ export default function NewOutboundJobPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">New Outbound Job</h1>
-        <p className="text-muted-foreground">Create a new outbound inventory job</p>
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => router.push('/dashboard/freight/outbound')}
+          className="w-8 h-8 !bg-blue-500 text-white hover:bg-blue-600 !rounded-full !sm:rounded-xl"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">New Outbound Job</h1>
+          <p className="text-muted-foreground">Create a new outbound inventory job</p>
+        </div>
       </div>
 
       <MultistepOutboundForm onSave={handleSave} />

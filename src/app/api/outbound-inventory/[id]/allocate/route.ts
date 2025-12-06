@@ -178,48 +178,59 @@ export async function POST(
 
         lpnRecordsToAllocate = lpnRecords.docs
       } else if (quantity && quantity > 0) {
-        // Auto-allocation by quantity
-        const availableLPNs = await payload.find({
-          collection: 'put-away-stock',
-          where: {
-            and: [
-              {
-                tenantId: {
-                  equals: tenant.id,
+        // Auto-allocation by quantity - fetch all pages
+        const allAvailableLPNs = []
+        let page = 1
+        let hasMore = true
+        
+        while (hasMore) {
+          const availableLPNsResult = await payload.find({
+            collection: 'put-away-stock',
+            where: {
+              and: [
+                {
+                  tenantId: {
+                    equals: tenant.id,
+                  },
                 },
-              },
-              {
-                skuId: {
-                  equals: skuId,
+                {
+                  skuId: {
+                    equals: skuId,
+                  },
                 },
-              },
-              {
-                inboundProductLineId: {
-                  in: inboundProductLineIds,
+                {
+                  inboundProductLineId: {
+                    in: inboundProductLineIds,
+                  },
                 },
-              },
-              {
-                allocationStatus: {
-                  equals: 'available',
+                {
+                  allocationStatus: {
+                    equals: 'available',
+                  },
                 },
-              },
-              ...(warehouseId
-                ? [
-                    {
-                      warehouseId: {
-                        equals: warehouseId,
+                ...(warehouseId
+                  ? [
+                      {
+                        warehouseId: {
+                          equals: warehouseId,
+                        },
                       },
-                    },
-                  ]
-                : []),
-            ],
-          },
-          sort: 'createdAt', // FIFO allocation
-        })
+                    ]
+                  : []),
+              ],
+            },
+            sort: 'createdAt', // FIFO allocation
+            limit: 1000,
+            page,
+          })
+          allAvailableLPNs.push(...availableLPNsResult.docs)
+          hasMore = availableLPNsResult.hasNextPage
+          page++
+        }
 
         // Allocate LPNs until quantity requirement is met
         let allocatedQty = 0
-        for (const lpn of availableLPNs.docs) {
+        for (const lpn of allAvailableLPNs) {
           if (allocatedQty >= quantity) {
             break
           }

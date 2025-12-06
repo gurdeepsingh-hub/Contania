@@ -12,11 +12,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { ArrowLeft, Edit, Trash2, Package, PackageCheck } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, Package, PackageCheck, Truck, ChevronDown, ChevronUp } from 'lucide-react'
 import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { AllocateStockDialog } from '@/components/freight/allocate-stock-dialog'
+import { ProductLineAllocateDialog } from '@/components/freight/product-line-allocate-dialog'
+
+type AllocatedLPN = {
+  serialNumber: number
+  lpnNumber: string
+  location: string
+  huQty: number
+  id: number
+}
 
 type ProductLine = {
   id?: number
@@ -28,6 +37,7 @@ type ProductLine = {
   requiredWeight?: number
   allocatedWeight?: number
   location?: string
+  allocatedLPNs?: AllocatedLPN[]
 }
 
 type OutboundJob = {
@@ -68,6 +78,8 @@ export default function OutboundJobDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showAllocateStockDialog, setShowAllocateStockDialog] = useState(false)
+  const [allocatingProductLineId, setAllocatingProductLineId] = useState<number | null>(null)
+  const [expandedLPNs, setExpandedLPNs] = useState<Record<number, boolean>>({})
 
   const jobId = params.id as string
 
@@ -110,7 +122,32 @@ export default function OutboundJobDetailPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
-          setJob(data.job)
+          const jobData = data.job
+          // Load allocated LPNs for each product line
+          if (jobData.productLines && jobData.productLines.length > 0) {
+            const productLinesWithLPNs = await Promise.all(
+              jobData.productLines.map(async (line: ProductLine) => {
+                if (line.id && line.allocatedQty && line.allocatedQty > 0) {
+                  try {
+                    const lpnRes = await fetch(
+                      `/api/outbound-product-lines/${line.id}/allocated-lpns`
+                    )
+                    if (lpnRes.ok) {
+                      const lpnData = await lpnRes.json()
+                      if (lpnData.success && lpnData.allocatedLPNs) {
+                        return { ...line, allocatedLPNs: lpnData.allocatedLPNs }
+                      }
+                    }
+                  } catch (error) {
+                    console.error(`Error loading LPNs for product line ${line.id}:`, error)
+                  }
+                }
+                return line
+              })
+            )
+            jobData.productLines = productLinesWithLPNs
+          }
+          setJob(jobData)
         }
       }
     } catch (error) {
@@ -201,6 +238,12 @@ export default function OutboundJobDetailPage() {
 
   const canDelete = job.status === 'draft'
   const canEdit = job.status !== 'ready_to_dispatch'
+  
+  // Check if all product lines are allocated
+  const allProductLinesAllocated =
+    job.productLines &&
+    job.productLines.length > 0 &&
+    job.productLines.every((line) => line.allocatedQty && line.allocatedQty > 0)
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -220,18 +263,26 @@ export default function OutboundJobDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {canEdit && (
-            <Link href={`/dashboard/freight/outbound/${job.id}/edit`}>
-              <Button variant="outline">
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Job
-              </Button>
-            </Link>
+          {canEdit && !allProductLinesAllocated && (
+            <>
+              <Link href={`/dashboard/freight/outbound/${job.id}/edit`}>
+                <Button variant="outline">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Job
+                </Button>
+              </Link>
+              {job.productLines && job.productLines.length > 0 && (
+                <Button onClick={() => setShowAllocateStockDialog(true)}>
+                  <PackageCheck className="h-4 w-4 mr-2" />
+                  Allocate Stock
+                </Button>
+              )}
+            </>
           )}
-          {job.productLines && job.productLines.length > 0 && (
-            <Button onClick={() => setShowAllocateStockDialog(true)}>
-              <PackageCheck className="h-4 w-4 mr-2" />
-              Allocate Stock
+          {allProductLinesAllocated && (
+            <Button disabled variant="outline">
+              <Truck className="h-4 w-4 mr-2" />
+              Pickup Stock
             </Button>
           )}
           {canDelete && (
@@ -444,60 +495,132 @@ export default function OutboundJobDetailPage() {
         <CardContent>
           {job.productLines && job.productLines.length > 0 ? (
             <div className="space-y-4">
-              {job.productLines.map((line) => (
-                <div key={line.id} className="border rounded-lg p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="min-w-[100px]">
-                          <span className="text-xs font-medium text-muted-foreground">SKU:</span>
-                          <p className="text-sm font-medium truncate">
-                            {typeof line.skuId === 'object' ? line.skuId.skuCode : 'N/A'}
-                          </p>
+              {job.productLines.map((line) => {
+                const hasAllocation = line.allocatedQty && line.allocatedQty > 0
+                const showAllocateButton = !hasAllocation && canEdit
+                const isExpanded = line.id ? expandedLPNs[line.id] || false : false
+                const toggleExpanded = () => {
+                  if (line.id) {
+                    setExpandedLPNs((prev) => ({ ...prev, [line.id!]: !prev[line.id!] }))
+                  }
+                }
+                
+                return (
+                  <div key={line.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-4 flex-wrap">
+                          <div className="min-w-[100px]">
+                            <span className="text-xs font-medium text-muted-foreground">SKU:</span>
+                            <p className="text-sm font-medium truncate">
+                              {typeof line.skuId === 'object' ? line.skuId.skuCode : 'N/A'}
+                            </p>
+                          </div>
+                          <div className="flex-1 min-w-0 max-w-[300px]">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              Description:
+                            </span>
+                            <p className="text-sm line-clamp-2">{line.skuDescription || 'N/A'}</p>
+                          </div>
+                          {line.batchNumber && (
+                            <div className="min-w-[100px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Batch:
+                              </span>
+                              <p className="text-sm">{line.batchNumber}</p>
+                            </div>
+                          )}
+                          {line.requiredQty !== undefined && (
+                            <div className="min-w-[100px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Required Qty:
+                              </span>
+                              <p className="text-sm">{line.requiredQty}</p>
+                            </div>
+                          )}
+                          {line.allocatedQty !== undefined && (
+                            <div className="min-w-[100px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Allocated Qty:
+                              </span>
+                              <p className="text-sm font-medium">{line.allocatedQty || 0}</p>
+                            </div>
+                          )}
+                          {line.location && (
+                            <div className="min-w-[100px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Location:
+                              </span>
+                              <p className="text-sm">{line.location}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0 max-w-[300px]">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            Description:
-                          </span>
-                          <p className="text-sm line-clamp-2">{line.skuDescription || 'N/A'}</p>
-                        </div>
-                        {line.batchNumber && (
-                          <div className="min-w-[100px]">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Batch:
-                            </span>
-                            <p className="text-sm">{line.batchNumber}</p>
-                          </div>
+                      </div>
+                      <div className="flex gap-2 ml-4">
+                        {showAllocateButton && (
+                          <Button
+                            size="sm"
+                            onClick={() => line.id && setAllocatingProductLineId(line.id)}
+                          >
+                            <PackageCheck className="h-4 w-4 mr-2" />
+                            Allocate Stock
+                          </Button>
                         )}
-                        {line.requiredQty !== undefined && (
-                          <div className="min-w-[100px]">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Required Qty:
-                            </span>
-                            <p className="text-sm">{line.requiredQty}</p>
-                          </div>
-                        )}
-                        {line.allocatedQty !== undefined && (
-                          <div className="min-w-[100px]">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Allocated Qty:
-                            </span>
-                            <p className="text-sm font-medium">{line.allocatedQty || 0}</p>
-                          </div>
-                        )}
-                        {line.location && (
-                          <div className="min-w-[100px]">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              Location:
-                            </span>
-                            <p className="text-sm">{line.location}</p>
-                          </div>
+                        {hasAllocation && (
+                          <Button size="sm" variant="outline" disabled>
+                            <Truck className="h-4 w-4 mr-2" />
+                            Pickup Stock
+                          </Button>
                         )}
                       </div>
                     </div>
+                    {/* Allocated LPNs Accordion */}
+                    {hasAllocation && line.allocatedLPNs && line.allocatedLPNs.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <button
+                          onClick={toggleExpanded}
+                          className="w-full flex items-center justify-between p-2 hover:bg-muted rounded transition-colors"
+                        >
+                          <h4 className="text-sm font-semibold">
+                            Allocated LPN records ({line.allocatedLPNs.length})
+                          </h4>
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </button>
+                        {isExpanded && (
+                          <div className="mt-2 border rounded-lg overflow-hidden">
+                            <div className="max-h-64 overflow-y-auto">
+                              <table className="w-full text-sm">
+                                <thead className="sticky top-0 bg-background border-b">
+                                  <tr>
+                                    <th className="text-left p-2 font-medium">Sr No</th>
+                                    <th className="text-left p-2 font-medium">LPN</th>
+                                    <th className="text-left p-2 font-medium">Location</th>
+                                    <th className="text-right p-2 font-medium">QTY</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {line.allocatedLPNs.map((lpn) => (
+                                    <tr key={lpn.id} className="border-b hover:bg-muted/50">
+                                      <td className="p-2">{lpn.serialNumber}</td>
+                                      <td className="p-2 font-mono">{lpn.lpnNumber}</td>
+                                      <td className="p-2">{lpn.location}</td>
+                                      <td className="p-2 text-right">{lpn.huQty}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-8">
@@ -531,11 +654,25 @@ export default function OutboundJobDetailPage() {
 
       {/* Allocate Stock Dialog */}
       {job && (
-        <AllocateStockDialog
-          open={showAllocateStockDialog}
-          onOpenChange={setShowAllocateStockDialog}
-          jobId={job.id}
-        />
+        <>
+          <AllocateStockDialog
+            open={showAllocateStockDialog}
+            onOpenChange={setShowAllocateStockDialog}
+            jobId={job.id}
+          />
+          {allocatingProductLineId && (
+            <ProductLineAllocateDialog
+              open={!!allocatingProductLineId}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setAllocatingProductLineId(null)
+                }
+              }}
+              jobId={job.id}
+              productLineId={allocatingProductLineId}
+            />
+          )}
+        </>
       )}
     </div>
   )

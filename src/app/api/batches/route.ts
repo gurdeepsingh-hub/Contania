@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
         ],
       },
       depth: 0,
+      limit: 1000, // Get all completed inbound jobs
     })
 
     const jobIds = inboundJobs.docs.map((job) => job.id)
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest) {
         },
       },
       depth: 1,
+      limit: 1000, // Get all product lines
     })
 
     // Get all put-away records for these product lines to verify they're put away
@@ -95,6 +97,7 @@ export async function GET(request: NextRequest) {
         ],
       },
       depth: 0,
+      limit: 1000, // Get all put-away records
     })
 
     // Get unique product line IDs that have put-away records
