@@ -1563,17 +1563,17 @@ export interface Vehicle {
    */
   defaultDepotId?: (number | null) | Warehouse;
   /**
-   * Assigned A trailer type
+   * Assigned A trailer
    */
-  aTrailerId?: (number | null) | TrailerType;
+  aTrailerId?: (number | null) | Trailer;
   /**
-   * Assigned B trailer type
+   * Assigned B trailer
    */
-  bTrailerId?: (number | null) | TrailerType;
+  bTrailerId?: (number | null) | Trailer;
   /**
-   * Assigned C trailer type
+   * Assigned C trailer
    */
-  cTrailerId?: (number | null) | TrailerType;
+  cTrailerId?: (number | null) | Trailer;
   /**
    * Whether vehicle is equipped with sideloader (YES/NO)
    */

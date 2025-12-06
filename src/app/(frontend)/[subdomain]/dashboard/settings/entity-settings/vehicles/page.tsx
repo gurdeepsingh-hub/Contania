@@ -42,15 +42,16 @@ type VehicleItem = {
   gpsId?: string
   description?: string
   defaultDepotId?: number | { id: number; name?: string }
-  aTrailerId?: number | { id: number; name?: string }
-  bTrailerId?: number | { id: number; name?: string }
-  cTrailerId?: number | { id: number; name?: string }
+  aTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
+  bTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
+  cTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
   sideloader?: boolean
 }
 
-type TrailerType = {
+type Trailer = {
   id: number
-  name: string
+  fleetNumber: string
+  rego: string
 }
 
 type Warehouse = {
@@ -70,7 +71,7 @@ export default function VehiclesPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [vehicles, setVehicles] = useState<VehicleItem[]>([])
-  const [trailerTypes, setTrailerTypes] = useState<TrailerType[]>([])
+  const [trailers, setTrailers] = useState<Trailer[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -166,7 +167,7 @@ export default function VehiclesPage() {
   useEffect(() => {
     if (authChecked) {
       loadVehicles()
-      loadTrailerTypes()
+      loadTrailers()
       loadWarehouses()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,17 +200,17 @@ export default function VehiclesPage() {
     }
   }
 
-  const loadTrailerTypes = async () => {
+  const loadTrailers = async () => {
     try {
-      const res = await fetch('/api/trailer-types?limit=1000')
+      const res = await fetch('/api/trailers?limit=1000')
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.trailerTypes) {
-          setTrailerTypes(data.trailerTypes)
+        if (data.success && data.trailers) {
+          setTrailers(data.trailers)
         }
       }
     } catch (error) {
-      console.error('Error loading trailer types:', error)
+      console.error('Error loading trailers:', error)
     }
   }
 
@@ -382,11 +383,11 @@ export default function VehiclesPage() {
     )
   }
 
-  const getTrailerTypeName = (trailerTypeId?: number | { id: number; name?: string }) => {
-    if (!trailerTypeId) return 'N/A'
-    const id = typeof trailerTypeId === 'object' ? trailerTypeId.id : trailerTypeId
-    const type = trailerTypes.find((t) => t.id === id)
-    return type?.name || 'N/A'
+  const getTrailerName = (trailerId?: number | { id: number; fleetNumber?: string }) => {
+    if (!trailerId) return 'N/A'
+    const id = typeof trailerId === 'object' ? trailerId.id : trailerId
+    const trailer = trailers.find((t) => t.id === id)
+    return trailer ? `${trailer.fleetNumber} (${trailer.rego})` : 'N/A'
   }
 
   const getWarehouseName = (warehouseId?: number | { id: number; name?: string }) => {
@@ -485,39 +486,39 @@ export default function VehiclesPage() {
                 {...register('description')}
               />
               <FormSelect
-                label="A Trailer Type"
-                placeholder="Select trailer type"
+                label="A Trailer"
+                placeholder="Select trailer"
                 options={[
                   { value: '', label: 'None' },
-                  ...trailerTypes.map((type) => ({
-                    value: type.id.toString(),
-                    label: type.name,
+                  ...trailers.map((trailer) => ({
+                    value: trailer.id.toString(),
+                    label: `${trailer.fleetNumber} (${trailer.rego})`,
                   })),
                 ]}
                 error={errors.aTrailerId?.message}
                 {...register('aTrailerId', { valueAsNumber: true })}
               />
               <FormSelect
-                label="B Trailer Type"
-                placeholder="Select trailer type"
+                label="B Trailer"
+                placeholder="Select trailer"
                 options={[
                   { value: '', label: 'None' },
-                  ...trailerTypes.map((type) => ({
-                    value: type.id.toString(),
-                    label: type.name,
+                  ...trailers.map((trailer) => ({
+                    value: trailer.id.toString(),
+                    label: `${trailer.fleetNumber} (${trailer.rego})`,
                   })),
                 ]}
                 error={errors.bTrailerId?.message}
                 {...register('bTrailerId', { valueAsNumber: true })}
               />
               <FormSelect
-                label="C Trailer Type"
-                placeholder="Select trailer type"
+                label="C Trailer"
+                placeholder="Select trailer"
                 options={[
                   { value: '', label: 'None' },
-                  ...trailerTypes.map((type) => ({
-                    value: type.id.toString(),
-                    label: type.name,
+                  ...trailers.map((trailer) => ({
+                    value: trailer.id.toString(),
+                    label: `${trailer.fleetNumber} (${trailer.rego})`,
                   })),
                 ]}
                 error={errors.cTrailerId?.message}
@@ -640,9 +641,9 @@ export default function VehiclesPage() {
                             <span className="font-medium min-w-[100px]">Trailers:</span>
                             <span>
                               {[
-                                vehicle.aTrailerId && `A: ${getTrailerTypeName(vehicle.aTrailerId)}`,
-                                vehicle.bTrailerId && `B: ${getTrailerTypeName(vehicle.bTrailerId)}`,
-                                vehicle.cTrailerId && `C: ${getTrailerTypeName(vehicle.cTrailerId)}`,
+                                vehicle.aTrailerId && `A: ${getTrailerName(vehicle.aTrailerId)}`,
+                                vehicle.bTrailerId && `B: ${getTrailerName(vehicle.bTrailerId)}`,
+                                vehicle.cTrailerId && `C: ${getTrailerName(vehicle.cTrailerId)}`,
                               ]
                                 .filter(Boolean)
                                 .join(', ')}

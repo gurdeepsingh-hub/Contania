@@ -106,25 +106,25 @@ export const Vehicles: CollectionConfig = {
     {
       name: 'aTrailerId',
       type: 'relationship',
-      relationTo: 'trailer-types',
+      relationTo: 'trailers',
       admin: {
-        description: 'Assigned A trailer type',
+        description: 'Assigned A trailer',
       },
     },
     {
       name: 'bTrailerId',
       type: 'relationship',
-      relationTo: 'trailer-types',
+      relationTo: 'trailers',
       admin: {
-        description: 'Assigned B trailer type',
+        description: 'Assigned B trailer',
       },
     },
     {
       name: 'cTrailerId',
       type: 'relationship',
-      relationTo: 'trailer-types',
+      relationTo: 'trailers',
       admin: {
-        description: 'Assigned C trailer type',
+        description: 'Assigned C trailer',
       },
     },
     {
