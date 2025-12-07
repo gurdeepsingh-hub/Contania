@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -116,12 +116,12 @@ export default function InboundJobDetailPage() {
 
   useEffect(() => {
     if (authChecked && jobId) {
-      loadJob()
-      loadPutAwayRecords()
+      // Load job and put-away records in parallel
+      Promise.all([loadJob(), loadPutAwayRecords()])
     }
   }, [authChecked, jobId])
 
-  const loadJob = async () => {
+  const loadJob = useCallback(async () => {
     try {
       setLoadingJob(true)
       const res = await fetch(`/api/inbound-inventory/${jobId}?depth=2`)
@@ -136,9 +136,9 @@ export default function InboundJobDetailPage() {
     } finally {
       setLoadingJob(false)
     }
-  }
+  }, [jobId])
 
-  const loadPutAwayRecords = async () => {
+  const loadPutAwayRecords = useCallback(async () => {
     if (!jobId) return
 
     setLoadingPutAway(true)
@@ -155,7 +155,7 @@ export default function InboundJobDetailPage() {
     } finally {
       setLoadingPutAway(false)
     }
-  }
+  }, [jobId])
 
   const handlePutAway = (productLineId?: number) => {
     // Check if stock has been received
@@ -172,48 +172,60 @@ export default function InboundJobDetailPage() {
     setShowPutAwayDialog(true)
   }
 
-  const handlePutAwayComplete = () => {
+  const handlePutAwayComplete = useCallback(() => {
     setShowPutAwayDialog(false)
     setPutAwayProductLineId(undefined)
-    loadPutAwayRecords()
-    loadJob() // Reload job to refresh any updated data
-  }
+    // Reload in parallel
+    Promise.all([loadPutAwayRecords(), loadJob()])
+  }, [loadPutAwayRecords, loadJob])
+  
+  // Memoize put-away records by product line ID for faster lookups
+  const putAwayRecordsByProductLine = useMemo(() => {
+    const map: Record<number, any[]> = {}
+    putAwayRecords.forEach((record) => {
+      const recordProductLineId =
+        typeof record.inboundProductLineId === 'object'
+          ? record.inboundProductLineId.id
+          : record.inboundProductLineId
+      if (recordProductLineId) {
+        if (!map[recordProductLineId]) {
+          map[recordProductLineId] = []
+        }
+        map[recordProductLineId].push(record)
+      }
+    })
+    return map
+  }, [putAwayRecords])
   
   // Check if all product lines are fully put away
-  const areAllProductLinesPutAway = (): boolean => {
+  const areAllProductLinesPutAway = useMemo((): boolean => {
     if (!job?.productLines || job.productLines.length === 0) return false
     
     return job.productLines.every((line) => {
       if (!line.id || !line.recievedQty || !line.lpnQty) return false
       
       const palletCount = Math.ceil(line.recievedQty / parseFloat(line.lpnQty))
-      const linePutAwayRecords = putAwayRecords.filter((record) => {
-        const recordProductLineId =
-          typeof record.inboundProductLineId === 'object'
-            ? record.inboundProductLineId.id
-            : record.inboundProductLineId
-        return recordProductLineId === line.id
-      })
+      const linePutAwayRecords = putAwayRecordsByProductLine[line.id] || []
       
       return linePutAwayRecords.length >= palletCount
     })
-  }
+  }, [job?.productLines, putAwayRecordsByProductLine])
   
   // Check if a specific product line is fully put away
-  const isProductLinePutAway = (line: ProductLine): boolean => {
+  const isProductLinePutAway = useCallback((line: ProductLine): boolean => {
     if (!line.id || !line.recievedQty || !line.lpnQty) return false
     
     const palletCount = Math.ceil(line.recievedQty / parseFloat(line.lpnQty))
-    const linePutAwayRecords = putAwayRecords.filter((record) => {
-      const recordProductLineId =
-        typeof record.inboundProductLineId === 'object'
-          ? record.inboundProductLineId.id
-          : record.inboundProductLineId
-      return recordProductLineId === line.id
-    })
+    const linePutAwayRecords = putAwayRecordsByProductLine[line.id] || []
     
     return linePutAwayRecords.length >= palletCount
-  }
+  }, [putAwayRecordsByProductLine])
+
+  // Memoize expensive computation (must be before early returns)
+  const hasReceivedData = useMemo(() =>
+    !!job?.completedDate || (job?.productLines && job.productLines.some((line) => line.recievedQty)),
+    [job?.completedDate, job?.productLines]
+  )
 
   const handleAddProductLine = () => {
     setEditingProductLine(null)
@@ -299,9 +311,6 @@ export default function InboundJobDetailPage() {
     )
   }
 
-  const hasReceivedData =
-    !!job.completedDate || (job.productLines && job.productLines.some((line) => line.recievedQty))
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -336,7 +345,7 @@ export default function InboundJobDetailPage() {
               </Link>
             </>
           )}
-          {hasReceivedData && !areAllProductLinesPutAway() && (
+          {hasReceivedData && !areAllProductLinesPutAway && (
             <>
               <Button variant="outline" onClick={() => handlePutAway()}>
                 Put Away Stock
@@ -487,13 +496,8 @@ export default function InboundJobDetailPage() {
           {job.productLines && job.productLines.length > 0 ? (
             <div className="space-y-4">
               {job.productLines.map((line) => {
-                const linePutAwayRecords = putAwayRecords.filter((record) => {
-                  const recordProductLineId =
-                    typeof record.inboundProductLineId === 'object'
-                      ? record.inboundProductLineId.id
-                      : record.inboundProductLineId
-                  return recordProductLineId === line.id
-                })
+                // Use memoized map for faster lookup
+                const linePutAwayRecords = line.id ? (putAwayRecordsByProductLine[line.id] || []) : []
                 const hasPutAwayRecords = linePutAwayRecords.length > 0
                 const isPutAwayExpanded = expandedPutAwayLines[line.id] ?? false
 

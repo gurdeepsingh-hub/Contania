@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -126,88 +126,94 @@ export default function OutboundJobDetailPage() {
   const loadJob = useCallback(async () => {
     try {
       setLoadingJob(true)
-      const res = await fetch(`/api/outbound-inventory/${jobId}?depth=2`)
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success) {
-          const jobData = data.job
-          // Ensure vehicle and driver are loaded with depth if they exist
-          if (jobData.vehicleId && typeof jobData.vehicleId === 'number') {
-            try {
-              const vehicleRes = await fetch(`/api/vehicles/${jobData.vehicleId}`)
-              if (vehicleRes.ok) {
-                const vehicleData = await vehicleRes.json()
-                if (vehicleData.success) {
-                  jobData.vehicleId = vehicleData.vehicle
-                }
-              }
-            } catch (error) {
-              console.error('Error loading vehicle:', error)
-            }
-          }
-          if (jobData.driverId && typeof jobData.driverId === 'number') {
-            try {
-              const driverRes = await fetch(`/api/drivers/${jobData.driverId}`)
-              if (driverRes.ok) {
-                const driverData = await driverRes.json()
-                if (driverData.success) {
-                  jobData.driverId = driverData.driver
-                }
-              }
-            } catch (error) {
-              console.error('Error loading driver:', error)
-            }
-          }
-          // Load allocated LPNs for each product line
-          if (jobData.productLines && jobData.productLines.length > 0) {
-            const productLinesWithLPNs = await Promise.all(
-              jobData.productLines.map(async (line: ProductLine) => {
-                if (line.id && line.allocatedQty && line.allocatedQty > 0) {
-                  try {
-                    const lpnRes = await fetch(
-                      `/api/outbound-product-lines/${line.id}/allocated-lpns`
-                    )
-                    if (lpnRes.ok) {
-                      const lpnData = await lpnRes.json()
-                      if (lpnData.success && lpnData.allocatedLPNs) {
-                        return { ...line, allocatedLPNs: lpnData.allocatedLPNs }
-                      }
-                    }
-                  } catch (error) {
-                    console.error(`Error loading LPNs for product line ${line.id}:`, error)
-                  }
-                }
-                return line
-              })
-            )
-            jobData.productLines = productLinesWithLPNs
-
-            // Load pickup records for each product line
-            const pickupRecordsMap: Record<number, any[]> = {}
-            await Promise.all(
-              productLinesWithLPNs.map(async (line: ProductLine) => {
-                if (line.id) {
-                  try {
-                    const pickupRes = await fetch(
-                      `/api/outbound-product-lines/${line.id}/pickup-info`
-                    )
-                    if (pickupRes.ok) {
-                      const pickupData = await pickupRes.json()
-                      if (pickupData.success && pickupData.existingPickups) {
-                        pickupRecordsMap[line.id] = pickupData.existingPickups
-                      }
-                    }
-                  } catch (error) {
-                    console.error(`Error loading pickup records for product line ${line.id}:`, error)
-                  }
-                }
-              })
-            )
-            setPickupRecords(pickupRecordsMap)
-          }
-          setJob(jobData)
-        }
+      
+      // Parallel fetch: job, vehicle, and driver (if needed)
+      const jobRes = fetch(`/api/outbound-inventory/${jobId}?depth=2`)
+      
+      const jobResponse = await jobRes
+      if (!jobResponse.ok) {
+        return
       }
+      
+      const jobData = await jobResponse.json()
+      if (!jobData.success) {
+        return
+      }
+      
+      const job = jobData.job
+      
+      // Parallel fetch vehicle and driver if they exist as numbers
+      const vehiclePromise = job.vehicleId && typeof job.vehicleId === 'number'
+        ? fetch(`/api/vehicles/${job.vehicleId}`).then(res => res.ok ? res.json() : null).catch(() => null)
+        : Promise.resolve(null)
+      
+      const driverPromise = job.driverId && typeof job.driverId === 'number'
+        ? fetch(`/api/drivers/${job.driverId}`).then(res => res.ok ? res.json() : null).catch(() => null)
+        : Promise.resolve(null)
+      
+      const [vehicleData, driverData] = await Promise.all([vehiclePromise, driverPromise])
+      
+      if (vehicleData?.success) {
+        job.vehicleId = vehicleData.vehicle
+      }
+      if (driverData?.success) {
+        job.driverId = driverData.driver
+      }
+      
+      // Batch load allocated LPNs and pickup records for all product lines in parallel
+      if (job.productLines && job.productLines.length > 0) {
+        // Get all product line IDs (for pickup records) and only those with allocations (for LPNs)
+        const allProductLineIds = job.productLines
+          .filter((line: ProductLine) => line.id)
+          .map((line: ProductLine) => line.id!)
+        
+        const allocatedProductLineIds = job.productLines
+          .filter((line: ProductLine) => line.id && line.allocatedQty && line.allocatedQty > 0)
+          .map((line: ProductLine) => line.id!)
+        
+        // Create parallel requests for allocated LPNs (only for lines with allocations)
+        const lpnPromises = allocatedProductLineIds.map((lineId: number) =>
+          fetch(`/api/outbound-product-lines/${lineId}/allocated-lpns`)
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null)
+        )
+        
+        // Create parallel requests for pickup records (for all product lines)
+        const pickupPromises = allProductLineIds.map((lineId: number) =>
+          fetch(`/api/outbound-product-lines/${lineId}/pickup-info`)
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null)
+        )
+        
+        // Execute all requests in parallel
+        const [lpnResults, pickupResults] = await Promise.all([
+          Promise.all(lpnPromises),
+          Promise.all(pickupPromises)
+        ])
+        
+        // Map LPN results back to product lines (only for allocated lines)
+        const productLinesWithLPNs = job.productLines.map((line: ProductLine) => {
+          const lineIndex = allocatedProductLineIds.indexOf(line.id!)
+          if (lineIndex >= 0 && lpnResults[lineIndex]?.success && lpnResults[lineIndex]?.allocatedLPNs) {
+            return { ...line, allocatedLPNs: lpnResults[lineIndex].allocatedLPNs }
+          }
+          return line
+        })
+        
+        job.productLines = productLinesWithLPNs
+        
+        // Build pickup records map (for all product lines)
+        const pickupRecordsMap: Record<number, any[]> = {}
+        allProductLineIds.forEach((lineId: number, index: number) => {
+          if (pickupResults[index]?.success && pickupResults[index]?.existingPickups) {
+            pickupRecordsMap[lineId] = pickupResults[index].existingPickups
+          }
+        })
+        
+        setPickupRecords(pickupRecordsMap)
+      }
+      
+      setJob(job)
     } catch (error) {
       console.error('Error loading job:', error)
     } finally {
@@ -246,7 +252,8 @@ export default function OutboundJobDetailPage() {
     }
   }
 
-  const getStatusColor = (status?: string) => {
+  // Memoize status helpers
+  const getStatusColor = useCallback((status?: string) => {
     switch (status) {
       case 'partially_allocated':
         return 'text-blue-400'
@@ -265,9 +272,9 @@ export default function OutboundJobDetailPage() {
       default:
         return 'text-gray-600'
     }
-  }
+  }, [])
 
-  const getStatusLabel = (status?: string) => {
+  const getStatusLabel = useCallback((status?: string) => {
     switch (status) {
       case 'draft':
         return 'Draft'
@@ -288,7 +295,28 @@ export default function OutboundJobDetailPage() {
       default:
         return 'Draft'
     }
-  }
+  }, [])
+
+  // Memoize expensive computations (must be before early returns)
+  const canDelete = useMemo(() => job?.status === 'draft', [job?.status])
+  const canEdit = useMemo(() => job?.status !== 'ready_to_dispatch' && job?.status !== 'dispatched', [job?.status])
+  const canDispatch = useMemo(() => job?.status === 'ready_to_dispatch', [job?.status])
+  
+  // Check if all product lines are allocated
+  const allProductLinesAllocated = useMemo(() =>
+    job?.productLines &&
+    job.productLines.length > 0 &&
+    job.productLines.every((line) => line.allocatedQty && line.allocatedQty > 0),
+    [job?.productLines]
+  )
+  
+  // Check if any product lines are allocated (for showing allocate button)
+  const hasAnyAllocation = useMemo(() =>
+    job?.productLines &&
+    job.productLines.length > 0 &&
+    job.productLines.some((line) => line.allocatedQty && line.allocatedQty > 0),
+    [job?.productLines]
+  )
 
   if (loading || !authChecked || loadingJob) {
     return (
@@ -305,22 +333,6 @@ export default function OutboundJobDetailPage() {
       </div>
     )
   }
-
-  const canDelete = job.status === 'draft'
-  const canEdit = job.status !== 'ready_to_dispatch' && job.status !== 'dispatched'
-  const canDispatch = job.status === 'ready_to_dispatch'
-  
-  // Check if all product lines are allocated
-  const allProductLinesAllocated =
-    job.productLines &&
-    job.productLines.length > 0 &&
-    job.productLines.every((line) => line.allocatedQty && line.allocatedQty > 0)
-  
-  // Check if any product lines are allocated (for showing allocate button)
-  const hasAnyAllocation =
-    job.productLines &&
-    job.productLines.length > 0 &&
-    job.productLines.some((line) => line.allocatedQty && line.allocatedQty > 0)
 
   return (
     <div className="container mx-auto p-6 space-y-6">
