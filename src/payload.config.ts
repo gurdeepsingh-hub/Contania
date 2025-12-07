@@ -24,6 +24,7 @@ import { InboundProductLine } from './collections/InboundProductLine'
 import { PutAwayStock } from './collections/PutAwayStock'
 import { OutboundInventory } from './collections/OutboundInventory'
 import { OutboundProductLine } from './collections/OutboundProductLine'
+import { PickupStock } from './collections/PickupStock'
 import { TrailerTypes } from './collections/TrailerTypes'
 import { Trailers } from './collections/Trailers'
 import { Vehicles } from './collections/Vehicles'
@@ -58,6 +59,7 @@ export default buildConfig({
     PutAwayStock,
     OutboundInventory,
     OutboundProductLine,
+    PickupStock,
     TrailerTypes,
     Trailers,
     Vehicles,

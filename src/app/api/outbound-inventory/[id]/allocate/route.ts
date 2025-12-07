@@ -341,13 +341,31 @@ export async function POST(
       })
     }
 
-    // Update job status to 'allocated' if at least one allocation succeeded
+    // Update job status based on allocation results
     if (allocationResults.length > 0) {
+      // Check if all product lines are allocated
+      const productLines = await payload.find({
+        collection: 'outbound-product-line',
+        where: {
+          outboundInventoryId: {
+            equals: jobId,
+          },
+        },
+      })
+
+      const allAllocated =
+        productLines.docs.length > 0 &&
+        productLines.docs.every(
+          (line: any) => line.allocatedQty && line.allocatedQty > 0,
+        )
+
+      const newStatus = allAllocated ? 'allocated' : 'partially_allocated'
+
       await payload.update({
         collection: 'outbound-inventory',
         id: jobId,
         data: {
-          status: 'allocated',
+          status: newStatus,
         },
       })
     }

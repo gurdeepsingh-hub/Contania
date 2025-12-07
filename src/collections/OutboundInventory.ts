@@ -137,8 +137,10 @@ export const OutboundInventory: CollectionConfig = {
       type: 'select',
       options: [
         { label: 'Draft', value: 'draft' },
+        { label: 'Partially Allocated', value: 'partially_allocated' },
         { label: 'Allocated', value: 'allocated' },
         { label: 'Ready to Pick', value: 'ready_to_pick' },
+        { label: 'Partially Picked', value: 'partially_picked' },
         { label: 'Picked', value: 'picked' },
         { label: 'Ready to Dispatch', value: 'ready_to_dispatch' },
       ],
@@ -565,6 +567,113 @@ export const OutboundInventory: CollectionConfig = {
             }
           } catch (error) {
             console.error('Error fetching customerFrom:', error)
+          }
+        }
+
+        return data
+      },
+      async ({ data, req, operation, originalDoc }) => {
+        // Status transition validation
+        if (operation === 'update' && data.status && originalDoc) {
+          const currentStatus = originalDoc.status
+          const newStatus = data.status
+
+          // Only allow status change to 'allocated' if all product lines are allocated
+          if (newStatus === 'allocated' && currentStatus !== 'allocated') {
+            if (req?.payload && originalDoc.id) {
+              const productLines = await req.payload.find({
+                collection: 'outbound-product-line',
+                where: {
+                  outboundInventoryId: {
+                    equals: originalDoc.id,
+                  },
+                },
+              })
+
+              const allAllocated =
+                productLines.docs.length > 0 &&
+                productLines.docs.every(
+                  (line: any) => line.allocatedQty && line.allocatedQty > 0,
+                )
+
+              if (!allAllocated) {
+                throw new Error(
+                  'Cannot change status to "Allocated". All product lines must have allocated stock. Use "Partially Allocated" instead.',
+                )
+              }
+            }
+          }
+
+          // Only allow status change to 'ready_to_pick' if all product lines are allocated
+          if (newStatus === 'ready_to_pick' && currentStatus !== 'ready_to_pick') {
+            if (req?.payload && originalDoc.id) {
+              const productLines = await req.payload.find({
+                collection: 'outbound-product-line',
+                where: {
+                  outboundInventoryId: {
+                    equals: originalDoc.id,
+                  },
+                },
+              })
+
+              const allAllocated =
+                productLines.docs.length > 0 &&
+                productLines.docs.every(
+                  (line: any) => line.allocatedQty && line.allocatedQty > 0,
+                )
+
+              if (!allAllocated) {
+                throw new Error(
+                  'Cannot change status to "Ready to Pick". All product lines must have allocated stock.',
+                )
+              }
+            }
+          }
+
+          // Only allow status change to 'picked' if all product lines have pickup records
+          if (newStatus === 'picked' && currentStatus !== 'picked') {
+            if (req?.payload && originalDoc.id) {
+              const productLines = await req.payload.find({
+                collection: 'outbound-product-line',
+                where: {
+                  outboundInventoryId: {
+                    equals: originalDoc.id,
+                  },
+                },
+              })
+
+              // Check if all product lines have completed pickup records
+              const pickupChecks = await Promise.all(
+                productLines.docs.map(async (line: any) => {
+                  const pickups = await req.payload.find({
+                    collection: 'pickup-stock',
+                    where: {
+                      and: [
+                        {
+                          outboundProductLineId: {
+                            equals: line.id,
+                          },
+                        },
+                        {
+                          pickupStatus: {
+                            equals: 'completed',
+                          },
+                        },
+                      ],
+                    },
+                  })
+                  return pickups.docs.length > 0
+                }),
+              )
+
+              const allPicked = pickupChecks.length > 0 && pickupChecks.every((picked) => picked)
+
+              if (!allPicked) {
+                throw new Error(
+                  'Cannot change status to "Picked". All product lines must have completed pickup records. Use "Partially Picked" instead.',
+                )
+              }
+            }
           }
         }
 

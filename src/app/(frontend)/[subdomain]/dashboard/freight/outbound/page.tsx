@@ -138,10 +138,14 @@ export default function OutboundFreightPage() {
 
   const getStatusColor = (status?: string) => {
     switch (status) {
+      case 'partially_allocated':
+        return 'text-blue-400'
       case 'allocated':
         return 'text-blue-600'
       case 'ready_to_pick':
         return 'text-yellow-600'
+      case 'partially_picked':
+        return 'text-orange-400'
       case 'picked':
         return 'text-orange-600'
       case 'ready_to_dispatch':
@@ -155,10 +159,14 @@ export default function OutboundFreightPage() {
     switch (status) {
       case 'draft':
         return 'Draft'
+      case 'partially_allocated':
+        return 'Partially Allocated'
       case 'allocated':
         return 'Allocated'
       case 'ready_to_pick':
         return 'Ready to Pick'
+      case 'partially_picked':
+        return 'Partially Picked'
       case 'picked':
         return 'Picked'
       case 'ready_to_dispatch':
@@ -203,8 +211,10 @@ export default function OutboundFreightPage() {
             >
               <option value="">All Statuses</option>
               <option value="draft">Draft</option>
+              <option value="partially_allocated">Partially Allocated</option>
               <option value="allocated">Allocated</option>
               <option value="ready_to_pick">Ready to Pick</option>
+              <option value="partially_picked">Partially Picked</option>
               <option value="picked">Picked</option>
               <option value="ready_to_dispatch">Ready to Dispatch</option>
             </select>
@@ -301,6 +311,7 @@ export default function OutboundFreightPage() {
     </div>
   )
 }
+
 
 
 

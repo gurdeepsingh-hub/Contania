@@ -85,6 +85,7 @@ export interface Config {
     'put-away-stock': PutAwayStock;
     'outbound-inventory': OutboundInventory;
     'outbound-product-line': OutboundProductLine;
+    'pickup-stock': PickupStock;
     'trailer-types': TrailerType;
     trailers: Trailer;
     vehicles: Vehicle;
@@ -112,6 +113,7 @@ export interface Config {
     'put-away-stock': PutAwayStockSelect<false> | PutAwayStockSelect<true>;
     'outbound-inventory': OutboundInventorySelect<false> | OutboundInventorySelect<true>;
     'outbound-product-line': OutboundProductLineSelect<false> | OutboundProductLineSelect<true>;
+    'pickup-stock': PickupStockSelect<false> | PickupStockSelect<true>;
     'trailer-types': TrailerTypesSelect<false> | TrailerTypesSelect<true>;
     trailers: TrailersSelect<false> | TrailersSelect<true>;
     vehicles: VehiclesSelect<false> | VehiclesSelect<true>;
@@ -1248,7 +1250,17 @@ export interface OutboundInventory {
   /**
    * Current status of the outbound job
    */
-  status?: ('draft' | 'allocated' | 'ready_to_pick' | 'picked' | 'ready_to_dispatch') | null;
+  status?:
+    | (
+        | 'draft'
+        | 'partially_allocated'
+        | 'allocated'
+        | 'ready_to_pick'
+        | 'partially_picked'
+        | 'picked'
+        | 'ready_to_dispatch'
+      )
+    | null;
   /**
    * Customer-provided reference number for this outbound job
    */
@@ -1427,6 +1439,73 @@ export interface OutboundProductLine {
    * Warehouse storage location from where goods are picked
    */
   location?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pickup-stock".
+ */
+export interface PickupStock {
+  id: number;
+  /**
+   * Links pickup record to tenant
+   */
+  tenantId: number | Tenant;
+  /**
+   * Outbound job this pickup belongs to
+   */
+  outboundInventoryId: number | OutboundInventory;
+  /**
+   * Product line this pickup is for
+   */
+  outboundProductLineId: number | OutboundProductLine;
+  /**
+   * LPN pallets that have been picked up
+   */
+  pickedUpLPNs: {
+    /**
+     * Reference to the PutAwayStock record
+     */
+    lpnId: number | PutAwayStock;
+    /**
+     * LPN number (cached for quick access)
+     */
+    lpnNumber: string;
+    /**
+     * Quantity on this LPN pallet
+     */
+    huQty: number;
+    /**
+     * Storage location of LPN (cached)
+     */
+    location?: string | null;
+    id?: string | null;
+  }[];
+  /**
+   * Total quantity calculated from picked up LPNs
+   */
+  pickedUpQty: number;
+  /**
+   * Buffer quantity to handle actual quantity discrepancies
+   */
+  bufferQty?: number | null;
+  /**
+   * Final pickup quantity (pickedUpQty + bufferQty)
+   */
+  finalPickedUpQty: number;
+  /**
+   * Status of the pickup record
+   */
+  pickupStatus?: ('draft' | 'completed' | 'cancelled') | null;
+  /**
+   * User who recorded the pickup
+   */
+  pickedUpBy: number | TenantUser;
+  /**
+   * Additional notes about the pickup
+   */
+  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1740,6 +1819,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'outbound-product-line';
         value: number | OutboundProductLine;
+      } | null)
+    | ({
+        relationTo: 'pickup-stock';
+        value: number | PickupStock;
       } | null)
     | ({
         relationTo: 'trailer-types';
@@ -2268,6 +2351,32 @@ export interface OutboundProductLineSelect<T extends boolean = true> {
         id?: T;
       };
   location?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pickup-stock_select".
+ */
+export interface PickupStockSelect<T extends boolean = true> {
+  tenantId?: T;
+  outboundInventoryId?: T;
+  outboundProductLineId?: T;
+  pickedUpLPNs?:
+    | T
+    | {
+        lpnId?: T;
+        lpnNumber?: T;
+        huQty?: T;
+        location?: T;
+        id?: T;
+      };
+  pickedUpQty?: T;
+  bufferQty?: T;
+  finalPickedUpQty?: T;
+  pickupStatus?: T;
+  pickedUpBy?: T;
+  notes?: T;
   updatedAt?: T;
   createdAt?: T;
 }

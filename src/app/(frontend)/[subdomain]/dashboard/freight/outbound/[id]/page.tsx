@@ -18,6 +18,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { AllocateStockDialog } from '@/components/freight/allocate-stock-dialog'
 import { ProductLineAllocateDialog } from '@/components/freight/product-line-allocate-dialog'
+import { PickupStockDialog } from '@/components/freight/pickup-stock-dialog'
 
 type AllocatedLPN = {
   serialNumber: number
@@ -78,8 +79,10 @@ export default function OutboundJobDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showAllocateStockDialog, setShowAllocateStockDialog] = useState(false)
+  const [showPickupStockDialog, setShowPickupStockDialog] = useState(false)
   const [allocatingProductLineId, setAllocatingProductLineId] = useState<number | null>(null)
   const [expandedLPNs, setExpandedLPNs] = useState<Record<number, boolean>>({})
+  const [pickupRecords, setPickupRecords] = useState<Record<number, any[]>>({})
 
   const jobId = params.id as string
 
@@ -146,6 +149,29 @@ export default function OutboundJobDetailPage() {
               })
             )
             jobData.productLines = productLinesWithLPNs
+
+            // Load pickup records for each product line
+            const pickupRecordsMap: Record<number, any[]> = {}
+            await Promise.all(
+              productLinesWithLPNs.map(async (line: ProductLine) => {
+                if (line.id) {
+                  try {
+                    const pickupRes = await fetch(
+                      `/api/outbound-product-lines/${line.id}/pickup-info`
+                    )
+                    if (pickupRes.ok) {
+                      const pickupData = await pickupRes.json()
+                      if (pickupData.success && pickupData.existingPickups) {
+                        pickupRecordsMap[line.id] = pickupData.existingPickups
+                      }
+                    }
+                  } catch (error) {
+                    console.error(`Error loading pickup records for product line ${line.id}:`, error)
+                  }
+                }
+              })
+            )
+            setPickupRecords(pickupRecordsMap)
           }
           setJob(jobData)
         }
@@ -190,10 +216,14 @@ export default function OutboundJobDetailPage() {
 
   const getStatusColor = (status?: string) => {
     switch (status) {
+      case 'partially_allocated':
+        return 'text-blue-400'
       case 'allocated':
         return 'text-blue-600'
       case 'ready_to_pick':
         return 'text-yellow-600'
+      case 'partially_picked':
+        return 'text-orange-400'
       case 'picked':
         return 'text-orange-600'
       case 'ready_to_dispatch':
@@ -207,10 +237,14 @@ export default function OutboundJobDetailPage() {
     switch (status) {
       case 'draft':
         return 'Draft'
+      case 'partially_allocated':
+        return 'Partially Allocated'
       case 'allocated':
         return 'Allocated'
       case 'ready_to_pick':
         return 'Ready to Pick'
+      case 'partially_picked':
+        return 'Partially Picked'
       case 'picked':
         return 'Picked'
       case 'ready_to_dispatch':
@@ -244,6 +278,12 @@ export default function OutboundJobDetailPage() {
     job.productLines &&
     job.productLines.length > 0 &&
     job.productLines.every((line) => line.allocatedQty && line.allocatedQty > 0)
+  
+  // Check if any product lines are allocated (for showing allocate button)
+  const hasAnyAllocation =
+    job.productLines &&
+    job.productLines.length > 0 &&
+    job.productLines.some((line) => line.allocatedQty && line.allocatedQty > 0)
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -274,13 +314,13 @@ export default function OutboundJobDetailPage() {
               {job.productLines && job.productLines.length > 0 && (
                 <Button onClick={() => setShowAllocateStockDialog(true)}>
                   <PackageCheck className="h-4 w-4 mr-2" />
-                  Allocate Stock
+                  {hasAnyAllocation ? 'Allocate More Stock' : 'Allocate Stock'}
                 </Button>
               )}
             </>
           )}
           {allProductLinesAllocated && (
-            <Button disabled variant="outline">
+            <Button onClick={() => setShowPickupStockDialog(true)}>
               <Truck className="h-4 w-4 mr-2" />
               Pickup Stock
             </Button>
@@ -567,7 +607,11 @@ export default function OutboundJobDetailPage() {
                           </Button>
                         )}
                         {hasAllocation && (
-                          <Button size="sm" variant="outline" disabled>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setShowPickupStockDialog(true)}
+                          >
                             <Truck className="h-4 w-4 mr-2" />
                             Pickup Stock
                           </Button>
@@ -616,6 +660,53 @@ export default function OutboundJobDetailPage() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Pickup Records */}
+                    {line.id && pickupRecords[line.id] && pickupRecords[line.id].length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="text-sm font-semibold mb-2">
+                          Pickup Records ({pickupRecords[line.id].length})
+                        </h4>
+                        <div className="space-y-2">
+                          {pickupRecords[line.id].map((pickup: any) => (
+                            <div
+                              key={pickup.id}
+                              className="p-3 bg-green-50 border border-green-200 rounded-md"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium text-green-800">
+                                  Pickup #{pickup.id}
+                                </span>
+                                <span className="text-xs text-green-600">
+                                  {new Date(pickup.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Picked Up:</span>{' '}
+                                  <span className="font-medium">{pickup.pickedUpQty}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Buffer:</span>{' '}
+                                  <span className="font-medium">{pickup.bufferQty || 0}</span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Final:</span>{' '}
+                                  <span className="font-medium text-green-600">
+                                    {pickup.finalPickedUpQty}
+                                  </span>
+                                </div>
+                              </div>
+                              {pickup.notes && (
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  Notes: {pickup.notes}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -672,6 +763,11 @@ export default function OutboundJobDetailPage() {
               productLineId={allocatingProductLineId}
             />
           )}
+          <PickupStockDialog
+            open={showPickupStockDialog}
+            onOpenChange={setShowPickupStockDialog}
+            jobId={job.id}
+          />
         </>
       )}
     </div>
