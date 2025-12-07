@@ -143,6 +143,7 @@ export const OutboundInventory: CollectionConfig = {
         { label: 'Partially Picked', value: 'partially_picked' },
         { label: 'Picked', value: 'picked' },
         { label: 'Ready to Dispatch', value: 'ready_to_dispatch' },
+        { label: 'Dispatched', value: 'dispatched' },
       ],
       defaultValue: 'draft',
       admin: {
@@ -341,6 +342,30 @@ export const OutboundInventory: CollectionConfig = {
       type: 'number',
       admin: {
         description: 'Total number of pallets planned for this outbound job',
+      },
+    },
+    // Dispatch Details
+    {
+      name: 'vehicleId',
+      type: 'relationship',
+      relationTo: 'vehicles',
+      admin: {
+        description: 'Vehicle assigned for dispatch',
+      },
+    },
+    {
+      name: 'driverId',
+      type: 'relationship',
+      relationTo: 'drivers',
+      admin: {
+        description: 'Driver assigned for dispatch (optional)',
+      },
+    },
+    {
+      name: 'dispatchedAt',
+      type: 'date',
+      admin: {
+        description: 'Timestamp when the job was dispatched',
       },
     },
   ],
@@ -673,6 +698,22 @@ export const OutboundInventory: CollectionConfig = {
                   'Cannot change status to "Picked". All product lines must have completed pickup records. Use "Partially Picked" instead.',
                 )
               }
+            }
+          }
+
+          // Only allow status change to 'dispatched' if status is 'ready_to_dispatch' and vehicleId is provided
+          if (newStatus === 'dispatched' && currentStatus !== 'dispatched') {
+            if (currentStatus !== 'ready_to_dispatch') {
+              throw new Error(
+                'Cannot change status to "Dispatched". Job must be in "Ready to Dispatch" status first.',
+              )
+            }
+            if (!data.vehicleId) {
+              throw new Error('Cannot dispatch job. Vehicle must be assigned.')
+            }
+            // Set dispatchedAt timestamp if not already set
+            if (!data.dispatchedAt) {
+              data.dispatchedAt = new Date().toISOString()
             }
           }
         }

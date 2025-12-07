@@ -1,31 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FormInput, FormSelect } from '@/components/ui/form-field'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { VehicleFormDialog } from '@/components/entity-forms/vehicle-form-dialog'
 import {
   Truck,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -71,8 +56,6 @@ export default function VehiclesPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [vehicles, setVehicles] = useState<VehicleItem[]>([])
-  const [trailers, setTrailers] = useState<Trailer[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<VehicleItem | null>(null)
@@ -87,46 +70,6 @@ export default function VehiclesPage() {
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-
-  const vehicleSchema = z.object({
-    fleetNumber: z.string().min(1, 'Fleet number is required'),
-    rego: z.string().min(1, 'Registration is required'),
-    regoExpiryDate: z.string().optional(),
-    gpsId: z.string().optional(),
-    description: z.string().optional(),
-    defaultDepotId: z.number().optional(),
-    aTrailerId: z.number().optional(),
-    bTrailerId: z.number().optional(),
-    cTrailerId: z.number().optional(),
-    sideloader: z.boolean().optional(),
-  })
-
-  type VehicleFormData = z.infer<typeof vehicleSchema>
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    watch,
-    setValue,
-  } = useForm<VehicleFormData>({
-    resolver: zodResolver(vehicleSchema),
-    defaultValues: {
-      fleetNumber: '',
-      rego: '',
-      regoExpiryDate: '',
-      gpsId: '',
-      description: '',
-      defaultDepotId: undefined,
-      aTrailerId: undefined,
-      bTrailerId: undefined,
-      cTrailerId: undefined,
-      sideloader: false,
-    },
-  })
-
-  const watchedSideloader = watch('sideloader')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -167,8 +110,6 @@ export default function VehiclesPage() {
   useEffect(() => {
     if (authChecked) {
       loadVehicles()
-      loadTrailers()
-      loadWarehouses()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
@@ -200,33 +141,6 @@ export default function VehiclesPage() {
     }
   }
 
-  const loadTrailers = async () => {
-    try {
-      const res = await fetch('/api/trailers?limit=1000')
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success && data.trailers) {
-          setTrailers(data.trailers)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading trailers:', error)
-    }
-  }
-
-  const loadWarehouses = async () => {
-    try {
-      const res = await fetch('/api/warehouses?limit=1000')
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success && data.warehouses) {
-          setWarehouses(data.warehouses)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading warehouses:', error)
-    }
-  }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -238,107 +152,24 @@ export default function VehiclesPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const resetForm = () => {
-    reset({
-      fleetNumber: '',
-      rego: '',
-      regoExpiryDate: '',
-      gpsId: '',
-      description: '',
-      defaultDepotId: undefined,
-      aTrailerId: undefined,
-      bTrailerId: undefined,
-      cTrailerId: undefined,
-      sideloader: false,
-    })
+  const handleAddVehicle = () => {
+    setEditingVehicle(null)
+    setShowAddForm(true)
     setError(null)
     setSuccess(null)
   }
 
-  const handleAddVehicle = () => {
-    resetForm()
-    setShowAddForm(true)
-    setEditingVehicle(null)
-  }
-
   const handleEditVehicle = (vehicle: VehicleItem) => {
-    const depotId =
-      typeof vehicle.defaultDepotId === 'object' ? vehicle.defaultDepotId.id : vehicle.defaultDepotId
-    const aTrailerId =
-      typeof vehicle.aTrailerId === 'object' ? vehicle.aTrailerId.id : vehicle.aTrailerId
-    const bTrailerId =
-      typeof vehicle.bTrailerId === 'object' ? vehicle.bTrailerId.id : vehicle.bTrailerId
-    const cTrailerId =
-      typeof vehicle.cTrailerId === 'object' ? vehicle.cTrailerId.id : vehicle.cTrailerId
-
-    reset({
-      fleetNumber: vehicle.fleetNumber || '',
-      rego: vehicle.rego || '',
-      regoExpiryDate: vehicle.regoExpiryDate || '',
-      gpsId: vehicle.gpsId || '',
-      description: vehicle.description || '',
-      defaultDepotId: depotId || undefined,
-      aTrailerId: aTrailerId || undefined,
-      bTrailerId: bTrailerId || undefined,
-      cTrailerId: cTrailerId || undefined,
-      sideloader: vehicle.sideloader || false,
-    })
     setEditingVehicle(vehicle)
     setShowAddForm(true)
     setError(null)
     setSuccess(null)
   }
 
-  const handleCancel = () => {
+  const handleVehicleSuccess = async () => {
+    await loadVehicles()
     setShowAddForm(false)
     setEditingVehicle(null)
-    resetForm()
-  }
-
-  const onSubmit = async (data: VehicleFormData) => {
-    setError(null)
-    setSuccess(null)
-
-    try {
-      if (editingVehicle) {
-        const res = await fetch(`/api/vehicles/${editingVehicle.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        })
-
-        if (res.ok) {
-          setSuccess('Vehicle updated successfully')
-          await loadVehicles()
-          setTimeout(() => {
-            handleCancel()
-          }, 1500)
-        } else {
-          const responseData = await res.json()
-          setError(responseData.message || 'Failed to update vehicle')
-        }
-      } else {
-        const res = await fetch('/api/vehicles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        })
-
-        if (res.ok) {
-          setSuccess('Vehicle created successfully')
-          await loadVehicles()
-          setTimeout(() => {
-            handleCancel()
-          }, 1500)
-        } else {
-          const responseData = await res.json()
-          setError(responseData.message || 'Failed to create vehicle')
-        }
-      }
-    } catch (error) {
-      console.error('Error saving vehicle:', error)
-      setError('An error occurred while saving the vehicle')
-    }
   }
 
   const handleDeleteVehicle = async (vehicle: VehicleItem) => {
@@ -383,19 +214,6 @@ export default function VehiclesPage() {
     )
   }
 
-  const getTrailerName = (trailerId?: number | { id: number; fleetNumber?: string }) => {
-    if (!trailerId) return 'N/A'
-    const id = typeof trailerId === 'object' ? trailerId.id : trailerId
-    const trailer = trailers.find((t) => t.id === id)
-    return trailer ? `${trailer.fleetNumber} (${trailer.rego})` : 'N/A'
-  }
-
-  const getWarehouseName = (warehouseId?: number | { id: number; name?: string }) => {
-    if (!warehouseId) return 'N/A'
-    const id = typeof warehouseId === 'object' ? warehouseId.id : warehouseId
-    const warehouse = warehouses.find((w) => w.id === id)
-    return warehouse?.name || 'N/A'
-  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -430,133 +248,18 @@ export default function VehiclesPage() {
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
       )}
 
-      <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingVehicle ? 'Edit Vehicle' : 'Add New Vehicle'}</DialogTitle>
-            <DialogDescription>
-              {editingVehicle ? 'Update vehicle information' : 'Create a new vehicle'}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                label="Fleet Number"
-                required
-                error={errors.fleetNumber?.message}
-                placeholder="Fleet identification number"
-                {...register('fleetNumber')}
-              />
-              <FormInput
-                label="Registration"
-                required
-                error={errors.rego?.message}
-                placeholder="Registration number"
-                {...register('rego')}
-              />
-              <FormInput
-                label="Registration Expiry"
-                type="date"
-                error={errors.regoExpiryDate?.message}
-                {...register('regoExpiryDate')}
-              />
-              <FormInput
-                label="GPS ID"
-                error={errors.gpsId?.message}
-                placeholder="GPS device ID"
-                {...register('gpsId')}
-              />
-              <FormSelect
-                label="Default Depot"
-                placeholder="Select depot"
-                options={[
-                  { value: '', label: 'None' },
-                  ...warehouses.map((warehouse) => ({
-                    value: warehouse.id.toString(),
-                    label: warehouse.name,
-                  })),
-                ]}
-                error={errors.defaultDepotId?.message}
-                {...register('defaultDepotId', { valueAsNumber: true })}
-              />
-              <FormInput
-                label="Description"
-                error={errors.description?.message}
-                placeholder="Vehicle description"
-                {...register('description')}
-              />
-              <FormSelect
-                label="A Trailer"
-                placeholder="Select trailer"
-                options={[
-                  { value: '', label: 'None' },
-                  ...trailers.map((trailer) => ({
-                    value: trailer.id.toString(),
-                    label: `${trailer.fleetNumber} (${trailer.rego})`,
-                  })),
-                ]}
-                error={errors.aTrailerId?.message}
-                {...register('aTrailerId', { valueAsNumber: true })}
-              />
-              <FormSelect
-                label="B Trailer"
-                placeholder="Select trailer"
-                options={[
-                  { value: '', label: 'None' },
-                  ...trailers.map((trailer) => ({
-                    value: trailer.id.toString(),
-                    label: `${trailer.fleetNumber} (${trailer.rego})`,
-                  })),
-                ]}
-                error={errors.bTrailerId?.message}
-                {...register('bTrailerId', { valueAsNumber: true })}
-              />
-              <FormSelect
-                label="C Trailer"
-                placeholder="Select trailer"
-                options={[
-                  { value: '', label: 'None' },
-                  ...trailers.map((trailer) => ({
-                    value: trailer.id.toString(),
-                    label: `${trailer.fleetNumber} (${trailer.rego})`,
-                  })),
-                ]}
-                error={errors.cTrailerId?.message}
-                {...register('cTrailerId', { valueAsNumber: true })}
-              />
-            </div>
-
-            <div className="border-t pt-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="sideloader"
-                  checked={watchedSideloader}
-                  onCheckedChange={(checked) => setValue('sideloader', checked === true)}
-                />
-                <Label htmlFor="sideloader" className="cursor-pointer">
-                  Equipped with sideloader
-                </Label>
-              </div>
-            </div>
-
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                className="w-full sm:w-auto"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button type="submit" className="w-full sm:w-auto">
-                <Save className="h-4 w-4 mr-2" />
-                {editingVehicle ? 'Update Vehicle' : 'Create Vehicle'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <VehicleFormDialog
+        open={showAddForm}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddForm(false)
+            setEditingVehicle(null)
+          }
+        }}
+        initialData={editingVehicle}
+        mode={editingVehicle ? 'edit' : 'create'}
+        onSuccess={handleVehicleSuccess}
+      />
 
       <Card>
         <CardHeader>
@@ -633,7 +336,11 @@ export default function VehiclesPage() {
                         {vehicle.defaultDepotId && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[100px]">Depot:</span>
-                            <span>{getWarehouseName(vehicle.defaultDepotId)}</span>
+                            <span>
+                              {typeof vehicle.defaultDepotId === 'object'
+                                ? vehicle.defaultDepotId.name
+                                : 'N/A'}
+                            </span>
                           </div>
                         )}
                         {(vehicle.aTrailerId || vehicle.bTrailerId || vehicle.cTrailerId) && (
@@ -641,9 +348,24 @@ export default function VehiclesPage() {
                             <span className="font-medium min-w-[100px]">Trailers:</span>
                             <span>
                               {[
-                                vehicle.aTrailerId && `A: ${getTrailerName(vehicle.aTrailerId)}`,
-                                vehicle.bTrailerId && `B: ${getTrailerName(vehicle.bTrailerId)}`,
-                                vehicle.cTrailerId && `C: ${getTrailerName(vehicle.cTrailerId)}`,
+                                vehicle.aTrailerId &&
+                                  `A: ${
+                                    typeof vehicle.aTrailerId === 'object'
+                                      ? `${vehicle.aTrailerId.fleetNumber} (${vehicle.aTrailerId.rego})`
+                                      : 'N/A'
+                                  }`,
+                                vehicle.bTrailerId &&
+                                  `B: ${
+                                    typeof vehicle.bTrailerId === 'object'
+                                      ? `${vehicle.bTrailerId.fleetNumber} (${vehicle.bTrailerId.rego})`
+                                      : 'N/A'
+                                  }`,
+                                vehicle.cTrailerId &&
+                                  `C: ${
+                                    typeof vehicle.cTrailerId === 'object'
+                                      ? `${vehicle.cTrailerId.fleetNumber} (${vehicle.cTrailerId.rego})`
+                                      : 'N/A'
+                                  }`,
                               ]
                                 .filter(Boolean)
                                 .join(', ')}

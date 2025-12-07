@@ -1,29 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FormInput, FormSelect } from '@/components/ui/form-field'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { DriverFormDialog } from '@/components/entity-forms/driver-form-dialog'
 import {
   User,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -76,8 +63,6 @@ export default function DriversPage() {
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
   const [drivers, setDrivers] = useState<DriverItem[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loadingDrivers, setLoadingDrivers] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingDriver, setEditingDriver] = useState<DriverItem | null>(null)
@@ -92,60 +77,6 @@ export default function DriversPage() {
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-
-  const driverSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
-    phoneNumber: z.string().min(1, 'Phone number is required'),
-    vehicleId: z.number().optional(),
-    defaultDepotId: z.number().optional(),
-    abn: z.string().optional(),
-    addressStreet: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    postcode: z.string().optional(),
-    employeeType: z.enum(['Casual', 'Permanent'], {
-      required_error: 'Employee type is required',
-    }),
-    drivingLicenceNumber: z.string().min(1, 'Driving licence number is required'),
-    licenceExpiry: z.string().optional(),
-    licencePhotoUrl: z.number().optional(),
-    dangerousGoodsCertNumber: z.string().optional(),
-    dangerousGoodsCertExpiry: z.string().optional(),
-    msicNumber: z.string().optional(),
-    msicExpiry: z.string().optional(),
-    msicPhotoUrl: z.number().optional(),
-  })
-
-  type DriverFormData = z.infer<typeof driverSchema>
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<DriverFormData>({
-    resolver: zodResolver(driverSchema),
-    defaultValues: {
-      name: '',
-      phoneNumber: '',
-      vehicleId: undefined,
-      defaultDepotId: undefined,
-      abn: '',
-      addressStreet: '',
-      city: '',
-      state: '',
-      postcode: '',
-      employeeType: 'Casual',
-      drivingLicenceNumber: '',
-      licenceExpiry: '',
-      licencePhotoUrl: undefined,
-      dangerousGoodsCertNumber: '',
-      dangerousGoodsCertExpiry: '',
-      msicNumber: '',
-      msicExpiry: '',
-      msicPhotoUrl: undefined,
-    },
-  })
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -186,8 +117,6 @@ export default function DriversPage() {
   useEffect(() => {
     if (authChecked) {
       loadDrivers()
-      loadVehicles()
-      loadWarehouses()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
@@ -219,33 +148,6 @@ export default function DriversPage() {
     }
   }
 
-  const loadVehicles = async () => {
-    try {
-      const res = await fetch('/api/vehicles?limit=1000')
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success && data.vehicles) {
-          setVehicles(data.vehicles)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading vehicles:', error)
-    }
-  }
-
-  const loadWarehouses = async () => {
-    try {
-      const res = await fetch('/api/warehouses?limit=1000')
-      if (res.ok) {
-        const data = await res.json()
-        if (data.success && data.warehouses) {
-          setWarehouses(data.warehouses)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading warehouses:', error)
-    }
-  }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
@@ -257,122 +159,24 @@ export default function DriversPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const resetForm = () => {
-    reset({
-      name: '',
-      phoneNumber: '',
-      vehicleId: undefined,
-      defaultDepotId: undefined,
-      abn: '',
-      addressStreet: '',
-      city: '',
-      state: '',
-      postcode: '',
-      employeeType: 'Casual',
-      drivingLicenceNumber: '',
-      licenceExpiry: '',
-      licencePhotoUrl: undefined,
-      dangerousGoodsCertNumber: '',
-      dangerousGoodsCertExpiry: '',
-      msicNumber: '',
-      msicExpiry: '',
-      msicPhotoUrl: undefined,
-    })
+  const handleAddDriver = () => {
+    setEditingDriver(null)
+    setShowAddForm(true)
     setError(null)
     setSuccess(null)
   }
 
-  const handleAddDriver = () => {
-    resetForm()
-    setShowAddForm(true)
-    setEditingDriver(null)
-  }
-
   const handleEditDriver = (driver: DriverItem) => {
-    const vehicleId = typeof driver.vehicleId === 'object' ? driver.vehicleId.id : driver.vehicleId
-    const depotId =
-      typeof driver.defaultDepotId === 'object' ? driver.defaultDepotId.id : driver.defaultDepotId
-    const licencePhotoId =
-      typeof driver.licencePhotoUrl === 'object' ? driver.licencePhotoUrl.id : driver.licencePhotoUrl
-    const msicPhotoId =
-      typeof driver.msicPhotoUrl === 'object' ? driver.msicPhotoUrl.id : driver.msicPhotoUrl
-
-    reset({
-      name: driver.name || '',
-      phoneNumber: driver.phoneNumber || '',
-      vehicleId: vehicleId || undefined,
-      defaultDepotId: depotId || undefined,
-      abn: driver.abn || '',
-      addressStreet: driver.addressStreet || '',
-      city: driver.city || '',
-      state: driver.state || '',
-      postcode: driver.postcode || '',
-      employeeType: (driver.employeeType as 'Casual' | 'Permanent') || 'Casual',
-      drivingLicenceNumber: driver.drivingLicenceNumber || '',
-      licenceExpiry: driver.licenceExpiry || '',
-      licencePhotoUrl: licencePhotoId || undefined,
-      dangerousGoodsCertNumber: driver.dangerousGoodsCertNumber || '',
-      dangerousGoodsCertExpiry: driver.dangerousGoodsCertExpiry || '',
-      msicNumber: driver.msicNumber || '',
-      msicExpiry: driver.msicExpiry || '',
-      msicPhotoUrl: msicPhotoId || undefined,
-    })
     setEditingDriver(driver)
     setShowAddForm(true)
     setError(null)
     setSuccess(null)
   }
 
-  const handleCancel = () => {
+  const handleDriverSuccess = async () => {
+    await loadDrivers()
     setShowAddForm(false)
     setEditingDriver(null)
-    resetForm()
-  }
-
-  const onSubmit = async (data: DriverFormData) => {
-    setError(null)
-    setSuccess(null)
-
-    try {
-      if (editingDriver) {
-        const res = await fetch(`/api/drivers/${editingDriver.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        })
-
-        if (res.ok) {
-          setSuccess('Driver updated successfully')
-          await loadDrivers()
-          setTimeout(() => {
-            handleCancel()
-          }, 1500)
-        } else {
-          const responseData = await res.json()
-          setError(responseData.message || 'Failed to update driver')
-        }
-      } else {
-        const res = await fetch('/api/drivers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        })
-
-        if (res.ok) {
-          setSuccess('Driver created successfully')
-          await loadDrivers()
-          setTimeout(() => {
-            handleCancel()
-          }, 1500)
-        } else {
-          const responseData = await res.json()
-          setError(responseData.message || 'Failed to create driver')
-        }
-      }
-    } catch (error) {
-      console.error('Error saving driver:', error)
-      setError('An error occurred while saving the driver')
-    }
   }
 
   const handleDeleteDriver = async (driver: DriverItem) => {
@@ -415,19 +219,6 @@ export default function DriversPage() {
     )
   }
 
-  const getVehicleName = (vehicleId?: number | { id: number; fleetNumber?: string }) => {
-    if (!vehicleId) return 'N/A'
-    const id = typeof vehicleId === 'object' ? vehicleId.id : vehicleId
-    const vehicle = vehicles.find((v) => v.id === id)
-    return vehicle?.fleetNumber || 'N/A'
-  }
-
-  const getWarehouseName = (warehouseId?: number | { id: number; name?: string }) => {
-    if (!warehouseId) return 'N/A'
-    const id = typeof warehouseId === 'object' ? warehouseId.id : warehouseId
-    const warehouse = warehouses.find((w) => w.id === id)
-    return warehouse?.name || 'N/A'
-  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -462,153 +253,18 @@ export default function DriversPage() {
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
       )}
 
-      <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingDriver ? 'Edit Driver' : 'Add New Driver'}</DialogTitle>
-            <DialogDescription>
-              {editingDriver ? 'Update driver information' : 'Create a new driver'}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormInput
-                label="Name"
-                required
-                error={errors.name?.message}
-                placeholder="Full name"
-                {...register('name')}
-              />
-              <FormInput
-                label="Phone Number"
-                required
-                error={errors.phoneNumber?.message}
-                placeholder="Contact number"
-                {...register('phoneNumber')}
-              />
-              <FormSelect
-                label="Employee Type"
-                required
-                placeholder="Select type"
-                options={[
-                  { value: 'Casual', label: 'Casual' },
-                  { value: 'Permanent', label: 'Permanent' },
-                ]}
-                error={errors.employeeType?.message}
-                {...register('employeeType')}
-              />
-              <FormInput
-                label="Driving Licence Number"
-                required
-                error={errors.drivingLicenceNumber?.message}
-                placeholder="Licence number"
-                {...register('drivingLicenceNumber')}
-              />
-              <FormInput
-                label="Licence Expiry"
-                type="date"
-                error={errors.licenceExpiry?.message}
-                {...register('licenceExpiry')}
-              />
-              <FormSelect
-                label="Assigned Vehicle"
-                placeholder="Select vehicle"
-                options={[
-                  { value: '', label: 'None' },
-                  ...vehicles.map((vehicle) => ({
-                    value: vehicle.id.toString(),
-                    label: vehicle.fleetNumber,
-                  })),
-                ]}
-                error={errors.vehicleId?.message}
-                {...register('vehicleId', { valueAsNumber: true })}
-              />
-              <FormSelect
-                label="Default Depot"
-                placeholder="Select depot"
-                options={[
-                  { value: '', label: 'None' },
-                  ...warehouses.map((warehouse) => ({
-                    value: warehouse.id.toString(),
-                    label: warehouse.name,
-                  })),
-                ]}
-                error={errors.defaultDepotId?.message}
-                {...register('defaultDepotId', { valueAsNumber: true })}
-              />
-              <FormInput
-                label="ABN"
-                error={errors.abn?.message}
-                placeholder="Australian Business Number"
-                {...register('abn')}
-              />
-              <FormInput
-                label="Street Address"
-                error={errors.addressStreet?.message}
-                placeholder="Street address"
-                {...register('addressStreet')}
-              />
-              <FormInput
-                label="City"
-                error={errors.city?.message}
-                placeholder="City"
-                {...register('city')}
-              />
-              <FormInput
-                label="State"
-                error={errors.state?.message}
-                placeholder="State/Province"
-                {...register('state')}
-              />
-              <FormInput
-                label="Postcode"
-                error={errors.postcode?.message}
-                placeholder="Postcode"
-                {...register('postcode')}
-              />
-              <FormInput
-                label="Dangerous Goods Cert Number"
-                error={errors.dangerousGoodsCertNumber?.message}
-                placeholder="Certificate number"
-                {...register('dangerousGoodsCertNumber')}
-              />
-              <FormInput
-                label="DG Cert Expiry"
-                type="date"
-                error={errors.dangerousGoodsCertExpiry?.message}
-                {...register('dangerousGoodsCertExpiry')}
-              />
-              <FormInput
-                label="MSIC Number"
-                error={errors.msicNumber?.message}
-                placeholder="MSIC number"
-                {...register('msicNumber')}
-              />
-              <FormInput
-                label="MSIC Expiry"
-                type="date"
-                error={errors.msicExpiry?.message}
-                {...register('msicExpiry')}
-              />
-            </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                className="w-full sm:w-auto"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button type="submit" className="w-full sm:w-auto">
-                <Save className="h-4 w-4 mr-2" />
-                {editingDriver ? 'Update Driver' : 'Create Driver'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <DriverFormDialog
+        open={showAddForm}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAddForm(false)
+            setEditingDriver(null)
+          }
+        }}
+        initialData={editingDriver}
+        mode={editingDriver ? 'edit' : 'create'}
+        onSuccess={handleDriverSuccess}
+      />
 
       <Card>
         <CardHeader>
@@ -687,13 +343,21 @@ export default function DriversPage() {
                         {driver.vehicleId && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[100px]">Vehicle:</span>
-                            <span>{getVehicleName(driver.vehicleId)}</span>
+                            <span>
+                              {typeof driver.vehicleId === 'object'
+                                ? driver.vehicleId.fleetNumber
+                                : 'N/A'}
+                            </span>
                           </div>
                         )}
                         {driver.defaultDepotId && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[100px]">Depot:</span>
-                            <span>{getWarehouseName(driver.defaultDepotId)}</span>
+                            <span>
+                              {typeof driver.defaultDepotId === 'object'
+                                ? driver.defaultDepotId.name
+                                : 'N/A'}
+                            </span>
                           </div>
                         )}
                         {(driver.city || driver.state) && (

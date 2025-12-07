@@ -6,7 +6,7 @@ import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Package, Plus, Search, Eye, Edit, Trash2, PackageCheck } from 'lucide-react'
+import { Package, Plus, Search, Eye, Edit, Trash2, PackageCheck, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
@@ -27,8 +27,10 @@ export default function InboundFreightPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [jobs, setJobs] = useState<InboundJob[]>([])
+  const [allJobs, setAllJobs] = useState<InboundJob[]>([])
   const [loadingJobs, setLoadingJobs] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const [authChecked, setAuthChecked] = useState(false)
   const [currentUser, setCurrentUser] = useState<{ id?: number; role?: number | string | { id: number; permissions?: Record<string, boolean> } } | null>(null)
 
@@ -73,6 +75,10 @@ export default function InboundFreightPage() {
     }
   }, [tenant, authChecked, searchTerm])
 
+  useEffect(() => {
+    filterJobs()
+  }, [statusFilter, allJobs])
+
   const loadJobs = async () => {
     try {
       setLoadingJobs(true)
@@ -82,13 +88,43 @@ export default function InboundFreightPage() {
       const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
-        setJobs(data.jobs || [])
+        const loadedJobs = data.jobs || []
+        setAllJobs(loadedJobs)
+        // Apply status filter immediately
+        if (!statusFilter) {
+          setJobs(loadedJobs)
+        } else {
+          const filtered = loadedJobs.filter((job: InboundJob) => {
+            const status = getStatusValue(job)
+            return status === statusFilter
+          })
+          setJobs(filtered)
+        }
       }
     } catch (error) {
       console.error('Error loading jobs:', error)
     } finally {
       setLoadingJobs(false)
     }
+  }
+
+  const filterJobs = () => {
+    if (!statusFilter) {
+      setJobs(allJobs)
+      return
+    }
+
+    const filtered = allJobs.filter((job) => {
+      const status = getStatusValue(job)
+      return status === statusFilter
+    })
+    setJobs(filtered)
+  }
+
+  const getStatusValue = (job: InboundJob): string => {
+    if (job.completedDate) return 'received'
+    if (job.expectedDate) return 'expected'
+    return 'draft'
   }
 
   const handleDelete = async (jobId: number) => {
@@ -153,7 +189,24 @@ export default function InboundFreightPage() {
         </Link>
       </div>
 
-      {/* Search */}
+      {/* Tabs */}
+      <div className="flex gap-4 border-b">
+        <button
+          className="px-4 py-2 font-medium border-b-2 border-primary text-primary"
+        >
+          <Package className="h-4 w-4 inline mr-2" />
+          Inbound Freight
+        </button>
+        <Link
+          href="/dashboard/freight/outbound"
+          className="px-4 py-2 font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Truck className="h-4 w-4 inline mr-2" />
+          Outbound Freight
+        </Link>
+      </div>
+
+      {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex gap-2">
@@ -166,6 +219,16 @@ export default function InboundFreightPage() {
                 className="pl-10"
               />
             </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border rounded-md"
+            >
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="expected">Expected</option>
+              <option value="received">Received</option>
+            </select>
           </div>
         </CardContent>
       </Card>
@@ -184,9 +247,11 @@ export default function InboundFreightPage() {
               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No jobs found</p>
               <p className="mb-4">
-                {searchTerm ? 'Try adjusting your search terms.' : 'Create your first inbound freight job to get started.'}
+                {searchTerm || statusFilter
+                  ? 'Try adjusting your search terms or filters.'
+                  : 'Create your first inbound freight job to get started.'}
               </p>
-              {!searchTerm && (
+              {!searchTerm && !statusFilter && (
                 <Link href="/dashboard/freight/inbound/new">
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />

@@ -6,7 +6,8 @@ import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Package, Plus, Search, Eye, Edit, Trash2, PackageX } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Package, Plus, Search, Eye, Edit, Trash2, PackageX, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
@@ -150,6 +151,8 @@ export default function OutboundFreightPage() {
         return 'text-orange-600'
       case 'ready_to_dispatch':
         return 'text-green-600'
+      case 'dispatched':
+        return 'text-purple-600'
       default:
         return 'text-gray-600'
     }
@@ -171,6 +174,8 @@ export default function OutboundFreightPage() {
         return 'Picked'
       case 'ready_to_dispatch':
         return 'Ready to Dispatch'
+      case 'dispatched':
+        return 'Dispatched'
       default:
         return 'Draft'
     }
@@ -189,6 +194,23 @@ export default function OutboundFreightPage() {
             New Job
           </Button>
         </Link>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-4 border-b">
+        <Link
+          href="/dashboard/freight/inbound"
+          className="px-4 py-2 font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Package className="h-4 w-4 inline mr-2" />
+          Inbound Freight
+        </Link>
+        <button
+          className="px-4 py-2 font-medium border-b-2 border-primary text-primary"
+        >
+          <Truck className="h-4 w-4 inline mr-2" />
+          Outbound Freight
+        </button>
       </div>
 
       {/* Search and Filters */}
@@ -217,6 +239,7 @@ export default function OutboundFreightPage() {
               <option value="partially_picked">Partially Picked</option>
               <option value="picked">Picked</option>
               <option value="ready_to_dispatch">Ready to Dispatch</option>
+              <option value="dispatched">Dispatched</option>
             </select>
           </div>
         </CardContent>
@@ -265,7 +288,9 @@ export default function OutboundFreightPage() {
                         <CardTitle>
                           {job.jobCode ? `Job ${job.jobCode}` : `Job #${job.id}`}
                         </CardTitle>
-                        <span className={`text-sm font-medium ${statusColor}`}>{statusLabel}</span>
+                        <Badge variant="outline" className={statusColor}>
+                          {statusLabel}
+                        </Badge>
                       </div>
                       <CardDescription className="space-y-1">
                         {job.requiredDateTime && (
@@ -277,7 +302,7 @@ export default function OutboundFreightPage() {
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      {job.status !== 'ready_to_dispatch' && (
+                      {job.status !== 'ready_to_dispatch' && job.status !== 'dispatched' && (
                         <Link href={`/dashboard/freight/outbound/${job.id}/edit`}>
                           <Button variant="outline" size="sm" title="Edit Job">
                             <Edit className="h-4 w-4 mr-1" />

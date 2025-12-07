@@ -5,14 +5,18 @@ import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Truck, Package, Plus } from 'lucide-react'
 import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
 
 type InboundJob = {
   id: number
+  jobCode?: string
   expectedDate?: string
+  completedDate?: string
   customerName?: string
+  supplierName?: string
   warehouseId?: number | { id: number; name?: string }
   createdAt: string
 }
@@ -87,7 +91,7 @@ export default function FreightPage() {
   const loadInboundJobs = async () => {
     try {
       setLoadingJobs(true)
-      const res = await fetch('/api/inbound-inventory?limit=10')
+      const res = await fetch('/api/inbound-inventory?limit=5')
       if (res.ok) {
         const data = await res.json()
         setInboundJobs(data.jobs || [])
@@ -102,7 +106,7 @@ export default function FreightPage() {
   const loadOutboundJobs = async () => {
     try {
       setLoadingJobs(true)
-      const res = await fetch('/api/outbound-inventory?limit=10')
+      const res = await fetch('/api/outbound-inventory?limit=5')
       if (res.ok) {
         const data = await res.json()
         setOutboundJobs(data.jobs || [])
@@ -208,26 +212,43 @@ export default function FreightPage() {
             </Card>
           ) : (
             <div className="space-y-4">
-              {inboundJobs.map((job) => (
-                <Card key={job.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Job #{job.id}</CardTitle>
-                        <CardDescription>
-                          Expected: {job.expectedDate ? new Date(job.expectedDate).toLocaleDateString() : 'Not set'}
-                          {job.customerName && ` • ${job.customerName}`}
-                        </CardDescription>
+              {inboundJobs.map((job) => {
+                const getStatus = (job: InboundJob) => {
+                  if (job.completedDate) return { label: 'Received', color: 'text-green-600' }
+                  if (job.expectedDate) return { label: 'Expected', color: 'text-blue-600' }
+                  return { label: 'Draft', color: 'text-gray-600' }
+                }
+                const status = getStatus(job)
+                return (
+                  <Card key={job.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <CardTitle>
+                              {job.jobCode ? `Job ${job.jobCode}` : `Job #${job.id}`}
+                            </CardTitle>
+                            <Badge variant="outline" className={status.color}>
+                              {status.label}
+                            </Badge>
+                          </div>
+                          <CardDescription>
+                            {job.expectedDate && `Expected: ${new Date(job.expectedDate).toLocaleDateString()}`}
+                            {job.completedDate && ` • Completed: ${new Date(job.completedDate).toLocaleDateString()}`}
+                            {job.customerName && ` • Customer: ${job.customerName}`}
+                            {job.supplierName && ` • Supplier: ${job.supplierName}`}
+                          </CardDescription>
+                        </div>
+                        <Link href={`/dashboard/freight/inbound/${job.id}`}>
+                          <Button variant="outline" size="sm">
+                            View
+                          </Button>
+                        </Link>
                       </div>
-                      <Link href={`/dashboard/freight/inbound/${job.id}`}>
-                        <Button variant="outline" size="sm">
-                          View
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
+                    </CardHeader>
+                  </Card>
+                )
+              })}
               <div className="text-center">
                 <Link href="/dashboard/freight/inbound">
                   <Button variant="outline">View All Inbound Jobs</Button>
@@ -265,14 +286,20 @@ export default function FreightPage() {
               {outboundJobs.map((job) => {
                 const getStatusColor = (status?: string) => {
                   switch (status) {
+                    case 'partially_allocated':
+                      return 'text-blue-400'
                     case 'allocated':
                       return 'text-blue-600'
                     case 'ready_to_pick':
                       return 'text-yellow-600'
+                    case 'partially_picked':
+                      return 'text-orange-400'
                     case 'picked':
                       return 'text-orange-600'
                     case 'ready_to_dispatch':
                       return 'text-green-600'
+                    case 'dispatched':
+                      return 'text-purple-600'
                     default:
                       return 'text-gray-600'
                   }
@@ -282,18 +309,27 @@ export default function FreightPage() {
                   switch (status) {
                     case 'draft':
                       return 'Draft'
+                    case 'partially_allocated':
+                      return 'Partially Allocated'
                     case 'allocated':
                       return 'Allocated'
                     case 'ready_to_pick':
                       return 'Ready to Pick'
+                    case 'partially_picked':
+                      return 'Partially Picked'
                     case 'picked':
                       return 'Picked'
                     case 'ready_to_dispatch':
                       return 'Ready to Dispatch'
+                    case 'dispatched':
+                      return 'Dispatched'
                     default:
                       return 'Draft'
                   }
                 }
+
+                const statusColor = getStatusColor(job.status)
+                const statusLabel = getStatusLabel(job.status)
 
                 return (
                   <Card key={job.id} className="hover:shadow-md transition-shadow">
@@ -304,9 +340,9 @@ export default function FreightPage() {
                             <CardTitle>
                               {job.jobCode ? `Job ${job.jobCode}` : `Job #${job.id}`}
                             </CardTitle>
-                            <span className={`text-sm font-medium ${getStatusColor(job.status)}`}>
-                              {getStatusLabel(job.status)}
-                            </span>
+                            <Badge variant="outline" className={statusColor}>
+                              {statusLabel}
+                            </Badge>
                           </div>
                           <CardDescription>
                             {job.requiredDateTime &&

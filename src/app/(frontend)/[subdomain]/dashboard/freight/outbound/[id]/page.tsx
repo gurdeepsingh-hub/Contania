@@ -19,6 +19,7 @@ import { toast } from 'sonner'
 import { AllocateStockDialog } from '@/components/freight/allocate-stock-dialog'
 import { ProductLineAllocateDialog } from '@/components/freight/product-line-allocate-dialog'
 import { PickupStockDialog } from '@/components/freight/pickup-stock-dialog'
+import { DispatchDialog } from '@/components/freight/dispatch-dialog'
 
 type AllocatedLPN = {
   serialNumber: number
@@ -67,6 +68,9 @@ type OutboundJob = {
   orderNotes?: string
   palletCount?: number
   productLines?: ProductLine[]
+  vehicleId?: number | { id: number; fleetNumber?: string; rego?: string }
+  driverId?: number | { id: number; name?: string; phoneNumber?: string }
+  dispatchedAt?: string
 }
 
 export default function OutboundJobDetailPage() {
@@ -80,6 +84,7 @@ export default function OutboundJobDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showAllocateStockDialog, setShowAllocateStockDialog] = useState(false)
   const [showPickupStockDialog, setShowPickupStockDialog] = useState(false)
+  const [showDispatchDialog, setShowDispatchDialog] = useState(false)
   const [allocatingProductLineId, setAllocatingProductLineId] = useState<number | null>(null)
   const [expandedLPNs, setExpandedLPNs] = useState<Record<number, boolean>>({})
   const [pickupRecords, setPickupRecords] = useState<Record<number, any[]>>({})
@@ -126,6 +131,33 @@ export default function OutboundJobDetailPage() {
         const data = await res.json()
         if (data.success) {
           const jobData = data.job
+          // Ensure vehicle and driver are loaded with depth if they exist
+          if (jobData.vehicleId && typeof jobData.vehicleId === 'number') {
+            try {
+              const vehicleRes = await fetch(`/api/vehicles/${jobData.vehicleId}`)
+              if (vehicleRes.ok) {
+                const vehicleData = await vehicleRes.json()
+                if (vehicleData.success) {
+                  jobData.vehicleId = vehicleData.vehicle
+                }
+              }
+            } catch (error) {
+              console.error('Error loading vehicle:', error)
+            }
+          }
+          if (jobData.driverId && typeof jobData.driverId === 'number') {
+            try {
+              const driverRes = await fetch(`/api/drivers/${jobData.driverId}`)
+              if (driverRes.ok) {
+                const driverData = await driverRes.json()
+                if (driverData.success) {
+                  jobData.driverId = driverData.driver
+                }
+              }
+            } catch (error) {
+              console.error('Error loading driver:', error)
+            }
+          }
           // Load allocated LPNs for each product line
           if (jobData.productLines && jobData.productLines.length > 0) {
             const productLinesWithLPNs = await Promise.all(
@@ -228,6 +260,8 @@ export default function OutboundJobDetailPage() {
         return 'text-orange-600'
       case 'ready_to_dispatch':
         return 'text-green-600'
+      case 'dispatched':
+        return 'text-purple-600'
       default:
         return 'text-gray-600'
     }
@@ -249,6 +283,8 @@ export default function OutboundJobDetailPage() {
         return 'Picked'
       case 'ready_to_dispatch':
         return 'Ready to Dispatch'
+      case 'dispatched':
+        return 'Dispatched'
       default:
         return 'Draft'
     }
@@ -271,7 +307,8 @@ export default function OutboundJobDetailPage() {
   }
 
   const canDelete = job.status === 'draft'
-  const canEdit = job.status !== 'ready_to_dispatch'
+  const canEdit = job.status !== 'ready_to_dispatch' && job.status !== 'dispatched'
+  const canDispatch = job.status === 'ready_to_dispatch'
   
   // Check if all product lines are allocated
   const allProductLinesAllocated =
@@ -319,10 +356,16 @@ export default function OutboundJobDetailPage() {
               )}
             </>
           )}
-          {allProductLinesAllocated && (
+          {allProductLinesAllocated && job.status !== 'ready_to_dispatch' && job.status !== 'dispatched' && (
             <Button onClick={() => setShowPickupStockDialog(true)}>
               <Truck className="h-4 w-4 mr-2" />
               Pickup Stock
+            </Button>
+          )}
+          {canDispatch && (
+            <Button onClick={() => setShowDispatchDialog(true)} className="bg-green-600 hover:bg-green-700">
+              <Truck className="h-4 w-4 mr-2" />
+              Dispatch
             </Button>
           )}
           {canDelete && (
@@ -517,6 +560,42 @@ export default function OutboundJobDetailPage() {
                 <span className="text-sm font-medium text-muted-foreground">Warehouse:</span>
                 <p>{typeof job.warehouseId === 'object' ? job.warehouseId.name : 'Not set'}</p>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {job.status === 'dispatched' && (job.vehicleId || job.driverId || job.dispatchedAt) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Dispatch Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {job.vehicleId && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Vehicle:</span>
+                  <p>
+                    {typeof job.vehicleId === 'object'
+                      ? `${job.vehicleId.fleetNumber || 'N/A'} (${job.vehicleId.rego || 'N/A'})`
+                      : 'N/A'}
+                  </p>
+                </div>
+              )}
+              {job.driverId && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Driver:</span>
+                  <p>
+                    {typeof job.driverId === 'object'
+                      ? `${job.driverId.name || 'N/A'}${job.driverId.phoneNumber ? ` (${job.driverId.phoneNumber})` : ''}`
+                      : 'N/A'}
+                  </p>
+                </div>
+              )}
+              {job.dispatchedAt && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Dispatched At:</span>
+                  <p>{new Date(job.dispatchedAt).toLocaleString()}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -766,6 +845,11 @@ export default function OutboundJobDetailPage() {
           <PickupStockDialog
             open={showPickupStockDialog}
             onOpenChange={setShowPickupStockDialog}
+            jobId={job.id}
+          />
+          <DispatchDialog
+            open={showDispatchDialog}
+            onOpenChange={setShowDispatchDialog}
             jobId={job.id}
           />
         </>
