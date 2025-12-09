@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# EC2 Setup Script for Contania.io
+# EC2 Setup Script for Containa.io
 # This script sets up Nginx and SSL certificates for wildcard subdomain support
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "Contania.io EC2 Setup Script"
+echo "Containa.io EC2 Setup Script"
 echo "=========================================="
 echo ""
 
@@ -36,12 +36,18 @@ if [ -z "$EC2_PUBLIC_IP" ]; then
     echo -e "${YELLOW}EC2_PUBLIC_IP not set. Attempting to detect...${NC}"
     EC2_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "")
     if [ -z "$EC2_PUBLIC_IP" ]; then
-        echo -e "${RED}Could not detect EC2 IP. Please set EC2_PUBLIC_IP environment variable.${NC}"
-        exit 1
+        # Try alternative method
+        EC2_PUBLIC_IP=$(curl -s https://checkip.amazonaws.com 2>/dev/null || echo "")
+        if [ -z "$EC2_PUBLIC_IP" ]; then
+            echo -e "${YELLOW}Could not auto-detect EC2 IP. You can set EC2_PUBLIC_IP environment variable or find it manually.${NC}"
+            echo -e "${YELLOW}Continuing with setup... (IP is only needed for DNS configuration reference)${NC}"
+        fi
     fi
 fi
 
-echo -e "${GREEN}Detected EC2 IP: $EC2_PUBLIC_IP${NC}"
+if [ -n "$EC2_PUBLIC_IP" ]; then
+    echo -e "${GREEN}Detected EC2 IP: $EC2_PUBLIC_IP${NC}"
+fi
 
 # Get email for Let's Encrypt
 if [ -z "$LETSENCRYPT_EMAIL" ]; then
@@ -50,15 +56,25 @@ fi
 
 # Setup Nginx configuration
 echo -e "${GREEN}[3/7] Setting up Nginx configuration...${NC}"
+# Try to find nginx.conf in current directory or parent directory
+NGINX_CONF=""
 if [ -f "nginx.conf" ]; then
-    cp nginx.conf /etc/nginx/sites-available/contania
+    NGINX_CONF="nginx.conf"
+elif [ -f "../nginx.conf" ]; then
+    NGINX_CONF="../nginx.conf"
+fi
+
+if [ -n "$NGINX_CONF" ]; then
+    cp "$NGINX_CONF" /etc/nginx/sites-available/containa
+    echo -e "${GREEN}Nginx configuration copied${NC}"
 else
-    echo -e "${YELLOW}Warning: nginx.conf not found in current directory${NC}"
-    echo -e "${YELLOW}Please copy nginx.conf to /etc/nginx/sites-available/contania manually${NC}"
+    echo -e "${YELLOW}Warning: nginx.conf not found in current or parent directory${NC}"
+    echo -e "${YELLOW}Please copy nginx.conf to /etc/nginx/sites-available/containa manually${NC}"
+    echo -e "${YELLOW}Or run this script from the project root directory${NC}"
 fi
 
 # Enable site
-ln -sf /etc/nginx/sites-available/contania /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/containa /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Test Nginx configuration
@@ -119,8 +135,14 @@ echo "==========================================${NC}"
 echo ""
 echo "Next steps:"
 echo "1. Configure DNS in Porkbun:"
-echo "   - Add A record: * -> $EC2_PUBLIC_IP"
-echo "   - Add A record: @ -> $EC2_PUBLIC_IP (for main domain)"
+if [ -n "$EC2_PUBLIC_IP" ]; then
+    echo "   - Add A record: * -> $EC2_PUBLIC_IP"
+    echo "   - Add A record: @ -> $EC2_PUBLIC_IP (for main domain)"
+else
+    echo "   - Add A record: * -> YOUR_EC2_PUBLIC_IP"
+    echo "   - Add A record: @ -> YOUR_EC2_PUBLIC_IP (for main domain)"
+    echo "   (Find your EC2 public IP in AWS Console)"
+fi
 echo ""
 echo "2. If SSL certificate wasn't set up, run:"
 echo "   sudo certbot --nginx -d containa.io -d *.containa.io"
