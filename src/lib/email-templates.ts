@@ -249,11 +249,8 @@ export function getTenantApprovalEmail(tenant: {
   loginEmail: string
   loginPassword: string
 }) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-  const loginUrl =
-    `https://${tenant.subdomain}.${baseUrl.replace(/^https?:\/\//, '').replace(/^[^/]+/, '')}` ||
-    `https://${tenant.subdomain}`
+  const domain = process.env.DEFAULT_HOST || 'containa.io'
+  const loginUrl = `https://${tenant.subdomain}.${domain}`
 
   const content = `
     <h2>Welcome to Contania!</h2>
@@ -327,11 +324,8 @@ export function getTenantUserWelcomeEmail(user: {
   subdomain: string
   userGroup?: string
 }) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-  const loginUrl =
-    `https://${user.subdomain}.${baseUrl.replace(/^https?:\/\//, '').replace(/^[^/]+/, '')}` ||
-    `https://${user.subdomain}`
+  const domain = process.env.DEFAULT_HOST || 'containa.io'
+  const loginUrl = `https://${user.subdomain}.${domain}`
 
   const content = `
     <h2>Welcome to Contania, ${user.fullName}!</h2>

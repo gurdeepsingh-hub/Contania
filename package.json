@@ -44,7 +44,8 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^4.1.12",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "lru-cache": "^11.0.1"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",

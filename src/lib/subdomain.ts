@@ -19,13 +19,13 @@ export function slugify(text: string): string {
  */
 export async function generateUniqueSubdomain(
   companyName: string,
-  checkUniqueness: (subdomain: string) => Promise<boolean>
+  checkUniqueness: (subdomain: string) => Promise<boolean>,
 ): Promise<string> {
   const baseSubdomain = slugify(companyName)
-  
+
   // Check if base subdomain is available
   const isAvailable = await checkUniqueness(baseSubdomain)
-  
+
   if (isAvailable) {
     return baseSubdomain
   }
@@ -44,10 +44,9 @@ export async function generateUniqueSubdomain(
 }
 
 /**
- * Get full subdomain URL (e.g., "abc-trucking.contania.com")
+ * Get full subdomain URL (e.g., "abc-trucking.containa.io")
  */
 export function getSubdomainUrl(subdomain: string, baseDomain?: string): string {
-  const domain = baseDomain || process.env.DEFAULT_HOST || 'contania.com'
+  const domain = baseDomain || process.env.DEFAULT_HOST || 'containa.io'
   return `${subdomain}.${domain}`
 }
-
