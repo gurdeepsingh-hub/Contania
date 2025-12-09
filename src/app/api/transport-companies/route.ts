@@ -20,30 +20,41 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      tenantId: {
-        equals: tenant.id,
-      },
+      and: [
+        {
+          tenantId: {
+            equals: tenant.id,
+          },
+        },
+        {
+          isDeleted: {
+            equals: false,
+          },
+        },
+      ],
     }
 
     // Add search if provided
     if (search) {
-      where.or = [
-        {
-          name: {
-            contains: search,
+      where.and.push({
+        or: [
+          {
+            name: {
+              contains: search,
+            },
           },
-        },
-        {
-          contact: {
-            contains: search,
+          {
+            contact: {
+              contains: search,
+            },
           },
-        },
-        {
-          mobile: {
-            contains: search,
+          {
+            mobile: {
+              contains: search,
+            },
           },
-        },
-      ]
+        ],
+      })
     }
 
     // Parse sort (format: "field" or "-field" for descending)

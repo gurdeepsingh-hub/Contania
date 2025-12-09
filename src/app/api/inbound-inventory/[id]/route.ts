@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/api-helpers'
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const context = await getTenantContext(request, 'freight_view')
     if ('error' in context) {
@@ -53,11 +56,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
   } catch (error) {
     console.error('Error fetching inbound inventory job:', error)
-    return NextResponse.json({ message: 'Failed to fetch inbound inventory job' }, { status: 500 })
+    return NextResponse.json(
+      { message: 'Failed to fetch inbound inventory job' },
+      { status: 500 }
+    )
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const context = await getTenantContext(request, 'freight_edit')
     if ('error' in context) {
@@ -79,8 +88,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       id: jobId,
     })
 
-    const jobTenantId =
-      typeof existingJob.tenantId === 'object' ? existingJob.tenantId.id : existingJob.tenantId
+    const jobTenantId = typeof existingJob.tenantId === 'object' ? existingJob.tenantId.id : existingJob.tenantId
     if (jobTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Job not found' }, { status: 404 })
     }
@@ -91,46 +99,20 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       id: jobId,
       data: {
         jobCode: body.jobCode !== undefined ? body.jobCode : existingJob.jobCode, // Allow job code updates
-        expectedDate:
-          body.expectedDate !== undefined && body.expectedDate !== ''
-            ? body.expectedDate
-            : body.expectedDate === ''
-              ? null
-              : existingJob.expectedDate,
-        completedDate:
-          body.completedDate !== undefined && body.completedDate !== ''
-            ? body.completedDate
-            : body.completedDate === ''
-              ? null
-              : existingJob.completedDate,
-        deliveryCustomerReferenceNumber:
-          body.deliveryCustomerReferenceNumber !== undefined
-            ? body.deliveryCustomerReferenceNumber
-            : existingJob.deliveryCustomerReferenceNumber,
-        orderingCustomerReferenceNumber:
-          body.orderingCustomerReferenceNumber !== undefined
-            ? body.orderingCustomerReferenceNumber
-            : existingJob.orderingCustomerReferenceNumber,
-        deliveryCustomerId:
-          body.deliveryCustomerId !== undefined
-            ? body.deliveryCustomerId
-            : existingJob.deliveryCustomerId,
+        expectedDate: body.expectedDate !== undefined && body.expectedDate !== '' ? body.expectedDate : (body.expectedDate === '' ? null : existingJob.expectedDate),
+        completedDate: body.completedDate !== undefined && body.completedDate !== '' ? body.completedDate : (body.completedDate === '' ? null : existingJob.completedDate),
+        deliveryCustomerReferenceNumber: body.deliveryCustomerReferenceNumber !== undefined ? body.deliveryCustomerReferenceNumber : existingJob.deliveryCustomerReferenceNumber,
+        orderingCustomerReferenceNumber: body.orderingCustomerReferenceNumber !== undefined ? body.orderingCustomerReferenceNumber : existingJob.orderingCustomerReferenceNumber,
+        deliveryCustomerId: body.deliveryCustomerId !== undefined ? body.deliveryCustomerId : existingJob.deliveryCustomerId,
         notes: body.notes !== undefined ? body.notes : existingJob.notes,
-        transportMode:
-          body.transportMode !== undefined ? body.transportMode : existingJob.transportMode,
+        transportMode: body.transportMode !== undefined ? body.transportMode : existingJob.transportMode,
         warehouseId: body.warehouseId !== undefined ? body.warehouseId : existingJob.warehouseId,
         supplierId: body.supplierId !== undefined ? body.supplierId : existingJob.supplierId,
-        transportCompanyId:
-          body.transportCompanyId !== undefined
-            ? body.transportCompanyId
-            : existingJob.transportCompanyId,
+        transportCompanyId: body.transportCompanyId !== undefined ? body.transportCompanyId : existingJob.transportCompanyId,
         chep: body.chep !== undefined ? body.chep : existingJob.chep,
         loscam: body.loscam !== undefined ? body.loscam : existingJob.loscam,
         plain: body.plain !== undefined ? body.plain : existingJob.plain,
-        palletTransferDocket:
-          body.palletTransferDocket !== undefined
-            ? body.palletTransferDocket
-            : existingJob.palletTransferDocket,
+        palletTransferDocket: body.palletTransferDocket !== undefined ? body.palletTransferDocket : existingJob.palletTransferDocket,
       },
     })
 
@@ -140,13 +122,16 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     })
   } catch (error) {
     console.error('Error updating inbound inventory job:', error)
-    return NextResponse.json({ message: 'Failed to update inbound inventory job' }, { status: 500 })
+    return NextResponse.json(
+      { message: 'Failed to update inbound inventory job' },
+      { status: 500 }
+    )
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const context = await getTenantContext(request, 'freight_delete')
@@ -168,93 +153,12 @@ export async function DELETE(
       id: jobId,
     })
 
-    const jobTenantId =
-      typeof existingJob.tenantId === 'object' ? existingJob.tenantId.id : existingJob.tenantId
+    const jobTenantId = typeof existingJob.tenantId === 'object' ? existingJob.tenantId.id : existingJob.tenantId
     if (jobTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Job not found' }, { status: 404 })
     }
 
-    // Delete put-away-stock records first (they have required foreign key to inbound-inventory)
-    // Use database adapter directly to bypass Payload's cascade behavior that tries to nullify foreign keys
-    try {
-      const dbAdapter = payload.db as any
-
-      // Try to access the postgres pool directly
-      // The @payloadcms/db-postgres adapter exposes the pool in different ways
-      let pool: any = null
-
-      if (dbAdapter?.pool) {
-        pool = dbAdapter.pool
-      } else if (dbAdapter?.sessions?.default?.schema?.db?.pool) {
-        pool = dbAdapter.sessions.default.schema.db.pool
-      } else if ((dbAdapter as any)?.sessions?.default?.db?.pool) {
-        pool = (dbAdapter as any).sessions.default.db.pool
-      }
-
-      if (pool && typeof pool.query === 'function') {
-        // Execute raw SQL to delete put-away-stock records directly
-        await pool.query('DELETE FROM put_away_stock WHERE inbound_inventory_id_id = $1', [jobId])
-      } else {
-        // Fallback: use Payload API with pagination to ensure we get all records
-        let hasMore = true
-        let page = 1
-        const limit = 100
-
-        while (hasMore) {
-          const putAwayStockRecords = await payload.find({
-            collection: 'put-away-stock',
-            where: {
-              inboundInventoryId: {
-                equals: jobId,
-              },
-            },
-            limit,
-            page,
-          })
-
-          for (const stock of putAwayStockRecords.docs) {
-            await payload.delete({
-              collection: 'put-away-stock',
-              id: stock.id,
-            })
-          }
-
-          hasMore = putAwayStockRecords.hasNextPage
-          page++
-        }
-      }
-    } catch (dbError) {
-      // If direct DB access fails, fall back to Payload API with pagination
-      console.warn('Direct DB deletion failed, using Payload API:', dbError)
-      let hasMore = true
-      let page = 1
-      const limit = 100
-
-      while (hasMore) {
-        const putAwayStockRecords = await payload.find({
-          collection: 'put-away-stock',
-          where: {
-            inboundInventoryId: {
-              equals: jobId,
-            },
-          },
-          limit,
-          page,
-        })
-
-        for (const stock of putAwayStockRecords.docs) {
-          await payload.delete({
-            collection: 'put-away-stock',
-            id: stock.id,
-          })
-        }
-
-        hasMore = putAwayStockRecords.hasNextPage
-        page++
-      }
-    }
-
-    // Delete product lines
+    // Delete product lines first
     const productLines = await payload.find({
       collection: 'inbound-product-line',
       where: {
@@ -283,6 +187,16 @@ export async function DELETE(
     })
   } catch (error) {
     console.error('Error deleting inbound inventory job:', error)
-    return NextResponse.json({ message: 'Failed to delete inbound inventory job' }, { status: 500 })
+    return NextResponse.json(
+      { message: 'Failed to delete inbound inventory job' },
+      { status: 500 }
+    )
   }
 }
+
+
+
+
+
+
+

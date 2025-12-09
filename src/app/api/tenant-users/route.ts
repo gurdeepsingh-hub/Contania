@@ -73,9 +73,18 @@ export async function GET(request: NextRequest) {
     const tenantUsersResult = await payload.find({
       collection: 'tenant-users',
       where: {
-        tenantId: {
-          equals: tenant.id,
-        },
+        and: [
+          {
+            tenantId: {
+              equals: tenant.id,
+            },
+          },
+          {
+            isDeleted: {
+              equals: false,
+            },
+          },
+        ],
       },
       depth,
       limit: 1000, // Adjust as needed

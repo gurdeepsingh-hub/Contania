@@ -136,21 +136,34 @@ export async function GET(request: NextRequest) {
     const productLineId = url.searchParams.get('productLineId')
 
     const where: any = {
-      tenantId: {
-        equals: tenant.id,
-      },
+      and: [
+        {
+          tenantId: {
+            equals: tenant.id,
+          },
+        },
+        {
+          isDeleted: {
+            equals: false,
+          },
+        },
+      ],
     }
 
     if (jobId) {
-      where.inboundInventoryId = {
-        equals: Number(jobId),
-      }
+      where.and.push({
+        inboundInventoryId: {
+          equals: Number(jobId),
+        },
+      })
     }
 
     if (productLineId) {
-      where.inboundProductLineId = {
-        equals: Number(productLineId),
-      }
+      where.and.push({
+        inboundProductLineId: {
+          equals: Number(productLineId),
+        },
+      })
     }
 
     const records = await payload.find({

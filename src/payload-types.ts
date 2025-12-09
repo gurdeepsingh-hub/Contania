@@ -445,6 +445,18 @@ export interface TenantUser {
    * User account status
    */
   status?: ('active' | 'suspended') | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -607,6 +619,18 @@ export interface TenantRole {
    * Whether this role is active
    */
   isActive?: boolean | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -652,6 +676,18 @@ export interface Customer {
    * Postal/ZIP code
    */
   postcode?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -673,6 +709,18 @@ export interface HandlingUnit {
    * Full name of handling unit (e.g. Carton, Bottle, Drum)
    */
   name: string;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -710,6 +758,18 @@ export interface StorageUnit {
    * Basis for warehouse storage charging
    */
   whstoChargeBy?: ('LPN' | 'weight' | 'cubic' | 'sqm') | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -819,6 +879,18 @@ export interface Skus {
    * Extra notes for attribute 2 (optional)
    */
   attribute2?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -888,6 +960,18 @@ export interface PayingCustomer {
    * Delivery postal/ZIP code
    */
   delivery_postcode?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -946,6 +1030,18 @@ export interface Warehouse {
    * Differentiates between location types
    */
   type?: ('Depot' | 'Warehouse') | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -971,6 +1067,18 @@ export interface TransportCompany {
    * Contact mobile number
    */
   mobile?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1092,6 +1200,18 @@ export interface InboundInventory {
    * Reference number for pallet transfer documentation
    */
   palletTransferDocket?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1169,6 +1289,18 @@ export interface InboundProductLine {
    * Attribute 2 (auto-fetched from SKU if enabled)
    */
   attribute2?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1230,6 +1362,18 @@ export interface PutAwayStock {
    * User who allocated this LPN
    */
   allocatedBy?: (number | null) | TenantUser;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1370,6 +1514,18 @@ export interface OutboundInventory {
    * Timestamp when the job was dispatched
    */
   dispatchedAt?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1423,6 +1579,18 @@ export interface Vehicle {
    * Whether vehicle is equipped with sideloader (YES/NO)
    */
   sideloader: boolean;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1480,6 +1648,18 @@ export interface Trailer {
    * Notes or description
    */
   description?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1521,6 +1701,18 @@ export interface TrailerType {
    * Whether this type supports Trailer C
    */
   trailerC?: boolean | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1606,6 +1798,18 @@ export interface Driver {
    * URL or file path to uploaded MSIC photo
    */
   msicPhotoUrl?: (number | null) | Media;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1688,6 +1892,18 @@ export interface OutboundProductLine {
    * Warehouse storage location from where goods are picked
    */
   location?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1755,6 +1971,18 @@ export interface PickupStock {
    * Additional notes about the pickup
    */
   notes?: string | null;
+  /**
+   * Soft delete flag
+   */
+  isDeleted?: boolean | null;
+  /**
+   * Timestamp when item was deleted
+   */
+  deletedAt?: string | null;
+  /**
+   * User who deleted this item
+   */
+  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -2022,6 +2250,9 @@ export interface TenantUsersSelect<T extends boolean = true> {
   role?: T;
   userGroup?: T;
   status?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -2082,6 +2313,9 @@ export interface TenantRolesSelect<T extends boolean = true> {
         settings_personalization?: T;
       };
   isActive?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2099,6 +2333,9 @@ export interface CustomersSelect<T extends boolean = true> {
   city?: T;
   state?: T;
   postcode?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2110,6 +2347,9 @@ export interface HandlingUnitsSelect<T extends boolean = true> {
   tenantId?: T;
   abbreviation?: T;
   name?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2125,6 +2365,9 @@ export interface StorageUnitsSelect<T extends boolean = true> {
   lengthPerSU_mm?: T;
   widthPerSU_mm?: T;
   whstoChargeBy?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2158,6 +2401,9 @@ export interface SkusSelect<T extends boolean = true> {
   expiryDate?: T;
   attribute1?: T;
   attribute2?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2181,6 +2427,9 @@ export interface PayingCustomersSelect<T extends boolean = true> {
   delivery_city?: T;
   delivery_state?: T;
   delivery_postcode?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2205,6 +2454,9 @@ export interface WarehousesSelect<T extends boolean = true> {
         id?: T;
       };
   type?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2217,6 +2469,9 @@ export interface TransportCompaniesSelect<T extends boolean = true> {
   name?: T;
   contact?: T;
   mobile?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2253,6 +2508,9 @@ export interface InboundInventorySelect<T extends boolean = true> {
   loscam?: T;
   plain?: T;
   palletTransferDocket?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2278,6 +2536,9 @@ export interface InboundProductLineSelect<T extends boolean = true> {
   expiryDate?: T;
   attribute1?: T;
   attribute2?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2299,6 +2560,9 @@ export interface PutAwayStockSelect<T extends boolean = true> {
   allocationStatus?: T;
   allocatedAt?: T;
   allocatedBy?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2337,6 +2601,9 @@ export interface OutboundInventorySelect<T extends boolean = true> {
   vehicleId?: T;
   driverId?: T;
   dispatchedAt?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2367,6 +2634,9 @@ export interface OutboundProductLineSelect<T extends boolean = true> {
         id?: T;
       };
   location?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2393,6 +2663,9 @@ export interface PickupStockSelect<T extends boolean = true> {
   pickupStatus?: T;
   pickedUpBy?: T;
   notes?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2409,6 +2682,9 @@ export interface TrailerTypesSelect<T extends boolean = true> {
   trailerA?: T;
   trailerB?: T;
   trailerC?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2429,6 +2705,9 @@ export interface TrailersSelect<T extends boolean = true> {
   dangerousCertNumber?: T;
   dangerousCertExpiry?: T;
   description?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2448,6 +2727,9 @@ export interface VehiclesSelect<T extends boolean = true> {
   bTrailerId?: T;
   cTrailerId?: T;
   sideloader?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2475,6 +2757,9 @@ export interface DriversSelect<T extends boolean = true> {
   msicNumber?: T;
   msicExpiry?: T;
   msicPhotoUrl?: T;
+  isDeleted?: T;
+  deletedAt?: T;
+  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -69,13 +69,27 @@ export const PutAwayStock: CollectionConfig = {
           user?: { role?: string; tenantId?: number | string; collection?: string }
         }
       ).user
-      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.role === 'superadmin' || user?.collection === 'users') {
+        // Super admins can see all, but exclude soft-deleted unless explicitly requested
+        // Return true to allow access, filtering will be handled by API routes
+        return true
+      }
       if (user?.tenantId) {
-        return {
-          tenantId: {
-            equals: user.tenantId,
-          },
+        const where: any = {
+          and: [
+            {
+              tenantId: {
+                equals: user.tenantId,
+              },
+            },
+            {
+              isDeleted: {
+                equals: false,
+              },
+            },
+          ],
         }
+        return where
       }
       return false
     },
@@ -230,9 +244,78 @@ export const PutAwayStock: CollectionConfig = {
         description: 'User who allocated this LPN',
       },
     },
+    {
+      name: 'isDeleted',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Soft delete flag',
+        hidden: true,
+      },
+    },
+    {
+      name: 'deletedAt',
+      type: 'date',
+      admin: {
+        description: 'Timestamp when item was deleted',
+        hidden: true,
+      },
+    },
+    {
+      name: 'deletedBy',
+      type: 'relationship',
+      relationTo: 'tenant-users',
+      admin: {
+        description: 'User who deleted this item',
+        hidden: true,
+      },
+    },
   ],
   timestamps: true,
   hooks: {
+    beforeDelete: [
+      async ({ req, id }) => {
+        const payload = req.payload
+
+        // Check if item is already soft-deleted (permanent delete)
+        const item = await payload.findByID({
+          collection: 'put-away-stock',
+          id,
+        })
+
+        if ((item as { isDeleted?: boolean }).isDeleted) {
+          // Item is already soft-deleted, allow permanent deletion
+          return
+        }
+
+        // Soft delete instead of hard delete
+        const userId = (req.user as { id?: number | string })?.id
+
+        const updateData: any = {
+          deletedAt: new Date().toISOString(),
+          isDeleted: true,
+        }
+
+        // Only set deletedBy if user exists
+        if (userId) {
+          updateData.deletedBy = userId
+        }
+
+        try {
+          await payload.update({
+            collection: 'put-away-stock',
+            id,
+            data: updateData,
+          })
+        } catch (error) {
+          // If update fails, log but still prevent deletion
+          console.error('Error during soft delete:', error)
+        }
+
+        // Prevent actual deletion by throwing error
+        throw new Error('Item soft deleted')
+      },
+    ],
     beforeChange: [
       async ({ req, data, operation, originalDoc }) => {
         const user = (
@@ -259,7 +342,11 @@ export const PutAwayStock: CollectionConfig = {
         // If LPN is provided, use it (from form generation)
 
         // Prevent double allocation: if trying to allocate an already allocated LPN
-        if (operation === 'update' && (data as any).allocationStatus === 'allocated' && originalDoc) {
+        if (
+          operation === 'update' &&
+          (data as any).allocationStatus === 'allocated' &&
+          originalDoc
+        ) {
           // Use originalDoc which contains the existing document for update operations
           const existing = originalDoc as any
 

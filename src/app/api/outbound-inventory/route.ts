@@ -21,47 +21,60 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      tenantId: {
-        equals: tenant.id,
-      },
+      and: [
+        {
+          tenantId: {
+            equals: tenant.id,
+          },
+        },
+        {
+          isDeleted: {
+            equals: false,
+          },
+        },
+      ],
     }
 
     // Add status filter if provided
     if (status) {
-      where.status = {
-        equals: status,
-      }
+      where.and.push({
+        status: {
+          equals: status,
+        },
+      })
     }
 
     // Add search if provided
     if (search) {
-      where.or = [
-        {
-          jobCode: {
-            contains: search,
+      where.and.push({
+        or: [
+          {
+            jobCode: {
+              contains: search,
+            },
           },
-        },
-        {
-          customerName: {
-            contains: search,
+          {
+            customerName: {
+              contains: search,
+            },
           },
-        },
-        {
-          customerToName: {
-            contains: search,
+          {
+            customerToName: {
+              contains: search,
+            },
           },
-        },
-        {
-          customerFromName: {
-            contains: search,
+          {
+            customerFromName: {
+              contains: search,
+            },
           },
-        },
-        {
-          orderNotes: {
-            contains: search,
+          {
+            orderNotes: {
+              contains: search,
+            },
           },
-        },
-      ]
+        ],
+      })
     }
 
     // Parse sort (format: "field" or "-field" for descending)
