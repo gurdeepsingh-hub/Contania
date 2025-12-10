@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getPayload } from 'payload'
-import config from '@/payload.config'
 import { rateLimit } from '@/lib/rate-limit'
 
 // Initialize rate limiter (10 requests per minute per subdomain)
@@ -10,19 +8,15 @@ const limiter = rateLimit({
   uniqueTokenPerInterval: 500,
 })
 
-// Cache for tenant validation (5 minute TTL)
-const tenantCache = new Map<string, { valid: boolean; expires: number }>()
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const hostname = request.headers.get('host') || ''
-  
+
   // Extract subdomain from hostname
   // Format: subdomain.domain.com or subdomain.localhost:3000
   const subdomainMatch = hostname.match(/^([^.]+)\.(.+)$/)
   const subdomain = subdomainMatch ? subdomainMatch[1] : null
-  
+
   // If no subdomain, allow access to main domain routes
   if (!subdomain || subdomain === 'www' || subdomain === 'localhost') {
     return NextResponse.next()
@@ -32,75 +26,12 @@ export async function middleware(request: NextRequest) {
   try {
     await limiter.check(10, subdomain) // 10 requests per minute per subdomain
   } catch {
-    return NextResponse.json(
-      { message: 'Too many requests' },
-      { status: 429 }
-    )
+    return NextResponse.json({ message: 'Too many requests' }, { status: 429 })
   }
 
-  // SECURITY: Early tenant validation with caching
-  // Check cache first
-  const cacheKey = subdomain.toLowerCase()
-  const cached = tenantCache.get(cacheKey)
-  const now = Date.now()
-
-  let isValidTenant = false
-
-  if (cached && cached.expires > now) {
-    isValidTenant = cached.valid
-  } else {
-    // Validate tenant exists and is approved
-    try {
-      const payload = await getPayload({ config })
-      const tenantResult = await payload.find({
-        collection: 'tenants',
-        where: {
-          and: [
-            {
-              subdomain: {
-                equals: subdomain.toLowerCase(),
-              },
-            },
-            {
-              approved: {
-                equals: true,
-              },
-            },
-          ],
-        },
-        limit: 1,
-      })
-
-      isValidTenant = tenantResult.docs.length > 0
-
-      // Cache the result
-      tenantCache.set(cacheKey, {
-        valid: isValidTenant,
-        expires: now + CACHE_TTL,
-      })
-
-      // Clean up expired cache entries periodically
-      if (tenantCache.size > 1000) {
-        for (const [key, value] of tenantCache.entries()) {
-          if (value.expires <= now) {
-            tenantCache.delete(key)
-          }
-        }
-      }
-    } catch (error) {
-      // On error, log but allow through (fail open to prevent DoS)
-      console.error('Middleware tenant validation error:', error)
-      isValidTenant = true // Fail open to prevent breaking legitimate requests
-    }
-  }
-
-  // If tenant doesn't exist or isn't approved, return 404 early
-  if (!isValidTenant) {
-    return NextResponse.json(
-      { message: 'Not found' },
-      { status: 404 }
-    )
-  }
+  // Note: Tenant validation is handled in API routes and page components
+  // to avoid importing server-only modules (Payload) in Edge runtime.
+  // The middleware only handles rate limiting and URL rewriting.
 
   // Add subdomain to headers for use in API routes and page components
   const requestHeaders = new Headers(request.headers)
@@ -144,4 +75,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 }
-
