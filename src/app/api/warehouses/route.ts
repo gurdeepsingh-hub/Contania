@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
             equals: tenant.id,
           },
         },
-        {
-          isDeleted: {
-            equals: false,
-          },
-        },
+        // {
+        //   isDeleted: {
+        //     equals: false,
+        //   },
+        // },
       ],
     }
 

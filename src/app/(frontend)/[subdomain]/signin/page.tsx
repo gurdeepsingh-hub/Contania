@@ -61,7 +61,7 @@ export default function TenantLoginPage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Tenant Not Found</CardTitle>
-            <CardDescription>The subdomain you're trying to access is not valid.</CardDescription>
+            <CardDescription>The subdomain you&apos;re trying to access is not valid.</CardDescription>
           </CardHeader>
         </Card>
       </div>

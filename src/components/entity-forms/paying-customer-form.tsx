@@ -19,7 +19,7 @@ const payingCustomerSchema = z.object({
   billing_city: z.string().optional(),
   billing_state: z.string().optional(),
   billing_postcode: z.string().optional(),
-  delivery_same_as_billing: z.boolean().default(false),
+  delivery_same_as_billing: z.boolean(),
   delivery_street: z.string().optional(),
   delivery_city: z.string().optional(),
   delivery_state: z.string().optional(),

@@ -108,7 +108,7 @@ export async function POST(
         },
       })
 
-      const inboundProductLineIds = inboundProductLines.docs.map((line) => line.id)
+      const inboundProductLineIds = inboundProductLines.docs.map((line: { id: number }) => line.id)
 
       if (inboundProductLineIds.length === 0) {
         errors.push({
@@ -165,7 +165,7 @@ export async function POST(
         })
 
         // Verify all requested LPNs were found and are available
-        const foundLpnNumbers = lpnRecords.docs.map((lpn) => lpn.lpnNumber)
+        const foundLpnNumbers = lpnRecords.docs.map((lpn: { lpnNumber: string }) => lpn.lpnNumber)
         const missingLPNs = lpnIds.filter((id) => !foundLpnNumbers.includes(id))
 
         if (missingLPNs.length > 0) {

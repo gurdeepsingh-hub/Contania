@@ -317,12 +317,12 @@ export const SKUs: CollectionConfig = {
                   // Floor division: (SU length / HU length) * (SU width / HU width)
                   const casesPerLength = Math.floor((lengthPerSU || 0) / (lengthPerHU || 1))
                   const casesPerWidth = Math.floor((widthPerSU || 0) / (widthPerHU || 1))
-                  const calculatedCasesPerLayer = casesPerLength * casesPerWidth
+                  const calculatedCasesPerLayer: number = casesPerLength * casesPerWidth
                   
                   if (calculatedCasesPerLayer > 0) {
-                    (data as { casesPerLayer?: number }).casesPerLayer = calculatedCasesPerLayer
+                    ;(data as { casesPerLayer?: number }).casesPerLayer = calculatedCasesPerLayer
                     // Mark as auto-calculated so user can still edit
-                    (data as { _casesPerLayerCalculated?: boolean })._casesPerLayerCalculated = true
+                    ;(data as { _casesPerLayerCalculated?: boolean })._casesPerLayerCalculated = true
                   }
                 }
 
@@ -337,11 +337,11 @@ export const SKUs: CollectionConfig = {
 
                 if (shouldCalculateLayersPerPallet) {
                   // Calculate layers per pallet: huPerSu / casesPerLayer
-                  const calculatedLayersPerPallet = Math.floor((huPerSu || 0) / (casesPerLayer || 1))
+                  const calculatedLayersPerPallet: number = Math.floor((huPerSu || 0) / (casesPerLayer || 1))
                   
                   if (calculatedLayersPerPallet > 0) {
-                    (data as { layersPerPallet?: number }).layersPerPallet = calculatedLayersPerPallet
-                    (data as { _layersPerPalletCalculated?: boolean })._layersPerPalletCalculated = true
+                    ;(data as { layersPerPallet?: number }).layersPerPallet = calculatedLayersPerPallet
+                    ;(data as { _layersPerPalletCalculated?: boolean })._layersPerPalletCalculated = true
                   }
                 }
 
@@ -355,11 +355,11 @@ export const SKUs: CollectionConfig = {
 
                 if (shouldCalculateCasesPerPallet) {
                   // Calculate cases per pallet: casesPerLayer × layersPerPallet
-                  const calculatedCasesPerPallet = (casesPerLayer || 0) * (layersPerPallet || 0)
+                  const calculatedCasesPerPallet: number = (casesPerLayer || 0) * (layersPerPallet || 0)
                   
                   if (calculatedCasesPerPallet > 0) {
-                    (data as { casesPerPallet?: number }).casesPerPallet = calculatedCasesPerPallet
-                    (data as { _casesPerPalletCalculated?: boolean })._casesPerPalletCalculated = true
+                    ;(data as { casesPerPallet?: number }).casesPerPallet = calculatedCasesPerPallet
+                    ;(data as { _casesPerPalletCalculated?: boolean })._casesPerPalletCalculated = true
                   }
                 }
               }

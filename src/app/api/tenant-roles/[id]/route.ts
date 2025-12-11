@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
-import { canManageRoles } from '@/lib/permissions'
+import { canManageRoles, type UserWithRole } from '@/lib/permissions'
 
 export async function GET(
   request: NextRequest,
@@ -183,7 +183,7 @@ export async function PATCH(
         depth: 1,
       })
 
-      if (!canManageRoles(fullUser)) {
+      if (!canManageRoles(fullUser as unknown as UserWithRole)) {
         return NextResponse.json({ message: 'Insufficient permissions to manage roles' }, { status: 403 })
       }
     }
@@ -322,7 +322,7 @@ export async function DELETE(
         depth: 1,
       })
 
-      if (!canManageRoles(fullUser)) {
+      if (!canManageRoles(fullUser as unknown as UserWithRole)) {
         return NextResponse.json({ message: 'Insufficient permissions to manage roles' }, { status: 403 })
       }
     }

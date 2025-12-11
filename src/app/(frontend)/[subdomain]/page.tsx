@@ -80,7 +80,7 @@ export default function TenantHomePage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Tenant Not Found</CardTitle>
-            <CardDescription>The subdomain you're trying to access is not valid.</CardDescription>
+            <CardDescription>The subdomain you&apos;re trying to access is not valid.</CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -183,7 +183,7 @@ export default function TenantHomePage() {
               </Button>
             </form>
             <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>Don't have an account? Contact your administrator.</p>
+              <p>Don&apos;t have an account? Contact your administrator.</p>
             </div>
           </CardContent>
         </Card>

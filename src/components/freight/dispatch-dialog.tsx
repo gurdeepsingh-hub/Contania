@@ -18,15 +18,15 @@ import { toast } from 'sonner'
 import { Loader2, Truck, User, Car, Plus } from 'lucide-react'
 
 type Vehicle = {
-  id: number
-  fleetNumber: string
-  rego: string
+  id?: number
+  fleetNumber?: string
+  rego?: string
 }
 
 type Driver = {
-  id: number
-  name: string
-  phoneNumber: string
+  id?: number
+  name?: string
+  phoneNumber?: string
 }
 
 interface DispatchDialogProps {
@@ -238,9 +238,9 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                     </Button>
                   </div>
                   <Combobox
-                    options={vehicles.map((v) => ({
-                      value: v.id,
-                      label: `${v.fleetNumber} (${v.rego})`,
+                    options={vehicles.filter((v) => v.id !== undefined).map((v) => ({
+                      value: v.id!,
+                      label: `${v.fleetNumber || ''} (${v.rego || ''})`,
                     }))}
                     value={selectedVehicleId || undefined}
                     onValueChange={(value) => setSelectedVehicleId(value as number)}
@@ -290,9 +290,9 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                     </Button>
                   </div>
                   <Combobox
-                    options={drivers.map((d) => ({
-                      value: d.id,
-                      label: `${d.name} (${d.phoneNumber})`,
+                    options={drivers.filter((d) => d.id !== undefined).map((d) => ({
+                      value: d.id!,
+                      label: `${d.name || ''} (${d.phoneNumber || ''})`,
                     }))}
                     value={selectedDriverId || undefined}
                     onValueChange={(value) => setSelectedDriverId(value as number)}
@@ -317,9 +317,9 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                     </Button>
                   </div>
                   <Combobox
-                    options={vehicles.map((v) => ({
-                      value: v.id,
-                      label: `${v.fleetNumber} (${v.rego})`,
+                    options={vehicles.filter((v) => v.id !== undefined).map((v) => ({
+                      value: v.id!,
+                      label: `${v.fleetNumber || ''} (${v.rego || ''})`,
                     }))}
                     value={selectedVehicleId || undefined}
                     onValueChange={(value) => setSelectedVehicleId(value as number)}

@@ -128,7 +128,7 @@ export async function getTenantContext(
       hasAccess = permissionCheck(fullUser)
     } else {
       // It's a PermissionString
-      hasAccess = hasPermission(fullUser, permissionCheck)
+      hasAccess = hasPermission(fullUser as unknown as import('./permissions').UserWithRole, permissionCheck)
     }
 
     if (!hasAccess) {

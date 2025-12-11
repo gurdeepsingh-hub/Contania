@@ -53,7 +53,8 @@ export default function EditOutboundJobPage() {
           // Normalize warehouseId - extract ID if it's a relationship object
           if (jobData.warehouseId) {
             if (typeof jobData.warehouseId === 'object' && 'id' in jobData.warehouseId) {
-              jobData.warehouseId = jobData.warehouseId.id
+              const warehouseIdObj = jobData.warehouseId as { id: number }
+              jobData.warehouseId = warehouseIdObj.id
             }
           }
           setJob(jobData)

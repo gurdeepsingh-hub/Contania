@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, Where } from 'payload'
 
 export const TenantRoles: CollectionConfig = {
   slug: 'tenant-roles',
@@ -38,10 +38,11 @@ export const TenantRoles: CollectionConfig = {
         }
       ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
-      
+
       // In development mode, allow editing system roles
-      const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
-      
+      const isDevelopment =
+        process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+
       if (user?.tenantId) {
         if (isDevelopment) {
           // In dev mode, allow editing all roles for the tenant
@@ -49,7 +50,7 @@ export const TenantRoles: CollectionConfig = {
             tenantId: {
               equals: user.tenantId,
             },
-          }
+          } as Where
         }
         return {
           and: [
@@ -64,7 +65,7 @@ export const TenantRoles: CollectionConfig = {
               },
             },
           ],
-        }
+        } as Where
       }
       return false
     },
@@ -77,10 +78,11 @@ export const TenantRoles: CollectionConfig = {
         }
       ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
-      
+
       // In development mode, allow deleting system roles
-      const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
-      
+      const isDevelopment =
+        process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+
       if (user?.tenantId) {
         if (isDevelopment) {
           // In dev mode, allow deleting all roles for the tenant
@@ -88,7 +90,7 @@ export const TenantRoles: CollectionConfig = {
             tenantId: {
               equals: user.tenantId,
             },
-          }
+          } as Where
         }
         return {
           and: [
@@ -103,7 +105,7 @@ export const TenantRoles: CollectionConfig = {
               },
             },
           ],
-        }
+        } as Where
       }
       return false
     },
@@ -138,11 +140,13 @@ export const TenantRoles: CollectionConfig = {
       type: 'checkbox',
       defaultValue: false,
       admin: {
-        description: 'System roles (like Admin) cannot be edited or deleted (except in development mode)',
-        readOnly: () => {
-          const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+        description:
+          'System roles (like Admin) cannot be edited or deleted (except in development mode)',
+        readOnly: (() => {
+          const isDevelopment =
+            process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
           return !isDevelopment
-        },
+        })(),
       },
     },
     {
@@ -418,7 +422,8 @@ export const TenantRoles: CollectionConfig = {
         }
         // Prevent editing system roles (unless in development mode)
         if (operation === 'update' && data.isSystemRole) {
-          const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+          const isDevelopment =
+            process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
           // Allow super admins and dev mode to edit system roles
           if (!isDevelopment && user?.role !== 'superadmin' && user?.collection !== 'users') {
             // Find existing role to check if it's a system role
@@ -430,9 +435,10 @@ export const TenantRoles: CollectionConfig = {
     ],
     beforeDelete: [
       async ({ req, id }) => {
-        const user = (req as unknown as { user?: { role?: string } }).user
-        const isDevelopment = process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
-        
+        const user = (req as unknown as { user?: { role?: string; collection?: string } }).user
+        const isDevelopment =
+          process.env.NODE_ENV === 'development' || process.env.ALLOW_SYSTEM_ROLE_EDIT === 'true'
+
         // Prevent deletion of system roles (except by super admin or in dev mode)
         if (!isDevelopment && user?.role !== 'superadmin' && user?.collection !== 'users') {
           const payload = req.payload

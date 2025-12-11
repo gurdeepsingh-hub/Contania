@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
       limit: 1000, // Get all completed inbound jobs
     })
 
-    const jobIds = inboundJobs.docs.map((job) => job.id)
+    const jobIds = inboundJobs.docs.map((job: { id: number }) => job.id)
 
     if (jobIds.length === 0) {
       return NextResponse.json({
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
           },
           {
             inboundProductLineId: {
-              in: productLines.docs.map((line) => line.id),
+              in: productLines.docs.map((line: { id: number }) => line.id),
             },
           },
         ],
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     // Get unique product line IDs that have put-away records
     const putAwayProductLineIds = new Set(
-      putAwayRecords.docs.map((record) => {
+      putAwayRecords.docs.map((record: { inboundProductLineId: number | { id: number } }) => {
         const lineId =
           typeof record.inboundProductLineId === 'object'
             ? record.inboundProductLineId.id
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     )
 
     // Filter product lines to only those that have been received and put away
-    const validProductLines = productLines.docs.filter((line) => {
+    const validProductLines = productLines.docs.filter((line: { id: number; recievedQty?: number; batchNumber?: string }) => {
       // Check if line has received quantity
       const hasReceived = line.recievedQty && line.recievedQty > 0
       // Check if line has put-away records
@@ -130,11 +130,11 @@ export async function GET(request: NextRequest) {
       }
     >()
 
-    validProductLines.forEach((line) => {
+    validProductLines.forEach((line: { batchNumber?: string; skuId?: number | { id: number; skuCode?: string; description?: string }; skuDescription?: string }) => {
       if (line.batchNumber && !batchMap.has(line.batchNumber)) {
         batchMap.set(line.batchNumber, {
           batchNumber: line.batchNumber,
-          skuId: line.skuId,
+          skuId: line.skuId as number | { id: number; skuCode?: string; description?: string },
           skuDescription: line.skuDescription,
         })
       }

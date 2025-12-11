@@ -445,18 +445,6 @@ export interface TenantUser {
    * User account status
    */
   status?: ('active' | 'suspended') | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -619,18 +607,6 @@ export interface TenantRole {
    * Whether this role is active
    */
   isActive?: boolean | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -676,18 +652,6 @@ export interface Customer {
    * Postal/ZIP code
    */
   postcode?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -709,18 +673,6 @@ export interface HandlingUnit {
    * Full name of handling unit (e.g. Carton, Bottle, Drum)
    */
   name: string;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -758,18 +710,6 @@ export interface StorageUnit {
    * Basis for warehouse storage charging
    */
   whstoChargeBy?: ('LPN' | 'weight' | 'cubic' | 'sqm') | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -879,18 +819,6 @@ export interface Skus {
    * Extra notes for attribute 2 (optional)
    */
   attribute2?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -960,18 +888,6 @@ export interface PayingCustomer {
    * Delivery postal/ZIP code
    */
   delivery_postcode?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1030,18 +946,6 @@ export interface Warehouse {
    * Differentiates between location types
    */
   type?: ('Depot' | 'Warehouse') | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1067,18 +971,6 @@ export interface TransportCompany {
    * Contact mobile number
    */
   mobile?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1200,18 +1092,6 @@ export interface InboundInventory {
    * Reference number for pallet transfer documentation
    */
   palletTransferDocket?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1289,18 +1169,6 @@ export interface InboundProductLine {
    * Attribute 2 (auto-fetched from SKU if enabled)
    */
   attribute2?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -1403,7 +1271,6 @@ export interface OutboundInventory {
         | 'partially_picked'
         | 'picked'
         | 'ready_to_dispatch'
-        | 'dispatched'
       )
     | null;
   /**
@@ -1502,95 +1369,187 @@ export interface OutboundInventory {
    * Total number of pallets planned for this outbound job
    */
   palletCount?: number | null;
-  /**
-   * Vehicle assigned for dispatch
-   */
-  vehicleId?: (number | null) | Vehicle;
-  /**
-   * Driver assigned for dispatch (optional)
-   */
-  driverId?: (number | null) | Driver;
-  /**
-   * Timestamp when the job was dispatched
-   */
-  dispatchedAt?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "vehicles".
+ * via the `definition` "outbound-product-line".
  */
-export interface Vehicle {
+export interface OutboundProductLine {
   id: number;
   /**
-   * Links vehicle to their company (tenant)
+   * Links product to outbound shipment
+   */
+  outboundInventoryId: number | OutboundInventory;
+  /**
+   * References SKU (product) record
+   */
+  skuId?: (number | null) | Skus;
+  /**
+   * Fetched from SKU ID
+   */
+  skuDescription?: string | null;
+  /**
+   * Product batch number (if batch id is in system give warn if wrong sku id and batch)
+   */
+  batchNumber?: string | null;
+  /**
+   * Fetched from SKU ID huPerSU
+   */
+  lpnQty?: string | null;
+  /**
+   * Square meters per storage unit (auto-calculated from Storage Unit length and width)
+   */
+  sqmPerSU?: number | null;
+  /**
+   * Quantity of product units expected
+   */
+  expectedQty?: number | null;
+  /**
+   * Quantity of product units picked
+   */
+  pickedQty?: number | null;
+  /**
+   * Weight of product units expected
+   */
+  expectedWeight?: number | null;
+  /**
+   * Weight of product units picked
+   */
+  pickedWeight?: number | null;
+  /**
+   * Weight per handling unit, fetched from SKU / editable
+   */
+  weightPerHU?: number | null;
+  /**
+   * Volume per handling unit (m³)
+   */
+  expectedCubicPerHU?: number | null;
+  /**
+   * Volume per handling unit (m³)
+   */
+  pickedCubicPerHU?: number | null;
+  /**
+   * Expiry date (auto-fetched from SKU if enabled)
+   */
+  expiryDate?: string | null;
+  /**
+   * Attribute 1 (auto-fetched from SKU if enabled)
+   */
+  attribute1?: string | null;
+  /**
+   * Attribute 2 (auto-fetched from SKU if enabled)
+   */
+  attribute2?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pickup-stock".
+ */
+export interface PickupStock {
+  id: number;
+  /**
+   * Links pickup record to tenant
    */
   tenantId: number | Tenant;
   /**
-   * Internal fleet identification number
+   * Outbound job this pickup belongs to
    */
-  fleetNumber: string;
+  outboundInventoryId: number | OutboundInventory;
   /**
-   * Vehicle registration number
+   * Product line this pickup is for
    */
-  rego: string;
+  outboundProductLineId: number | OutboundProductLine;
   /**
-   * Expiry date of the vehicle registration
+   * LPN pallets that have been picked up
    */
-  regoExpiryDate?: string | null;
+  pickedUpLPNs: {
+    /**
+     * Reference to the PutAwayStock record
+     */
+    lpnId: number | PutAwayStock;
+    /**
+     * LPN number (cached for quick access)
+     */
+    lpnNumber: string;
+    /**
+     * Quantity on this LPN pallet
+     */
+    huQty: number;
+    /**
+     * Storage location of LPN (cached)
+     */
+    location?: string | null;
+    id?: string | null;
+  }[];
   /**
-   * External GPS device ID linked to the vehicle
+   * Total quantity calculated from picked up LPNs
    */
-  gpsId?: string | null;
+  pickedUpQty: number;
   /**
-   * Optional vehicle description or notes
+   * Buffer quantity to handle actual quantity discrepancies
    */
-  description?: string | null;
+  bufferQty?: number | null;
   /**
-   * Default depot/warehouse where vehicle is based
+   * Final pickup quantity (pickedUpQty + bufferQty)
    */
-  defaultDepotId?: (number | null) | Warehouse;
+  finalPickedUpQty: number;
   /**
-   * Assigned A trailer
+   * Status of the pickup record
    */
-  aTrailerId?: (number | null) | Trailer;
+  pickupStatus?: ('draft' | 'completed' | 'cancelled') | null;
   /**
-   * Assigned B trailer
+   * User who recorded the pickup
    */
-  bTrailerId?: (number | null) | Trailer;
+  pickedUpBy: number | TenantUser;
   /**
-   * Assigned C trailer
+   * Additional notes about the pickup
    */
-  cTrailerId?: (number | null) | Trailer;
+  notes?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "trailer-types".
+ */
+export interface TrailerType {
+  id: number;
   /**
-   * Whether vehicle is equipped with sideloader (YES/NO)
+   * Links trailer type to their company (tenant)
    */
-  sideloader: boolean;
+  tenantId: number | Tenant;
   /**
-   * Soft delete flag
+   * Trailer type name
    */
-  isDeleted?: boolean | null;
+  name: string;
   /**
-   * Timestamp when item was deleted
+   * Maximum weight capacity in kg
    */
-  deletedAt?: string | null;
+  maxWeightKg?: number | null;
   /**
-   * User who deleted this item
+   * Maximum cubic volume in m³
    */
-  deletedBy?: (number | null) | TenantUser;
+  maxCubicM3?: number | null;
+  /**
+   * Maximum pallet capacity
+   */
+  maxPallet?: number | null;
+  /**
+   * Whether this type supports Trailer A
+   */
+  trailerA?: boolean | null;
+  /**
+   * Whether this type supports Trailer B
+   */
+  trailerB?: boolean | null;
+  /**
+   * Whether this type supports Trailer C
+   */
+  trailerC?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1648,71 +1607,59 @@ export interface Trailer {
    * Notes or description
    */
   description?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "trailer-types".
+ * via the `definition` "vehicles".
  */
-export interface TrailerType {
+export interface Vehicle {
   id: number;
   /**
-   * Links trailer type to their company (tenant)
+   * Links vehicle to their company (tenant)
    */
   tenantId: number | Tenant;
   /**
-   * Trailer type name
+   * Internal fleet identification number
    */
-  name: string;
+  fleetNumber: string;
   /**
-   * Maximum weight capacity in kg
+   * Vehicle registration number
    */
-  maxWeightKg?: number | null;
+  rego: string;
   /**
-   * Maximum cubic volume in m³
+   * Expiry date of the vehicle registration
    */
-  maxCubicM3?: number | null;
+  regoExpiryDate?: string | null;
   /**
-   * Maximum pallet capacity
+   * External GPS device ID linked to the vehicle
    */
-  maxPallet?: number | null;
+  gpsId?: string | null;
   /**
-   * Whether this type supports Trailer A
+   * Optional vehicle description or notes
    */
-  trailerA?: boolean | null;
+  description?: string | null;
   /**
-   * Whether this type supports Trailer B
+   * Default depot/warehouse where vehicle is based
    */
-  trailerB?: boolean | null;
+  defaultDepotId?: (number | null) | Warehouse;
   /**
-   * Whether this type supports Trailer C
+   * Assigned A trailer type
    */
-  trailerC?: boolean | null;
+  aTrailerId?: (number | null) | TrailerType;
   /**
-   * Soft delete flag
+   * Assigned B trailer type
    */
-  isDeleted?: boolean | null;
+  bTrailerId?: (number | null) | TrailerType;
   /**
-   * Timestamp when item was deleted
+   * Assigned C trailer type
    */
-  deletedAt?: string | null;
+  cTrailerId?: (number | null) | TrailerType;
   /**
-   * User who deleted this item
+   * Whether vehicle is equipped with sideloader (YES/NO)
    */
-  deletedBy?: (number | null) | TenantUser;
+  sideloader: boolean;
   updatedAt: string;
   createdAt: string;
 }
@@ -1798,191 +1745,6 @@ export interface Driver {
    * URL or file path to uploaded MSIC photo
    */
   msicPhotoUrl?: (number | null) | Media;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "outbound-product-line".
- */
-export interface OutboundProductLine {
-  id: number;
-  /**
-   * Links product line to outbound job header
-   */
-  outboundInventoryId: number | OutboundInventory;
-  /**
-   * Batch number searched from inbound product lines of same tenant
-   */
-  batchNumber: string;
-  /**
-   * SKU linked to this batch
-   */
-  skuId?: (number | null) | Skus;
-  /**
-   * Description of SKU (cached from SKU master)
-   */
-  skuDescription?: string | null;
-  /**
-   * Expiry date of product (pulled from SKU or inbound batch)
-   */
-  expiry?: string | null;
-  /**
-   * Custom attribute 1 (from SKU), e.g., colour/grade
-   */
-  attribute1?: string | null;
-  /**
-   * Custom attribute 2 (from SKU), e.g., size/variant
-   */
-  attribute2?: string | null;
-  /**
-   * Quantity requested by customer for outbound
-   */
-  requiredQty?: number | null;
-  /**
-   * Quantity actually allocated from inventory
-   */
-  allocatedQty?: number | null;
-  /**
-   * Requested weight for the order
-   */
-  requiredWeight?: number | null;
-  /**
-   * Actual allocated weight
-   */
-  allocatedWeight?: number | null;
-  /**
-   * Requested cubic volume per handling unit
-   */
-  requiredCubicPerHU?: number | null;
-  /**
-   * Allocated cubic volume per handling unit
-   */
-  allocatedCubicPerHU?: number | null;
-  /**
-   * Container number used at line level if different
-   */
-  containerNumber?: string | null;
-  /**
-   * Pallet quantity allocated for this specific batch line calculated automatically
-   */
-  pltQty?: number | null;
-  /**
-   * List of LPN (License Plate Numbers) assigned for outbound
-   */
-  LPN?:
-    | {
-        lpnNumber?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  /**
-   * Warehouse storage location from where goods are picked
-   */
-  location?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "pickup-stock".
- */
-export interface PickupStock {
-  id: number;
-  /**
-   * Links pickup record to tenant
-   */
-  tenantId: number | Tenant;
-  /**
-   * Outbound job this pickup belongs to
-   */
-  outboundInventoryId: number | OutboundInventory;
-  /**
-   * Product line this pickup is for
-   */
-  outboundProductLineId: number | OutboundProductLine;
-  /**
-   * LPN pallets that have been picked up
-   */
-  pickedUpLPNs: {
-    /**
-     * Reference to the PutAwayStock record
-     */
-    lpnId: number | PutAwayStock;
-    /**
-     * LPN number (cached for quick access)
-     */
-    lpnNumber: string;
-    /**
-     * Quantity on this LPN pallet
-     */
-    huQty: number;
-    /**
-     * Storage location of LPN (cached)
-     */
-    location?: string | null;
-    id?: string | null;
-  }[];
-  /**
-   * Total quantity calculated from picked up LPNs
-   */
-  pickedUpQty: number;
-  /**
-   * Buffer quantity to handle actual quantity discrepancies
-   */
-  bufferQty?: number | null;
-  /**
-   * Final pickup quantity (pickedUpQty + bufferQty)
-   */
-  finalPickedUpQty: number;
-  /**
-   * Status of the pickup record
-   */
-  pickupStatus?: ('draft' | 'completed' | 'cancelled') | null;
-  /**
-   * User who recorded the pickup
-   */
-  pickedUpBy: number | TenantUser;
-  /**
-   * Additional notes about the pickup
-   */
-  notes?: string | null;
-  /**
-   * Soft delete flag
-   */
-  isDeleted?: boolean | null;
-  /**
-   * Timestamp when item was deleted
-   */
-  deletedAt?: string | null;
-  /**
-   * User who deleted this item
-   */
-  deletedBy?: (number | null) | TenantUser;
   updatedAt: string;
   createdAt: string;
 }
@@ -2250,9 +2012,6 @@ export interface TenantUsersSelect<T extends boolean = true> {
   role?: T;
   userGroup?: T;
   status?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -2313,9 +2072,6 @@ export interface TenantRolesSelect<T extends boolean = true> {
         settings_personalization?: T;
       };
   isActive?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2333,9 +2089,6 @@ export interface CustomersSelect<T extends boolean = true> {
   city?: T;
   state?: T;
   postcode?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2347,9 +2100,6 @@ export interface HandlingUnitsSelect<T extends boolean = true> {
   tenantId?: T;
   abbreviation?: T;
   name?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2365,9 +2115,6 @@ export interface StorageUnitsSelect<T extends boolean = true> {
   lengthPerSU_mm?: T;
   widthPerSU_mm?: T;
   whstoChargeBy?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2401,9 +2148,6 @@ export interface SkusSelect<T extends boolean = true> {
   expiryDate?: T;
   attribute1?: T;
   attribute2?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2427,9 +2171,6 @@ export interface PayingCustomersSelect<T extends boolean = true> {
   delivery_city?: T;
   delivery_state?: T;
   delivery_postcode?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2454,9 +2195,6 @@ export interface WarehousesSelect<T extends boolean = true> {
         id?: T;
       };
   type?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2469,9 +2207,6 @@ export interface TransportCompaniesSelect<T extends boolean = true> {
   name?: T;
   contact?: T;
   mobile?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2508,9 +2243,6 @@ export interface InboundInventorySelect<T extends boolean = true> {
   loscam?: T;
   plain?: T;
   palletTransferDocket?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2536,9 +2268,6 @@ export interface InboundProductLineSelect<T extends boolean = true> {
   expiryDate?: T;
   attribute1?: T;
   attribute2?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2598,12 +2327,6 @@ export interface OutboundInventorySelect<T extends boolean = true> {
   requiredDateTime?: T;
   orderNotes?: T;
   palletCount?: T;
-  vehicleId?: T;
-  driverId?: T;
-  dispatchedAt?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2613,30 +2336,21 @@ export interface OutboundInventorySelect<T extends boolean = true> {
  */
 export interface OutboundProductLineSelect<T extends boolean = true> {
   outboundInventoryId?: T;
-  batchNumber?: T;
   skuId?: T;
   skuDescription?: T;
-  expiry?: T;
+  batchNumber?: T;
+  lpnQty?: T;
+  sqmPerSU?: T;
+  expectedQty?: T;
+  pickedQty?: T;
+  expectedWeight?: T;
+  pickedWeight?: T;
+  weightPerHU?: T;
+  expectedCubicPerHU?: T;
+  pickedCubicPerHU?: T;
+  expiryDate?: T;
   attribute1?: T;
   attribute2?: T;
-  requiredQty?: T;
-  allocatedQty?: T;
-  requiredWeight?: T;
-  allocatedWeight?: T;
-  requiredCubicPerHU?: T;
-  allocatedCubicPerHU?: T;
-  containerNumber?: T;
-  pltQty?: T;
-  LPN?:
-    | T
-    | {
-        lpnNumber?: T;
-        id?: T;
-      };
-  location?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2663,9 +2377,6 @@ export interface PickupStockSelect<T extends boolean = true> {
   pickupStatus?: T;
   pickedUpBy?: T;
   notes?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2682,9 +2393,6 @@ export interface TrailerTypesSelect<T extends boolean = true> {
   trailerA?: T;
   trailerB?: T;
   trailerC?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2705,9 +2413,6 @@ export interface TrailersSelect<T extends boolean = true> {
   dangerousCertNumber?: T;
   dangerousCertExpiry?: T;
   description?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2727,9 +2432,6 @@ export interface VehiclesSelect<T extends boolean = true> {
   bTrailerId?: T;
   cTrailerId?: T;
   sideloader?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2757,9 +2459,6 @@ export interface DriversSelect<T extends boolean = true> {
   msicNumber?: T;
   msicExpiry?: T;
   msicPhotoUrl?: T;
-  isDeleted?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

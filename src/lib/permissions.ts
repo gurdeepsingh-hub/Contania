@@ -44,14 +44,14 @@ type Section =
   | 'freight'
 
 type PermissionGroup = {
-  [key in PermissionString]?: boolean
+  [key in PermissionString]?: boolean | null
 }
 
 type RolePermissions = {
   permissions?: PermissionGroup
 }
 
-type UserWithRole = {
+export type UserWithRole = {
   id?: number | string
   role?: number | string | RolePermissions | { id: number; permissions?: PermissionGroup }
   [key: string]: unknown

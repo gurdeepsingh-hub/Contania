@@ -1,9 +1,9 @@
-import { Banner } from '@/components/ui/banner'
-import { Hero } from '@/components/ui/hero'
-import { FeatureCards } from '@/components/ui/feature-cards'
-import { ValueProposition } from '@/components/ui/value-proposition'
-import { Footer } from '@/components/ui/footer'
-import { UrgencyCTA } from '@/components/ui/urgency-cta'
+import { Banner } from '@/components/home/banner'
+import { Hero } from '@/components/home/hero'
+import { FeatureCards } from '@/components/home/feature-cards'
+import { ValueProposition } from '@/components/home/value-proposition'
+import { Footer } from '@/components/home/footer'
+import { UrgencyCTA } from '@/components/home/urgency-cta'
 
 export default function HomePage() {
   return (

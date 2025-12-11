@@ -73,7 +73,7 @@ async function getTenantContext(request: NextRequest) {
   })
 
   // Verify user has permission to manage users
-  if (!canManageUsers(fullUser)) {
+  if (!canManageUsers(fullUser as unknown as import('@/lib/permissions').UserWithRole)) {
     return { error: 'Insufficient permissions to manage tenant users', status: 403 }
   }
 

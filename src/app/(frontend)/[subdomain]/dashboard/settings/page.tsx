@@ -176,7 +176,7 @@ export default function SettingsPage() {
       {settingsSections.length === 0 && (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            <p>You don't have access to any settings sections.</p>
+            <p>You don&apos;t have access to any settings sections.</p>
           </CardContent>
         </Card>
       )}

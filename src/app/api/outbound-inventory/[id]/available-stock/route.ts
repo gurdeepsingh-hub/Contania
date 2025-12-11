@@ -78,7 +78,7 @@ export async function GET(
       })
 
       // Get inbound product line IDs
-      const inboundProductLineIds = inboundProductLines.docs.map((line) => line.id)
+      const inboundProductLineIds = inboundProductLines.docs.map((line: { id: number }) => line.id)
 
       if (inboundProductLineIds.length === 0) {
         availabilityData.push({

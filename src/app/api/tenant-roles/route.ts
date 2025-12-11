@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
         depth: 1,
       })
 
-      if (!canManageRoles(fullUser)) {
+      if (!canManageRoles(fullUser as unknown as import('@/lib/permissions').UserWithRole)) {
         return NextResponse.json({ message: 'Insufficient permissions to manage roles' }, { status: 403 })
       }
     }

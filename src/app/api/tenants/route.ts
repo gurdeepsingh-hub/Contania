@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
             }
           : undefined,
         logo: body.logo,
-        businessType: body.businessType,
         dataRegion: body.dataRegion,
         emailPreferences: body.emailPreferences
           ? {
@@ -58,7 +57,7 @@ export async function POST(request: NextRequest) {
             }
           : undefined,
         privacyConsent: body.privacyConsent || false,
-        termsAcceptedAt: body.termsAcceptedAt ? new Date(body.termsAcceptedAt) : undefined,
+        termsAcceptedAt: body.termsAcceptedAt ? body.termsAcceptedAt : undefined,
         approved: false, // Default to not approved
         onboardingStep: 'submitted',
         // Subdomain can be provided by tenant, otherwise will be generated on approval

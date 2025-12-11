@@ -108,7 +108,7 @@ export const createTenantNavigationItems = (
       label: 'Freight',
       iconName: 'Truck',
       href: '/dashboard/freight',
-      active: activePage === 'freight' || activePage?.startsWith('freight-'),
+      active: activePage === 'freight' || (activePage?.startsWith('freight-') ?? false),
     })
   }
 
@@ -119,7 +119,7 @@ export const createTenantNavigationItems = (
       label: 'Settings',
       iconName: 'Cog',
       href: '/dashboard/settings',
-      active: activePage === 'settings' || activePage?.startsWith('settings-'),
+      active: activePage === 'settings' || (activePage?.startsWith('settings-') ?? false),
     })
   }
 

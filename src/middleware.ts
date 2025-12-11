@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { rateLimit } from '@/lib/rate-limit'
 
-// Initialize rate limiter (10 requests per minute per subdomain)
-const limiter = rateLimit({
-  interval: 60 * 1000, // 1 minute
-  uniqueTokenPerInterval: 500,
-})
 
 export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
@@ -22,12 +16,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // SECURITY: Rate limiting to prevent subdomain enumeration
-  try {
-    await limiter.check(10, subdomain) // 10 requests per minute per subdomain
-  } catch {
-    return NextResponse.json({ message: 'Too many requests' }, { status: 429 })
-  }
+  
 
   // Note: Tenant validation is handled in API routes and page components
   // to avoid importing server-only modules (Payload) in Edge runtime.

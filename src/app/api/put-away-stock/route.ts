@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const createdRecords = []
     for (const record of putAwayRecords) {
       const productLine = productLines.docs.find(
-        (pl) => pl.id === record.inboundProductLineId
+        (pl: { id: number }) => pl.id === record.inboundProductLineId
       )
 
       if (!productLine) {
@@ -142,11 +142,11 @@ export async function GET(request: NextRequest) {
             equals: tenant.id,
           },
         },
-        {
-          isDeleted: {
-            equals: false,
-          },
-        },
+        // {
+        //   isDeleted: {
+        //     equals: false,
+        //   },
+        // },
       ],
     }
 

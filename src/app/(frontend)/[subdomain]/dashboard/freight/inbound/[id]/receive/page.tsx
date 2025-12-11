@@ -25,6 +25,9 @@ type ProductLine = {
   recievedWeight?: number
   expectedCubicPerHU?: number
   recievedCubicPerHU?: number
+  expiryDate?: string
+  attribute1?: string
+  attribute2?: string
 }
 
 type InboundJob = {
@@ -150,7 +153,7 @@ export default function ReceiveStockPage() {
     router.push(`/dashboard/freight/inbound/${jobId}`)
   }
 
-  const updateProductLine = (index: number, field: keyof ProductLine, value: any) => {
+  const updateProductLine = (index: number, field: keyof ProductLine, value: string | number | undefined) => {
     setProductLines((prev) => {
       const updated = [...prev]
       updated[index] = { ...updated[index], [field]: value }

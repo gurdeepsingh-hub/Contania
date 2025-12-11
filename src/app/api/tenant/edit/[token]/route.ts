@@ -5,11 +5,11 @@ import { getTenantRequestNotificationEmail } from '@/lib/email-templates'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     const payload = await getPayload({ config })
-    const { token } = params
+    const { token } = await params
 
     // Find tenant by edit token
     const tenants = await payload.find({
@@ -83,11 +83,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     const payload = await getPayload({ config })
-    const { token } = params
+    const { token } = await params
     const body = await request.json()
 
     // Find tenant by edit token

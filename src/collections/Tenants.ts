@@ -452,7 +452,7 @@ export const Tenants: CollectionConfig = {
           }
 
           // Create admin role when tenant is approved (if it doesn't exist)
-          if (isApproved && (operation === 'create' || wasApproved !== true)) {
+          if (isApproved && wasApproved !== true) {
             try {
               // Check if admin role already exists for this tenant
               const existingRoles = await payload.find({

@@ -178,7 +178,7 @@ export default function InboundJobDetailPage() {
     // Reload in parallel
     Promise.all([loadPutAwayRecords(), loadJob()])
   }, [loadPutAwayRecords, loadJob])
-  
+
   // Memoize put-away records by product line ID for faster lookups
   const putAwayRecordsByProductLine = useMemo(() => {
     const map: Record<number, any[]> = {}
@@ -196,35 +196,40 @@ export default function InboundJobDetailPage() {
     })
     return map
   }, [putAwayRecords])
-  
+
   // Check if all product lines are fully put away
   const areAllProductLinesPutAway = useMemo((): boolean => {
     if (!job?.productLines || job.productLines.length === 0) return false
-    
+
     return job.productLines.every((line) => {
       if (!line.id || !line.recievedQty || !line.lpnQty) return false
-      
+
       const palletCount = Math.ceil(line.recievedQty / parseFloat(line.lpnQty))
       const linePutAwayRecords = putAwayRecordsByProductLine[line.id] || []
-      
+
       return linePutAwayRecords.length >= palletCount
     })
   }, [job?.productLines, putAwayRecordsByProductLine])
-  
+
   // Check if a specific product line is fully put away
-  const isProductLinePutAway = useCallback((line: ProductLine): boolean => {
-    if (!line.id || !line.recievedQty || !line.lpnQty) return false
-    
-    const palletCount = Math.ceil(line.recievedQty / parseFloat(line.lpnQty))
-    const linePutAwayRecords = putAwayRecordsByProductLine[line.id] || []
-    
-    return linePutAwayRecords.length >= palletCount
-  }, [putAwayRecordsByProductLine])
+  const isProductLinePutAway = useCallback(
+    (line: ProductLine): boolean => {
+      if (!line.id || !line.recievedQty || !line.lpnQty) return false
+
+      const palletCount = Math.ceil(line.recievedQty / parseFloat(line.lpnQty))
+      const linePutAwayRecords = putAwayRecordsByProductLine[line.id] || []
+
+      return linePutAwayRecords.length >= palletCount
+    },
+    [putAwayRecordsByProductLine],
+  )
 
   // Memoize expensive computation (must be before early returns)
-  const hasReceivedData = useMemo(() =>
-    !!job?.completedDate || (job?.productLines && job.productLines.some((line) => line.recievedQty)),
-    [job?.completedDate, job?.productLines]
+  const hasReceivedData = useMemo(
+    () =>
+      !!job?.completedDate ||
+      (job?.productLines && job.productLines.some((line) => line.recievedQty)),
+    [job?.completedDate, job?.productLines],
   )
 
   const handleAddProductLine = () => {
@@ -497,9 +502,9 @@ export default function InboundJobDetailPage() {
             <div className="space-y-4">
               {job.productLines.map((line) => {
                 // Use memoized map for faster lookup
-                const linePutAwayRecords = line.id ? (putAwayRecordsByProductLine[line.id] || []) : []
+                const linePutAwayRecords = line.id ? putAwayRecordsByProductLine[line.id] || [] : []
                 const hasPutAwayRecords = linePutAwayRecords.length > 0
-                const isPutAwayExpanded = expandedPutAwayLines[line.id] ?? false
+                const isPutAwayExpanded = line.id ? (expandedPutAwayLines[line.id] ?? false) : false
 
                 return (
                   <div key={line.id} className="border rounded-lg p-4">
@@ -533,7 +538,9 @@ export default function InboundJobDetailPage() {
                           </div>
                           {line.batchNumber && (
                             <div className="min-w-[100px]">
-                              <span className="text-xs font-medium text-muted-foreground">Batch:</span>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Batch:
+                              </span>
                               <p className="text-sm">{line.batchNumber}</p>
                             </div>
                           )}
@@ -564,18 +571,20 @@ export default function InboundJobDetailPage() {
                               ) : (
                                 <ChevronDown className="h-4 w-4" />
                               )}
-                              <span>
-                                Put-Away Records ({linePutAwayRecords.length})
-                              </span>
+                              <span>Put-Away Records ({linePutAwayRecords.length})</span>
                             </button>
                             {isPutAwayExpanded && (
                               <div className="mt-2 max-h-64 overflow-y-auto">
                                 <table className="w-full text-sm border-collapse">
                                   <thead className="sticky top-0 bg-muted">
                                     <tr>
-                                      <th className="text-left p-2 font-medium border-b">Sr. No.</th>
+                                      <th className="text-left p-2 font-medium border-b">
+                                        Sr. No.
+                                      </th>
                                       <th className="text-left p-2 font-medium border-b">LPN</th>
-                                      <th className="text-left p-2 font-medium border-b">Location</th>
+                                      <th className="text-left p-2 font-medium border-b">
+                                        Location
+                                      </th>
                                       <th className="text-left p-2 font-medium border-b">HU Qty</th>
                                     </tr>
                                   </thead>
@@ -596,7 +605,7 @@ export default function InboundJobDetailPage() {
                             )}
                           </div>
                         )}
-                        
+
                         {/* Put Away Stock Button for Individual Product Line */}
                         {hasReceivedData && line.id && line.recievedQty && (
                           <div className="mt-3 pt-3 border-t">

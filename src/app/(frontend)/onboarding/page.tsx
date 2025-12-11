@@ -290,7 +290,6 @@ export default function OnboardingPage() {
                       setSubdomain(value)
                     }}
                     placeholder="your-company-name"
-                    description="Choose a subdomain for your tenant portal (e.g., your-company-name). If not provided, one will be generated automatically."
                   />
                   {subdomain && (
                     <div className="mt-2 flex items-center gap-2 text-sm">

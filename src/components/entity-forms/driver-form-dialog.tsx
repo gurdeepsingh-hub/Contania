@@ -27,8 +27,8 @@ const driverSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   postcode: z.string().optional(),
-  employeeType: z.enum(['Casual', 'Permanent'], {
-    required_error: 'Employee type is required',
+  employeeType: z.enum(['Casual', 'Permanent']).refine((val) => val !== undefined, {
+    message: 'Employee type is required',
   }),
   drivingLicenceNumber: z.string().min(1, 'Driving licence number is required'),
   licenceExpiry: z.string().optional(),
@@ -127,13 +127,22 @@ export function DriverFormDialog({
       loadVehicles()
       loadWarehouses()
       if (initialData) {
-        const vehicleId = typeof initialData.vehicleId === 'object' ? initialData.vehicleId.id : initialData.vehicleId
+        const vehicleId =
+          typeof initialData.vehicleId === 'object'
+            ? initialData.vehicleId.id
+            : initialData.vehicleId
         const depotId =
-          typeof initialData.defaultDepotId === 'object' ? initialData.defaultDepotId.id : initialData.defaultDepotId
+          typeof initialData.defaultDepotId === 'object'
+            ? initialData.defaultDepotId.id
+            : initialData.defaultDepotId
         const licencePhotoId =
-          typeof initialData.licencePhotoUrl === 'object' ? initialData.licencePhotoUrl.id : initialData.licencePhotoUrl
+          typeof initialData.licencePhotoUrl === 'object'
+            ? initialData.licencePhotoUrl.id
+            : initialData.licencePhotoUrl
         const msicPhotoId =
-          typeof initialData.msicPhotoUrl === 'object' ? initialData.msicPhotoUrl.id : initialData.msicPhotoUrl
+          typeof initialData.msicPhotoUrl === 'object'
+            ? initialData.msicPhotoUrl.id
+            : initialData.msicPhotoUrl
 
         reset({
           name: initialData.name || '',
@@ -407,6 +416,3 @@ export function DriverFormDialog({
     </Dialog>
   )
 }
-
-
-

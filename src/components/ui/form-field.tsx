@@ -183,6 +183,7 @@ export interface FormComboboxProps {
   onValueChange?: (value: string | number) => void
   disabled?: boolean
   className?: string
+  id?: string
 }
 
 export const FormCombobox = React.forwardRef<HTMLButtonElement, FormComboboxProps>(
@@ -199,6 +200,7 @@ export const FormCombobox = React.forwardRef<HTMLButtonElement, FormComboboxProp
       >
         <Combobox
           {...props}
+          options={props.options || []}
           className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
         />
       </FormField>
