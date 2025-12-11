@@ -10,11 +10,37 @@ export async function GET(request: NextRequest) {
     // If subdomain not in header (client-side fetch), extract from hostname
     if (!subdomain) {
       const hostname = request.headers.get('host') || ''
-      const subdomainMatch = hostname.match(/^([^.]+)\.(.+)$/)
-      subdomain = subdomainMatch ? subdomainMatch[1] : null
       
-      // Ignore 'www' and 'localhost' as subdomains
-      if (subdomain === 'www' || subdomain === 'localhost') {
+      // Remove port if present
+      const cleanHostname = hostname.split(':')[0]
+      const defaultHost = process.env.DEFAULT_HOST || 'containa.io'
+
+      // Check if we are on the root domain or localhost
+      if (
+        cleanHostname === defaultHost || 
+        cleanHostname === 'localhost' ||
+        cleanHostname === 'www.' + defaultHost
+      ) {
+        subdomain = null
+      } else {
+        // Extract subdomain
+        const subdomainMatch = cleanHostname.match(/^([^.]+)\.(.+)$/)
+        
+        // Ensure the domain part matches defaultHost to avoid false positives on different domains
+        // or just accept the first part as subdomain if it's not the root.
+        // If we are on 'tenant.containa.io', match[1] is 'tenant', match[2] is 'containa.io'
+        if (subdomainMatch && subdomainMatch[2] === defaultHost) {
+           subdomain = subdomainMatch[1]
+        } else if (subdomainMatch && cleanHostname !== 'localhost') {
+           // Fallback for localhost subdomains like tenant.localhost
+           subdomain = subdomainMatch[1]
+        } else {
+           subdomain = null
+        }
+      }
+      
+      // Explicitly ignore 'www'
+      if (subdomain === 'www') {
         subdomain = null
       }
     }

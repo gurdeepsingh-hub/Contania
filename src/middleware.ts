@@ -8,11 +8,33 @@ export async function middleware(request: NextRequest) {
 
   // Extract subdomain from hostname
   // Format: subdomain.domain.com or subdomain.localhost:3000
-  const subdomainMatch = hostname.match(/^([^.]+)\.(.+)$/)
-  const subdomain = subdomainMatch ? subdomainMatch[1] : null
+  const defaultHost = process.env.DEFAULT_HOST || 'containa.io'
+  const cleanHostname = hostname.split(':')[0]
+  
+  let subdomain: string | null = null
 
+  // Check if we are on the root domain or localhost
+  if (
+    cleanHostname === defaultHost || 
+    cleanHostname === 'www.' + defaultHost || 
+    cleanHostname === 'localhost'
+  ) {
+    subdomain = null
+  } else {
+    const subdomainMatch = cleanHostname.match(/^([^.]+)\.(.+)$/)
+    if (subdomainMatch) {
+       // Check if the suffix matches the default host
+       if (subdomainMatch[2] === defaultHost) {
+           subdomain = subdomainMatch[1]
+       } else if (cleanHostname !== 'localhost') {
+           // Fallback for dev environments like tenant.localhost
+           subdomain = subdomainMatch[1]
+       }
+    }
+  }
+  
   // If no subdomain, allow access to main domain routes
-  if (!subdomain || subdomain === 'www' || subdomain === 'localhost') {
+  if (!subdomain || subdomain === 'www') {
     return NextResponse.next()
   }
 
