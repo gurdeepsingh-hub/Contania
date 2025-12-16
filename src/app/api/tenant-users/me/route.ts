@@ -21,15 +21,47 @@ export async function GET(request: NextRequest) {
 
     if (!subdomain) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tenant-users/me/route.ts:23',message:'No subdomain found',data:{hostname:request.headers.get('host'),xTenantSubdomain:request.headers.get('x-tenant-subdomain')},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'tenant-users/me/route.ts:23',
+          message: 'No subdomain found',
+          data: {
+            hostname: request.headers.get('host'),
+            xTenantSubdomain: request.headers.get('x-tenant-subdomain'),
+          },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'B',
+        }),
+      }).catch(() => {})
       // #endregion
       return NextResponse.json({ message: 'No tenant context' }, { status: 401 })
     }
 
     // #region agent log
-    const cookieHeader = request.headers.get('cookie') || '';
-    const hasPayloadToken = cookieHeader.includes('payload-token');
-    fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tenant-users/me/route.ts:26',message:'Before payload.auth',data:{hostname:request.headers.get('host'),subdomain,hasCookie:hasPayloadToken,cookieLength:cookieHeader.length},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+    const cookieHeader = request.headers.get('cookie') || ''
+    const hasPayloadToken = cookieHeader.includes('payload-token')
+    fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'tenant-users/me/route.ts:26',
+        message: 'Before payload.auth',
+        data: {
+          hostname: request.headers.get('host'),
+          subdomain,
+          hasCookie: hasPayloadToken,
+          cookieLength: cookieHeader.length,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'C',
+      }),
+    }).catch(() => {})
     // #endregion
 
     const { user } = await payload.auth({
@@ -37,12 +69,42 @@ export async function GET(request: NextRequest) {
     })
 
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tenant-users/me/route.ts:35',message:'After payload.auth',data:{hostname:request.headers.get('host'),subdomain,hasUser:!!user,userId:user?.id,userCollection:(user as {collection?:string})?.collection},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'tenant-users/me/route.ts:35',
+        message: 'After payload.auth',
+        data: {
+          hostname: request.headers.get('host'),
+          subdomain,
+          hasUser: !!user,
+          userId: user?.id,
+          userCollection: (user as { collection?: string })?.collection,
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'pre-fix',
+        hypothesisId: 'C',
+      }),
+    }).catch(() => {})
     // #endregion
 
     if (!user) {
       // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tenant-users/me/route.ts:40',message:'User is null - returning 401',data:{hostname:request.headers.get('host'),subdomain,hasCookie:hasPayloadToken},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'C'})}).catch(()=>{});
+      fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: 'tenant-users/me/route.ts:40',
+          message: 'User is null - returning 401',
+          data: { hostname: request.headers.get('host'), subdomain, hasCookie: hasPayloadToken },
+          timestamp: Date.now(),
+          sessionId: 'debug-session',
+          runId: 'pre-fix',
+          hypothesisId: 'C',
+        }),
+      }).catch(() => {})
       // #endregion
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 })
     }
