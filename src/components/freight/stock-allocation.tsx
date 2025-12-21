@@ -177,7 +177,9 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete, pro
     return (
       <div className="text-center py-8">
         <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">No product lines found. Add product lines first.</p>
+        <p className="text-muted-foreground">
+          All product lines are already fully allocated or no product lines found. Add product lines first.
+        </p>
       </div>
     )
   }

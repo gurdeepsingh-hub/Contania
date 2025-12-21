@@ -192,7 +192,15 @@ export default function OutboundJobDetailPage() {
         ])
         
         // Map LPN results back to product lines (only for allocated lines)
-        const productLinesWithLPNs = job.productLines.map((line: ProductLine) => {
+        // Map expectedQty to requiredQty for frontend display
+        const productLinesWithLPNs = job.productLines.map((line: any) => {
+          const mappedLine: ProductLine = {
+            ...line,
+            requiredQty: line.expectedQty || line.requiredQty,
+            requiredWeight: line.expectedWeight || line.requiredWeight,
+          }
+          return mappedLine
+        }).map((line: ProductLine) => {
           const lineIndex = allocatedProductLineIds.indexOf(line.id!)
           if (lineIndex >= 0 && lpnResults[lineIndex]?.success && lpnResults[lineIndex]?.allocatedLPNs) {
             return { ...line, allocatedLPNs: lpnResults[lineIndex].allocatedLPNs }

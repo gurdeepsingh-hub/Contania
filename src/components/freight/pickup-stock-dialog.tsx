@@ -152,6 +152,14 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
     })
   }
 
+  const handleLPNAddBulk = (productLineId: number, lpnNumbers: string[]) => {
+    setSelectedLPNs((prev) => {
+      const current = prev[productLineId] || []
+      const newLPNs = lpnNumbers.filter(lpn => !current.includes(lpn))
+      return { ...prev, [productLineId]: [...current, ...newLPNs] }
+    })
+  }
+
   const calculatePickedUpQty = (productLineId: number): number => {
     const lpnNumbers = selectedLPNs[productLineId] || []
     const info = pickupInfo[productLineId]
@@ -358,6 +366,7 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
                       selectedLPNs={selectedLPNsForLine}
                       onLPNAdd={(lpnNumber) => handleLPNAdd(productLineId, lpnNumber)}
                       onLPNRemove={(lpnNumber) => handleLPNRemove(productLineId, lpnNumber)}
+                      onLPNAddBulk={(lpnNumbers) => handleLPNAddBulk(productLineId, lpnNumbers)}
                     />
                   </div>
 

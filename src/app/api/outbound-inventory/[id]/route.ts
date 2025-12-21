@@ -93,25 +93,53 @@ export async function PUT(
       return NextResponse.json({ message: 'Job not found' }, { status: 404 })
     }
 
+    // Helper function to handle field updates (supports null/empty string)
+    const updateField = (field: string, newValue: any, existingValue: any) => {
+      if (newValue !== undefined) {
+        // Convert empty strings to null for optional fields
+        if (typeof newValue === 'string' && newValue.trim() === '') {
+          return null
+        }
+        return newValue
+      }
+      return existingValue
+    }
+
     // Update the job (supports partial updates)
     const updatedJob = await payload.update({
       collection: 'outbound-inventory',
       id: jobId,
       data: {
-        jobCode: body.jobCode !== undefined ? body.jobCode : existingJob.jobCode,
-        expectedDate: body.expectedDate !== undefined && body.expectedDate !== '' ? body.expectedDate : (body.expectedDate === '' ? null : existingJob.expectedDate),
-        completedDate: body.completedDate !== undefined && body.completedDate !== '' ? body.completedDate : (body.completedDate === '' ? null : existingJob.completedDate),
-        deliveryCustomerReferenceNumber: body.deliveryCustomerReferenceNumber !== undefined ? body.deliveryCustomerReferenceNumber : existingJob.deliveryCustomerReferenceNumber,
-        orderingCustomerReferenceNumber: body.orderingCustomerReferenceNumber !== undefined ? body.orderingCustomerReferenceNumber : existingJob.orderingCustomerReferenceNumber,
-        deliveryCustomerId: body.deliveryCustomerId !== undefined ? body.deliveryCustomerId : existingJob.deliveryCustomerId,
-        notes: body.notes !== undefined ? body.notes : existingJob.notes,
-        transportMode: body.transportMode !== undefined ? body.transportMode : existingJob.transportMode,
-        warehouseId: body.warehouseId !== undefined ? body.warehouseId : existingJob.warehouseId,
-        payingCustomerId: body.payingCustomerId !== undefined ? body.payingCustomerId : existingJob.payingCustomerId,
-        transportCompanyId: body.transportCompanyId !== undefined ? body.transportCompanyId : existingJob.transportCompanyId,
-        driverId: body.driverId !== undefined ? body.driverId : existingJob.driverId,
-        vehicleId: body.vehicleId !== undefined ? body.vehicleId : existingJob.vehicleId,
-        trailerId: body.trailerId !== undefined ? body.trailerId : existingJob.trailerId,
+        // Basic Info
+        jobCode: updateField('jobCode', body.jobCode, existingJob.jobCode),
+        status: updateField('status', body.status, existingJob.status),
+        customerRefNumber: updateField('customerRefNumber', body.customerRefNumber, existingJob.customerRefNumber),
+        consigneeRefNumber: updateField('consigneeRefNumber', body.consigneeRefNumber, existingJob.consigneeRefNumber),
+        containerNumber: updateField('containerNumber', body.containerNumber, existingJob.containerNumber),
+        inspectionNumber: updateField('inspectionNumber', body.inspectionNumber, existingJob.inspectionNumber),
+        inboundJobNumber: updateField('inboundJobNumber', body.inboundJobNumber, existingJob.inboundJobNumber),
+        warehouseId: updateField('warehouseId', body.warehouseId, existingJob.warehouseId),
+        requiredDateTime: updateField('requiredDateTime', body.requiredDateTime, existingJob.requiredDateTime),
+        orderNotes: updateField('orderNotes', body.orderNotes, existingJob.orderNotes),
+        palletCount: updateField('palletCount', body.palletCount, existingJob.palletCount),
+        // Customer Details - these are the key fields that need to be saved
+        customerId: updateField('customerId', body.customerId, existingJob.customerId),
+        customerToId: updateField('customerToId', body.customerToId, existingJob.customerToId),
+        customerFromId: updateField('customerFromId', body.customerFromId, existingJob.customerFromId),
+        // Customer details are auto-populated by hooks when customerId/customerToId/customerFromId are set
+        // But we include them in case they're already set and need to be preserved
+        customerName: updateField('customerName', body.customerName, existingJob.customerName),
+        customerLocation: updateField('customerLocation', body.customerLocation, existingJob.customerLocation),
+        customerState: updateField('customerState', body.customerState, existingJob.customerState),
+        customerContact: updateField('customerContact', body.customerContact, existingJob.customerContact),
+        customerToName: updateField('customerToName', body.customerToName, existingJob.customerToName),
+        customerToLocation: updateField('customerToLocation', body.customerToLocation, existingJob.customerToLocation),
+        customerToState: updateField('customerToState', body.customerToState, existingJob.customerToState),
+        customerToContact: updateField('customerToContact', body.customerToContact, existingJob.customerToContact),
+        customerFromName: updateField('customerFromName', body.customerFromName, existingJob.customerFromName),
+        customerFromLocation: updateField('customerFromLocation', body.customerFromLocation, existingJob.customerFromLocation),
+        customerFromState: updateField('customerFromState', body.customerFromState, existingJob.customerFromState),
+        customerFromContact: updateField('customerFromContact', body.customerFromContact, existingJob.customerFromContact),
       },
     })
 

@@ -76,6 +76,17 @@ export async function POST(
         continue
       }
 
+      // Check if product line is already fully allocated
+      const existingAllocatedQty = productLine.allocatedQty || 0
+      const expectedQty = productLine.expectedQty || 0
+      if (expectedQty > 0 && existingAllocatedQty >= expectedQty) {
+        errors.push({
+          productLineId,
+          error: `Product line is already fully allocated (${existingAllocatedQty}/${expectedQty})`,
+        })
+        continue
+      }
+
       const skuId =
         typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
       const warehouseId =
@@ -121,7 +132,7 @@ export async function POST(
       let lpnRecordsToAllocate = []
 
       if (lpnIds && Array.isArray(lpnIds) && lpnIds.length > 0) {
-        // Manual LPN selection
+        // Manual LPN selection - include both available and already-allocated-to-this-line LPNs
         const lpnRecords = await payload.find({
           collection: 'put-away-stock',
           where: {
@@ -147,9 +158,27 @@ export async function POST(
                 },
               },
               {
-                allocationStatus: {
-                  equals: 'available',
-                },
+                or: [
+                  {
+                    allocationStatus: {
+                      equals: 'available',
+                    },
+                  },
+                  {
+                    and: [
+                      {
+                        allocationStatus: {
+                          equals: 'allocated',
+                        },
+                      },
+                      {
+                        outboundProductLineId: {
+                          equals: productLineId,
+                        },
+                      },
+                    ],
+                  },
+                ],
               },
               ...(warehouseId
                 ? [
@@ -164,21 +193,62 @@ export async function POST(
           },
         })
 
-        // Verify all requested LPNs were found and are available
+        // Separate available and already-allocated LPNs
+        const availableLPNs = lpnRecords.docs.filter(
+          (lpn: any) => lpn.allocationStatus === 'available'
+        )
+        const alreadyAllocatedLPNs = lpnRecords.docs.filter(
+          (lpn: any) =>
+            lpn.allocationStatus === 'allocated' &&
+            (typeof lpn.outboundProductLineId === 'object'
+              ? lpn.outboundProductLineId.id
+              : lpn.outboundProductLineId) === productLineId
+        )
+
+        // Verify all requested LPNs were found
         const foundLpnNumbers = lpnRecords.docs.map((lpn: { lpnNumber: string }) => lpn.lpnNumber)
         const missingLPNs = lpnIds.filter((id) => !foundLpnNumbers.includes(id))
 
         if (missingLPNs.length > 0) {
           errors.push({
             productLineId,
-            error: `LPNs not found or not available: ${missingLPNs.join(', ')}`,
+            error: `LPNs not found: ${missingLPNs.join(', ')}`,
           })
           continue
         }
 
-        lpnRecordsToAllocate = lpnRecords.docs
+        // Check if any LPNs are allocated to other product lines
+        const allocatedToOtherLines = lpnRecords.docs.filter(
+          (lpn: any) =>
+            lpn.allocationStatus === 'allocated' &&
+            (typeof lpn.outboundProductLineId === 'object'
+              ? lpn.outboundProductLineId.id
+              : lpn.outboundProductLineId) !== productLineId
+        )
+
+        if (allocatedToOtherLines.length > 0) {
+          errors.push({
+            productLineId,
+            error: `Some LPNs are already allocated to other product lines: ${allocatedToOtherLines.map((l: any) => l.lpnNumber).join(', ')}`,
+          })
+          continue
+        }
+
+        // Use available LPNs (already-allocated ones will be counted but not re-allocated)
+        lpnRecordsToAllocate = availableLPNs
       } else if (quantity && quantity > 0) {
-        // Auto-allocation by quantity - fetch all pages
+        // Auto-allocation by quantity - calculate remaining quantity needed
+        const remainingQtyNeeded = Math.max(0, expectedQty - existingAllocatedQty)
+        
+        if (remainingQtyNeeded === 0) {
+          errors.push({
+            productLineId,
+            error: `Product line is already fully allocated (${existingAllocatedQty}/${expectedQty})`,
+          })
+          continue
+        }
+
+        // Fetch available LPNs - fetch all pages
         const allAvailableLPNs = []
         let page = 1
         let hasMore = true
@@ -228,20 +298,20 @@ export async function POST(
           page++
         }
 
-        // Allocate LPNs until quantity requirement is met
+        // Allocate LPNs until remaining quantity requirement is met
         let allocatedQty = 0
         for (const lpn of allAvailableLPNs) {
-          if (allocatedQty >= quantity) {
+          if (allocatedQty >= remainingQtyNeeded) {
             break
           }
           lpnRecordsToAllocate.push(lpn)
           allocatedQty += lpn.huQty || 0
         }
 
-        if (allocatedQty < quantity) {
+        if (allocatedQty < remainingQtyNeeded) {
           errors.push({
             productLineId,
-            error: `Insufficient stock. Available: ${allocatedQty}, Required: ${quantity}`,
+            error: `Insufficient stock. Available: ${allocatedQty}, Still needed: ${remainingQtyNeeded} (already allocated: ${existingAllocatedQty}/${expectedQty})`,
           })
           continue
         }
@@ -259,6 +329,17 @@ export async function POST(
       let primaryLocation = ''
 
       for (const lpn of lpnRecordsToAllocate) {
+        // Check if LPN is already allocated to this product line
+        if (lpn.outboundProductLineId === productLineId && lpn.allocationStatus === 'allocated') {
+          // Already allocated to this product line, skip
+          allocatedLPNNumbers.push(lpn.lpnNumber)
+          totalAllocatedQty += lpn.huQty || 0
+          if (!primaryLocation && lpn.location) {
+            primaryLocation = lpn.location
+          }
+          continue
+        }
+
         // Update PutAwayStock record
         await payload.update({
           collection: 'put-away-stock',
@@ -318,17 +399,32 @@ export async function POST(
         pltQty = totalAllocatedQty / skuData.huPerSu
       }
 
-      // Update OutboundProductLine
+      // Update OutboundProductLine - add to existing allocatedQty
+      const newAllocatedQty = existingAllocatedQty + totalAllocatedQty
+      
+      // Calculate new allocated weight (add to existing if present)
+      const existingAllocatedWeight = productLine.allocatedWeight || 0
+      const newAllocatedWeight = allocatedWeight 
+        ? existingAllocatedWeight + allocatedWeight 
+        : existingAllocatedWeight
+
+      // Get existing LPNs and merge with new ones
+      const existingLPNs = productLine.LPN || []
+      const existingLPNNumbers = Array.isArray(existingLPNs) 
+        ? existingLPNs.map((lpn: any) => typeof lpn === 'string' ? lpn : lpn.lpnNumber).filter(Boolean)
+        : []
+      const mergedLPNNumbers = [...new Set([...existingLPNNumbers, ...allocatedLPNNumbers])]
+
       await payload.update({
         collection: 'outbound-product-line',
         id: productLineId,
         data: {
-          allocatedQty: totalAllocatedQty,
-          allocatedWeight,
-          allocatedCubicPerHU,
-          pltQty,
-          LPN: allocatedLPNNumbers.map((lpnNum) => ({ lpnNumber: lpnNum })),
-          location: primaryLocation,
+          allocatedQty: newAllocatedQty,
+          allocatedWeight: newAllocatedWeight > 0 ? newAllocatedWeight : undefined,
+          allocatedCubicPerHU: allocatedCubicPerHU || productLine.allocatedCubicPerHU,
+          pltQty: pltQty || productLine.pltQty,
+          LPN: mergedLPNNumbers.map((lpnNum) => ({ lpnNumber: lpnNum })),
+          location: primaryLocation || productLine.location,
         },
       })
 
@@ -342,8 +438,8 @@ export async function POST(
     }
 
     // Update job status based on allocation results
-    if (allocationResults.length > 0) {
-      // Check if all product lines are allocated
+    if (allocationResults.length > 0 || errors.length > 0) {
+      // Re-fetch all product lines to get the latest allocation status
       const productLines = await payload.find({
         collection: 'outbound-product-line',
         where: {
@@ -353,11 +449,17 @@ export async function POST(
         },
       })
 
+      // Check if all product lines are fully allocated
+      // A product line is considered allocated if allocatedQty >= expectedQty and expectedQty > 0
       const allAllocated =
         productLines.docs.length > 0 &&
-        productLines.docs.every(
-          (line: any) => line.allocatedQty && line.allocatedQty > 0,
-        )
+        productLines.docs.every((line: any) => {
+          const allocatedQty = line.allocatedQty || 0
+          const expectedQty = line.expectedQty || 0
+          // If expectedQty is 0 or not set, consider it allocated if allocatedQty > 0
+          // Otherwise, check if allocatedQty >= expectedQty
+          return expectedQty === 0 ? allocatedQty > 0 : allocatedQty >= expectedQty
+        })
 
       const newStatus = allAllocated ? 'allocated' : 'partially_allocated'
 

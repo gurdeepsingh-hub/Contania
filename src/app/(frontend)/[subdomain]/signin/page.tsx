@@ -34,8 +34,8 @@ export default function TenantLoginPage() {
 
       if (response.ok) {
         const data = await response.json()
-        // Redirect to tenant dashboard
-        router.push('/dashboard')
+        // Use window.location.href to force full page reload and ensure cookies are available
+        window.location.href = '/dashboard'
       } else {
         const errorData = await response.json()
         setError(errorData.message || 'Invalid credentials')

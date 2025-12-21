@@ -234,6 +234,7 @@ export function OutboundProductLineForm({
   }, [initialData, warehouseId, batchOptions, handleBatchChange])
 
   const onSubmit = async (data: ProductLineFormData) => {
+    // Map frontend "required" fields to backend "expected" fields
     await onSave({
       ...data,
       skuDescription,
@@ -241,7 +242,11 @@ export function OutboundProductLineForm({
       expiry: selectedSku?.isExpriy ? expiryDate : undefined,
       attribute1: selectedSku?.isAttribute1 ? attribute1 : undefined,
       attribute2: selectedSku?.isAttribute2 ? attribute2 : undefined,
-    } as OutboundProductLine)
+      // Map to backend field names
+      expectedQty: data.requiredQty,
+      expectedWeight: data.requiredWeight,
+      expectedCubicPerHU: data.requiredCubicPerHU,
+    } as OutboundProductLine & { expectedQty?: number; expectedWeight?: number; expectedCubicPerHU?: number })
   }
 
   return (

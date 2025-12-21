@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { FormInput, FormTextarea, FormCombobox } from '@/components/ui/form-field'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -261,6 +261,7 @@ export function MultistepOutboundForm({
     allocatedQty?: number
     requiredWeight?: number
     allocatedWeight?: number
+    requiredCubicPerHU?: number
     location?: string
     [key: string]: unknown
   }
@@ -270,6 +271,7 @@ export function MultistepOutboundForm({
   const [validationErrors, setValidationErrors] = useState<Record<number, Record<string, string>>>(
     {},
   )
+  const customerDataLoadedRef = useRef(false)
 
   const [formData, setFormData] = useState<OutboundInventoryData>(() => {
     // Initialize with job code if not present
@@ -308,6 +310,46 @@ export function MultistepOutboundForm({
     }
   }, [initialData])
 
+  // Load customer details when options are loaded and initialData has customer IDs
+  useEffect(() => {
+    // Only proceed if we have initialData and options are loaded
+    if (!initialData || (unifiedCustomers.length === 0 && unifiedDestinations.length === 0)) {
+      return
+    }
+
+    // Prevent loading multiple times
+    if (customerDataLoadedRef.current) {
+      return
+    }
+
+    // Use initialData directly to avoid stale closure issues
+    const customerId = initialData.customerId
+    const customerToId = initialData.customerToId
+    const customerFromId = initialData.customerFromId
+
+    // Load customer details if IDs exist
+    // handleCustomerChange will update formData and fetch customer details
+    if (customerId || customerToId || customerFromId) {
+      customerDataLoadedRef.current = true
+      
+      if (customerId) {
+        handleCustomerChange('customerId', customerId)
+      }
+      if (customerToId) {
+        handleCustomerChange('customerToId', customerToId)
+      }
+      if (customerFromId) {
+        handleCustomerChange('customerFromId', customerFromId)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.customerId, initialData?.customerToId, initialData?.customerFromId, unifiedCustomers.length, unifiedDestinations.length])
+
+  // Reset the ref when initialData changes (new job loaded)
+  useEffect(() => {
+    customerDataLoadedRef.current = false
+  }, [initialData?.id])
+
   useEffect(() => {
     if (formData.id) {
       loadProductLines()
@@ -324,7 +366,14 @@ export function MultistepOutboundForm({
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.productLines) {
-          setProductLines(data.productLines || [])
+          // Map backend "expected" fields to frontend "required" fields
+          const mappedLines = (data.productLines || []).map((line: any) => ({
+            ...line,
+            requiredQty: line.expectedQty,
+            requiredWeight: line.expectedWeight,
+            requiredCubicPerHU: line.expectedCubicPerHU,
+          }))
+          setProductLines(mappedLines)
         }
       }
     } catch (error) {
@@ -1336,9 +1385,7 @@ export function MultistepOutboundForm({
                             Cubic Required (m³):
                           </span>
                           <p>
-                            {(line as { requiredCubicPerHU?: number }).requiredCubicPerHU?.toFixed(
-                              6,
-                            ) || 'N/A'}
+                            {line.requiredCubicPerHU?.toFixed(6) || 'N/A'}
                           </p>
                         </div>
                         {(line as { expiry?: string }).expiry && (
@@ -1584,6 +1631,7 @@ export function MultistepOutboundForm({
                         batchNumber: editingProductLine.batchNumber,
                         requiredQty: editingProductLine.requiredQty,
                         requiredWeight: editingProductLine.requiredWeight as number | undefined,
+                        requiredCubicPerHU: editingProductLine.requiredCubicPerHU,
                       }
                     : undefined
                 }

@@ -52,8 +52,16 @@ export async function GET(
       const batchNumber = productLine.batchNumber
       const skuId =
         typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
+      const allocatedQty = productLine.allocatedQty || 0
+      const expectedQty = productLine.expectedQty || 0
 
       if (!batchNumber || !skuId) {
+        continue
+      }
+
+      // Skip product lines that are already fully allocated
+      // Only show lines that need allocation (allocatedQty < expectedQty or allocatedQty is 0)
+      if (allocatedQty > 0 && allocatedQty >= expectedQty && expectedQty > 0) {
         continue
       }
 
@@ -232,7 +240,7 @@ export async function GET(
         productLineId: productLine.id,
         batchNumber,
         skuId,
-        requiredQty: productLine.requiredQty || 0,
+        requiredQty: productLine.expectedQty || 0, // Map expectedQty to requiredQty for frontend display
         availableQty,
         availableLPNs: lpnData,
       })

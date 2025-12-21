@@ -1431,6 +1431,35 @@ export interface OutboundProductLine {
    */
   pickedCubicPerHU?: number | null;
   /**
+   * Quantity of product units allocated to this outbound job
+   */
+  allocatedQty?: number | null;
+  /**
+   * Weight of allocated product units (kg)
+   */
+  allocatedWeight?: number | null;
+  /**
+   * Volume per handling unit for allocated stock (m³)
+   */
+  allocatedCubicPerHU?: number | null;
+  /**
+   * Pallet quantity (calculated from allocatedQty / huPerSu)
+   */
+  pltQty?: number | null;
+  /**
+   * List of LPNs (License Plate Numbers) allocated to this product line
+   */
+  LPN?:
+    | {
+        lpnNumber: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Primary location where allocated stock is stored
+   */
+  location?: string | null;
+  /**
    * Expiry date (auto-fetched from SKU if enabled)
    */
   expiryDate?: string | null;
@@ -2348,6 +2377,17 @@ export interface OutboundProductLineSelect<T extends boolean = true> {
   weightPerHU?: T;
   expectedCubicPerHU?: T;
   pickedCubicPerHU?: T;
+  allocatedQty?: T;
+  allocatedWeight?: T;
+  allocatedCubicPerHU?: T;
+  pltQty?: T;
+  LPN?:
+    | T
+    | {
+        lpnNumber?: T;
+        id?: T;
+      };
+  location?: T;
   expiryDate?: T;
   attribute1?: T;
   attribute2?: T;

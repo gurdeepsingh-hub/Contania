@@ -154,6 +154,58 @@ export const OutboundProductLine: CollectionConfig = {
       },
     },
     {
+      name: 'allocatedQty',
+      type: 'number',
+      admin: {
+        description: 'Quantity of product units allocated to this outbound job',
+      },
+    },
+    {
+      name: 'allocatedWeight',
+      type: 'number',
+      admin: {
+        description: 'Weight of allocated product units (kg)',
+        step: 0.01,
+      },
+    },
+    {
+      name: 'allocatedCubicPerHU',
+      type: 'number',
+      admin: {
+        description: 'Volume per handling unit for allocated stock (m³)',
+        step: 0.01,
+      },
+    },
+    {
+      name: 'pltQty',
+      type: 'number',
+      admin: {
+        description: 'Pallet quantity (calculated from allocatedQty / huPerSu)',
+        step: 0.01,
+      },
+    },
+    {
+      name: 'LPN',
+      type: 'array',
+      admin: {
+        description: 'List of LPNs (License Plate Numbers) allocated to this product line',
+      },
+      fields: [
+        {
+          name: 'lpnNumber',
+          type: 'text',
+          required: true,
+        },
+      ],
+    },
+    {
+      name: 'location',
+      type: 'text',
+      admin: {
+        description: 'Primary location where allocated stock is stored',
+      },
+    },
+    {
       name: 'expiryDate',
       type: 'date',
       admin: {

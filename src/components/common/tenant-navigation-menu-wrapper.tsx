@@ -46,7 +46,7 @@ export function TenantNavigationMenuWrapper() {
     }
 
     checkAuth()
-  }, [])
+  }, [pathname]) // Re-check auth when pathname changes (e.g., after login redirect)
 
   // Don't show navigation if not authenticated or still loading
   if (isLoading || !tenantUser) {

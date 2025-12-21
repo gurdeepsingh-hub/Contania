@@ -78,8 +78,8 @@ export async function GET(
             id: line.id,
             batchNumber: line.batchNumber,
             skuDescription: line.skuDescription,
-            requiredQty: line.requiredQty,
-            allocatedQty: line.allocatedQty,
+            requiredQty: line.expectedQty || 0, // Map expectedQty to requiredQty for frontend display
+            allocatedQty: line.allocatedQty || 0,
           },
           hasPickup: completedPickups.length > 0,
           pickupRecords: pickups.docs.map((pickup: any) => ({

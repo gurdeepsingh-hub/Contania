@@ -112,6 +112,17 @@ export const createTenantNavigationItems = (
     })
   }
 
+  // Inventory - show if user has inventory_view permission
+  if (!permissions || permissions.includes('inventory_view')) {
+    items.push({
+      id: 'inventory',
+      label: 'Inventory',
+      iconName: 'Package',
+      href: '/dashboard/inventory',
+      active: activePage === 'inventory' || (activePage?.startsWith('inventory-') ?? false),
+    })
+  }
+
   // Settings - show if user has settings_view permission
   if (!permissions || permissions.includes('settings_view')) {
     items.push({
@@ -144,6 +155,13 @@ export const getActiveTenantPageFromPath = (pathname: string): string => {
         return `freight-${segments[2]}` // e.g., freight-inbound
       }
       return 'freight'
+    }
+    if (segments[1] === 'inventory') {
+      // Handle /dashboard/inventory and sub-routes
+      if (segments.length >= 3) {
+        return `inventory-${segments[2]}` // e.g., inventory-batch
+      }
+      return 'inventory'
     }
     return segments[1] || 'dashboard'
   }

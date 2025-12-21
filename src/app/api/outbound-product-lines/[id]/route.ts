@@ -109,16 +109,16 @@ export async function PUT(
             ? body.batchNumber
             : existingProductLine.batchNumber,
         skuId: body.skuId !== undefined ? body.skuId : existingProductLine.skuId,
-        requiredQty:
-          body.requiredQty !== undefined ? body.requiredQty : existingProductLine.requiredQty,
-        requiredWeight:
-          body.requiredWeight !== undefined
-            ? body.requiredWeight
-            : existingProductLine.requiredWeight,
-        requiredCubicPerHU:
-          body.requiredCubicPerHU !== undefined
-            ? body.requiredCubicPerHU
-            : existingProductLine.requiredCubicPerHU,
+        expectedQty:
+          body.expectedQty !== undefined ? body.expectedQty : existingProductLine.expectedQty,
+        expectedWeight:
+          body.expectedWeight !== undefined
+            ? body.expectedWeight
+            : existingProductLine.expectedWeight,
+        expectedCubicPerHU:
+          body.expectedCubicPerHU !== undefined
+            ? body.expectedCubicPerHU
+            : existingProductLine.expectedCubicPerHU,
         containerNumber:
           body.containerNumber !== undefined
             ? body.containerNumber
@@ -220,6 +220,7 @@ export async function DELETE(
     )
   }
 }
+
 
 
 

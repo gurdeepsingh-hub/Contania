@@ -3,9 +3,14 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    const context = await getTenantContext(request, 'settings_entity_settings')
+    // Allow both settings_entity_settings and inventory_view permissions
+    let context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
-      return NextResponse.json({ message: context.error }, { status: context.status })
+      // Try with inventory_view permission as fallback
+      context = await getTenantContext(request, 'inventory_view')
+      if ('error' in context) {
+        return NextResponse.json({ message: context.error }, { status: context.status })
+      }
     }
 
     const { payload, tenant } = context
