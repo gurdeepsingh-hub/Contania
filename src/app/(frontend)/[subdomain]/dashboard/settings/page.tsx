@@ -90,8 +90,8 @@ export default function SettingsPage() {
     },
     {
       id: 'user-settings',
-      title: 'User Settings',
-      description: 'Configure user preferences and account settings',
+      title: 'Account Settings',
+      description: 'Configure account settings and company information',
       icon: UserCog,
       href: '/dashboard/settings/user-settings',
       enabled:

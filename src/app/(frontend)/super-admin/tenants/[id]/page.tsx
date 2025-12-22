@@ -6,12 +6,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CardDecorator } from '@/components/ui/card-decorator'
 import { Label } from '@/components/ui/label'
-import { 
-  Building2, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Users, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Mail,
+  Users,
   ArrowLeft,
   CheckCircle,
   XCircle,
@@ -19,8 +24,10 @@ import {
   Globe,
   Send,
   AlertCircle,
-  X
+  X,
+  Edit,
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 
 type Tenant = {
   id: number
@@ -68,17 +75,43 @@ export default function TenantDetailsPage() {
   const [loading, setLoading] = useState(true)
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([])
-  const [resendingEmail, setResendingEmail] = useState(false)
-  const [emailMessage, setEmailMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [resendingApprovalEmail, setResendingApprovalEmail] = useState(false)
+  const [resendingCredentials, setResendingCredentials] = useState(false)
+  const [emailMessage, setEmailMessage] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
   const [showRevertModal, setShowRevertModal] = useState(false)
   const [revertReason, setRevertReason] = useState('')
   const [reverting, setReverting] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState<'approval' | 'credentials' | null>(
+    null,
+  )
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editFormData, setEditFormData] = useState<Partial<Tenant>>({})
 
   useEffect(() => {
     if (tenantId) {
       loadTenantDetails()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
+
+  useEffect(() => {
+    if (tenant && showEditDialog) {
+      setEditFormData({
+        companyName: tenant.companyName,
+        fullName: tenant.fullName,
+        email: tenant.email,
+        phone: tenant.phone,
+        fax: tenant.fax,
+        website: tenant.website,
+        address: tenant.address ? { ...tenant.address } : undefined,
+        emails: tenant.emails ? { ...tenant.emails } : undefined,
+      })
+    }
+  }, [tenant, showEditDialog])
 
   const loadTenantDetails = async () => {
     try {
@@ -99,7 +132,12 @@ export default function TenantDetailsPage() {
   const handleResendEmail = async (type: 'approval' | 'credentials') => {
     if (!tenant) return
 
-    setResendingEmail(true)
+    // Set the appropriate loading state based on type
+    if (type === 'approval') {
+      setResendingApprovalEmail(true)
+    } else {
+      setResendingCredentials(true)
+    }
     setEmailMessage(null)
 
     try {
@@ -127,8 +165,53 @@ export default function TenantDetailsPage() {
         text: 'An error occurred while sending the email',
       })
     } finally {
-      setResendingEmail(false)
+      // Clear the appropriate loading state based on type
+      if (type === 'approval') {
+        setResendingApprovalEmail(false)
+      } else {
+        setResendingCredentials(false)
+      }
       // Clear message after 5 seconds
+      setTimeout(() => setEmailMessage(null), 5000)
+    }
+  }
+
+  const handleUpdateTenant = async () => {
+    if (!tenant) return
+
+    setEditing(true)
+    setEmailMessage(null)
+
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenantId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setEmailMessage({
+          type: 'success',
+          text: 'Tenant information updated successfully.',
+        })
+        setShowEditDialog(false)
+        await loadTenantDetails()
+      } else {
+        setEmailMessage({
+          type: 'error',
+          text: data.message || 'Failed to update tenant information',
+        })
+      }
+    } catch (error) {
+      console.error('Error updating tenant:', error)
+      setEmailMessage({
+        type: 'error',
+        text: 'An error occurred while updating tenant information',
+      })
+    } finally {
+      setEditing(false)
       setTimeout(() => setEmailMessage(null), 5000)
     }
   }
@@ -200,8 +283,8 @@ export default function TenantDetailsPage() {
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-12 space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={() => router.push('/super-admin/tenants')}
           className="w-full sm:w-auto min-h-[44px]"
@@ -211,7 +294,9 @@ export default function TenantDetailsPage() {
           <span className="sm:hidden">Back</span>
         </Button>
         <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight truncate">{tenant.companyName}</h1>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight truncate">
+            {tenant.companyName}
+          </h1>
           {tenant.approved ? (
             <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-500 flex-shrink-0" />
           ) : (
@@ -225,17 +310,34 @@ export default function TenantDetailsPage() {
         <Card className="relative rounded-none shadow-zinc-950/5">
           <CardDecorator />
           <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Company Information</CardTitle>
-            <CardDescription>Basic company details</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg sm:text-xl">Company Information</CardTitle>
+                <CardDescription>Basic company details</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowEditDialog(true)}
+                className="min-h-[44px]"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4 sm:space-y-6">
             <div>
-              <label className="text-sm font-medium text-muted-foreground block mb-1">Company Name</label>
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
+                Company Name
+              </label>
               <p className="font-medium text-sm sm:text-base break-words">{tenant.companyName}</p>
             </div>
             {tenant.fullName && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Full Legal Name</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Full Legal Name
+                </label>
                 <p className="font-medium text-sm sm:text-base break-words">{tenant.fullName}</p>
               </div>
             )}
@@ -245,7 +347,9 @@ export default function TenantDetailsPage() {
             </div>
             {tenant.phone && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Phone</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Phone
+                </label>
                 <p className="font-medium text-sm sm:text-base">{tenant.phone}</p>
               </div>
             )}
@@ -257,10 +361,17 @@ export default function TenantDetailsPage() {
             )}
             {tenant.website && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Website</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Website
+                </label>
                 <p className="font-medium text-sm sm:text-base flex items-center gap-2 flex-wrap">
                   <Globe className="h-4 w-4 flex-shrink-0" />
-                  <a href={tenant.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                  <a
+                    href={tenant.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline break-all"
+                  >
                     {tenant.website}
                   </a>
                 </p>
@@ -268,7 +379,9 @@ export default function TenantDetailsPage() {
             )}
             {tenant.subdomain && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground block mb-1">Subdomain</label>
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
+                  Subdomain
+                </label>
                 <p className="font-medium text-sm sm:text-base">{tenant.subdomain}</p>
               </div>
             )}
@@ -287,7 +400,9 @@ export default function TenantDetailsPage() {
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground block mb-1">Created</label>
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
+                Created
+              </label>
               <p className="font-medium text-sm sm:text-base flex items-center gap-2">
                 <Calendar className="h-4 w-4 flex-shrink-0" />
                 {new Date(tenant.createdAt).toLocaleDateString()}
@@ -306,7 +421,9 @@ export default function TenantDetailsPage() {
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3">
               {tenant.address.street && (
-                <p className="font-medium text-sm sm:text-base break-words">{tenant.address.street}</p>
+                <p className="font-medium text-sm sm:text-base break-words">
+                  {tenant.address.street}
+                </p>
               )}
               <p className="text-muted-foreground text-sm sm:text-base break-words">
                 {[
@@ -334,31 +451,41 @@ export default function TenantDetailsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {tenant.emails.account && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1">Account</label>
+                    <label className="text-sm font-medium text-muted-foreground block mb-1">
+                      Account
+                    </label>
                     <p className="text-sm sm:text-base break-words">{tenant.emails.account}</p>
                   </div>
                 )}
                 {tenant.emails.bookings && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1">Bookings</label>
+                    <label className="text-sm font-medium text-muted-foreground block mb-1">
+                      Bookings
+                    </label>
                     <p className="text-sm sm:text-base break-words">{tenant.emails.bookings}</p>
                   </div>
                 )}
                 {tenant.emails.management && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1">Management</label>
+                    <label className="text-sm font-medium text-muted-foreground block mb-1">
+                      Management
+                    </label>
                     <p className="text-sm sm:text-base break-words">{tenant.emails.management}</p>
                   </div>
                 )}
                 {tenant.emails.operations && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1">Operations</label>
+                    <label className="text-sm font-medium text-muted-foreground block mb-1">
+                      Operations
+                    </label>
                     <p className="text-sm sm:text-base break-words">{tenant.emails.operations}</p>
                   </div>
                 )}
                 {tenant.emails.replyTo && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1">Reply-To</label>
+                    <label className="text-sm font-medium text-muted-foreground block mb-1">
+                      Reply-To
+                    </label>
                     <p className="text-sm sm:text-base break-words">{tenant.emails.replyTo}</p>
                   </div>
                 )}
@@ -399,7 +526,9 @@ export default function TenantDetailsPage() {
                         `Tenant approved successfully!\n\nSubdomain: ${data.credentials?.subdomain}\nEmail: ${data.credentials?.email}\nPassword: ${data.credentials?.password}\n\nThese credentials have been sent to the tenant via email.`,
                       )
                     } else {
-                      const error = await res.json().catch(() => ({ message: 'Failed to approve tenant' }))
+                      const error = await res
+                        .json()
+                        .catch(() => ({ message: 'Failed to approve tenant' }))
                       alert(error.message || 'Failed to approve tenant')
                     }
                   } catch (error) {
@@ -451,7 +580,9 @@ export default function TenantDetailsPage() {
           <CardDecorator />
           <CardHeader>
             <CardTitle className="text-lg sm:text-xl">Request Corrections</CardTitle>
-            <CardDescription>Request the tenant to correct their registration details</CardDescription>
+            <CardDescription>
+              Request the tenant to correct their registration details
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button
@@ -492,25 +623,26 @@ export default function TenantDetailsPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 variant="outline"
-                onClick={() => handleResendEmail('approval')}
-                disabled={resendingEmail}
+                onClick={() => setShowConfirmDialog('approval')}
+                disabled={resendingApprovalEmail || resendingCredentials}
                 className="min-h-[44px]"
               >
                 <Send className="h-4 w-4 mr-2" />
-                {resendingEmail ? 'Sending...' : 'Resend Approval Email'}
+                {resendingApprovalEmail ? 'Sending...' : 'Resend Approval Email'}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => handleResendEmail('credentials')}
-                disabled={resendingEmail}
+                onClick={() => setShowConfirmDialog('credentials')}
+                disabled={resendingApprovalEmail || resendingCredentials}
                 className="min-h-[44px]"
               >
                 <Send className="h-4 w-4 mr-2" />
-                {resendingEmail ? 'Sending...' : 'Resend Credentials'}
+                {resendingCredentials ? 'Sending...' : 'Resend Credentials'}
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Resending credentials will generate a new temporary password for the tenant admin user.
+              Resending credentials will generate a new temporary password for the tenant admin
+              user.
             </p>
           </CardContent>
         </Card>
@@ -550,19 +682,15 @@ export default function TenantDetailsPage() {
                         <Mail className="h-4 w-4 flex-shrink-0" />
                         <span className="truncate">{user.email}</span>
                       </div>
-                      {user.position && (
-                        <p className="break-words">Position: {user.position}</p>
-                      )}
-                      {user.phoneMobile && (
-                        <p>Mobile: {user.phoneMobile}</p>
-                      )}
-                      {user.phoneFixed && (
-                        <p>Fixed: {user.phoneFixed}</p>
-                      )}
+                      {user.position && <p className="break-words">Position: {user.position}</p>}
+                      {user.phoneMobile && <p>Mobile: {user.phoneMobile}</p>}
+                      {user.phoneFixed && <p>Fixed: {user.phoneFixed}</p>}
                       {user.status && (
                         <p>
                           Status:{' '}
-                          <span className={user.status === 'active' ? 'text-green-600' : 'text-red-600'}>
+                          <span
+                            className={user.status === 'active' ? 'text-green-600' : 'text-red-600'}
+                          >
                             {user.status}
                           </span>
                         </p>
@@ -638,8 +766,264 @@ export default function TenantDetailsPage() {
           </Card>
         </div>
       )}
+
+      {/* Confirmation Dialog for Resend Email */}
+      <Dialog
+        open={showConfirmDialog !== null}
+        onOpenChange={(open) => !open && setShowConfirmDialog(null)}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {showConfirmDialog === 'approval' ? 'Resend Approval Email' : 'Resend Credentials'}
+            </DialogTitle>
+            <DialogDescription>
+              {showConfirmDialog === 'approval' ? (
+                <>
+                  Are you sure you want to resend the approval email to{' '}
+                  <span className="font-semibold">{tenant?.companyName}</span>?
+                </>
+              ) : (
+                <>
+                  Are you sure you want to resend credentials? This will generate a new temporary
+                  password for the tenant admin user.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(null)}
+              disabled={resendingApprovalEmail || resendingCredentials}
+              className="min-h-[44px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (showConfirmDialog) {
+                  handleResendEmail(showConfirmDialog)
+                  setShowConfirmDialog(null)
+                }
+              }}
+              disabled={resendingApprovalEmail || resendingCredentials}
+              className="min-h-[44px]"
+            >
+              {resendingApprovalEmail || resendingCredentials
+                ? 'Sending...'
+                : showConfirmDialog === 'approval'
+                  ? 'Resend Approval Email'
+                  : 'Resend Credentials'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Tenant Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Company Information</DialogTitle>
+            <DialogDescription>Update tenant company details</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="companyName">Company Name *</Label>
+              <Input
+                id="companyName"
+                value={editFormData.companyName || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, companyName: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="fullName">Full Legal Name</Label>
+              <Input
+                id="fullName"
+                value={editFormData.fullName || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, fullName: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editFormData.email || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={editFormData.phone || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="fax">Fax</Label>
+                <Input
+                  id="fax"
+                  type="tel"
+                  value={editFormData.fax || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, fax: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                type="url"
+                value={editFormData.website || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, website: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label className="mb-2 block">Address</Label>
+              <div className="space-y-2">
+                <Input
+                  placeholder="Street address"
+                  value={editFormData.address?.street || ''}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      address: { ...editFormData.address, street: e.target.value },
+                    })
+                  }
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="City"
+                    value={editFormData.address?.city || ''}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        address: { ...editFormData.address, city: e.target.value },
+                      })
+                    }
+                  />
+                  <Input
+                    placeholder="State"
+                    value={editFormData.address?.state || ''}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        address: { ...editFormData.address, state: e.target.value },
+                      })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Postal Code"
+                    value={editFormData.address?.postalCode || ''}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        address: { ...editFormData.address, postalCode: e.target.value },
+                      })
+                    }
+                  />
+                  <Input
+                    placeholder="Country Code"
+                    value={editFormData.address?.countryCode || ''}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        address: { ...editFormData.address, countryCode: e.target.value },
+                      })
+                    }
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+            </div>
+            <div>
+              <Label className="mb-2 block">Department Emails</Label>
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="Account/Finance email"
+                  value={editFormData.emails?.account || ''}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      emails: { ...editFormData.emails, account: e.target.value },
+                    })
+                  }
+                />
+                <Input
+                  type="email"
+                  placeholder="Bookings email"
+                  value={editFormData.emails?.bookings || ''}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      emails: { ...editFormData.emails, bookings: e.target.value },
+                    })
+                  }
+                />
+                <Input
+                  type="email"
+                  placeholder="Management email"
+                  value={editFormData.emails?.management || ''}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      emails: { ...editFormData.emails, management: e.target.value },
+                    })
+                  }
+                />
+                <Input
+                  type="email"
+                  placeholder="Operations email"
+                  value={editFormData.emails?.operations || ''}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      emails: { ...editFormData.emails, operations: e.target.value },
+                    })
+                  }
+                />
+                <Input
+                  type="email"
+                  placeholder="Reply-To email"
+                  value={editFormData.emails?.replyTo || ''}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      emails: { ...editFormData.emails, replyTo: e.target.value },
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowEditDialog(false)}
+              disabled={editing}
+              className="min-h-[44px]"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateTenant} disabled={editing} className="min-h-[44px]">
+              {editing ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
-

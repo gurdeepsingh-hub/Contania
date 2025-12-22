@@ -67,7 +67,7 @@ export default buildConfig({
   ],
   email: nodemailerAdapter(),
   // {
-  // defaultFromName: process.env.EMAIL_FROM_NAME || 'Contania',
+  // defaultFromName: process.env.EMAIL_FROM_NAME || 'Containa',
   // defaultFromAddress:
   //   process.env.EMAIL_FROM || `no-reply@${process.env.DEFAULT_HOST || 'localhost'}`,
   // transportOptions: {

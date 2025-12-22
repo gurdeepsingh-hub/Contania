@@ -10,7 +10,7 @@ const getEmailTemplate = (content: string) => `
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Contania</title>
+  <title>Containa</title>
   <style>
     * {
       margin: 0;
@@ -198,7 +198,7 @@ const getEmailTemplate = (content: string) => `
 <body>
   <div class="email-wrapper">
     <div class="header">
-      <h1>Contania</h1>
+      <h1>Containa</h1>
     </div>
     <div class="email-container">
       <div class="content">
@@ -206,8 +206,8 @@ const getEmailTemplate = (content: string) => `
       </div>
     </div>
     <div class="footer">
-      <p>This is an automated message from Contania. Please do not reply to this email.</p>
-      <p style="margin-top: 8px;">© ${new Date().getFullYear()} Contania. All rights reserved.</p>
+      <p>This is an automated message from Containa. Please do not reply to this email.</p>
+      <p style="margin-top: 8px;">© ${new Date().getFullYear()} Containa. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -253,7 +253,7 @@ export function getTenantApprovalEmail(tenant: {
   const loginUrl = `https://${tenant.subdomain}.${domain}`
 
   const content = `
-    <h2>Welcome to Contania!</h2>
+    <h2>Welcome to Containa!</h2>
     <p>Your tenant account for <strong>${tenant.companyName}</strong> has been approved.</p>
     
     <div class="info-box success">
@@ -293,7 +293,7 @@ export function getTenantRejectionEmail(tenant: {
 }) {
   const content = `
     <h2>Registration Update</h2>
-    <p>Thank you for your interest in Contania.</p>
+    <p>Thank you for your interest in Containa.</p>
     <p>Unfortunately, your tenant registration for <strong>${tenant.companyName}</strong> has not been approved at this time.</p>
     
     ${
@@ -328,8 +328,8 @@ export function getTenantUserWelcomeEmail(user: {
   const loginUrl = `https://${user.subdomain}.${domain}`
 
   const content = `
-    <h2>Welcome to Contania, ${user.fullName}!</h2>
-    <p>You have been added as a user to <strong>${user.companyName}</strong> on the Contania platform.</p>
+    <h2>Welcome to Containa, ${user.fullName}!</h2>
+    <p>You have been added as a user to <strong>${user.companyName}</strong> on the Containa platform.</p>
     
     ${
       user.userGroup
@@ -361,7 +361,7 @@ export function getTenantUserWelcomeEmail(user: {
     <p style="margin-top: 24px;">If you have any questions, please contact your administrator.</p>
   `
   return {
-    subject: `Welcome to ${user.companyName} - Your Contania Account`,
+    subject: `Welcome to ${user.companyName} - Your Containa Account`,
     html: getEmailTemplate(content),
   }
 }
@@ -421,4 +421,42 @@ export function getTenantRevertEmail(tenant: {
     subject: `Action Required: Please Correct Your Tenant Registration - ${tenant.companyName}`,
     html: getEmailTemplate(content),
   }
+}
+
+/**
+ * Contact form email template
+ */
+export function getContactFormEmailTemplate(data: {
+  name: string
+  email: string
+  company: string
+  phone: string
+  message: string
+}): string {
+  const { name, email, company, phone, message } = data
+
+  const content = `
+    <h2>New Contact Form Submission</h2>
+    
+    <p>You have received a new message from the contact form on your website.</p>
+    
+    <div class="info-box">
+      <h3>Contact Information</h3>
+      <p><strong>Name:</strong> ${name}</p>
+      <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+      <p><strong>Company:</strong> ${company}</p>
+      <p><strong>Phone:</strong> ${phone}</p>
+    </div>
+    
+    <div class="info-box">
+      <h3>Message</h3>
+      <p style="white-space: pre-wrap;">${message}</p>
+    </div>
+    
+    <p style="margin-top: 24px;">
+      <a href="mailto:${email}" class="button">Reply to ${name}</a>
+    </p>
+  `
+
+  return getEmailTemplate(content)
 }

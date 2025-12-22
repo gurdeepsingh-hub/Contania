@@ -20,37 +20,49 @@ interface BannerProps {
 }
 
 export function Banner({
-  title = "Introducing Containa - The Future of Transportation Management",
-  description = "Transform your logistics operations with intelligent precision. Join industry leaders who trust Containa for their critical operations.",
+  title = 'Introducing Containa - The Future of Transportation Management',
+  description = 'Transform your logistics operations with intelligent precision. Join industry leaders who trust Containa for their critical operations.',
   primaryAction,
   secondaryAction,
   onClose,
-  className
+  className,
 }: BannerProps) {
   return (
-    <section className={cn(
-      "relative overflow-hidden bg-banner min-h-screen flex items-center justify-center",
-      className
-    )}>
+    <section
+      className={cn(
+        'relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 min-h-screen flex items-center justify-center',
+        className,
+      )}
+    >
       <div className="container mx-auto px-4">
         <div className="mx-auto max-w-4xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-banner-foreground sm:text-5xl lg:text-6xl mb-6 animate-fade-in">
+          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl mb-6 animate-fade-in drop-shadow-lg">
             {title}
           </h1>
           {description && (
-            <p className="mx-auto max-w-3xl text-xl text-banner-foreground/80 mb-8 animate-slide-up stagger-1">
+            <p className="mx-auto max-w-3xl text-xl text-white/90 mb-10 animate-slide-up stagger-1 drop-shadow-md leading-relaxed">
               {description}
             </p>
           )}
           {(primaryAction || secondaryAction) && (
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center animate-slide-up stagger-2">
               {primaryAction && (
-                <Button variant="banner" size="lg" className="group" asChild>
+                <Button
+                  variant="default"
+                  size="lg"
+                  className="group bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700 shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold"
+                  asChild
+                >
                   <Link href={primaryAction.href}>{primaryAction.label}</Link>
                 </Button>
               )}
               {secondaryAction && (
-                <Button variant="bannerOutline" size="lg" className="group" asChild>
+                <Button
+                  variant="heroOutline"
+                  size="lg"
+                  className="group border-2 border-white/90 text-white hover:bg-white/10 hover:border-white shadow-lg hover:shadow-xl transition-all duration-300 font-semibold backdrop-blur-sm"
+                  asChild
+                >
                   <Link href={secondaryAction.href}>{secondaryAction.label}</Link>
                 </Button>
               )}
@@ -58,7 +70,7 @@ export function Banner({
           )}
         </div>
       </div>
-      
+
       {onClose && (
         <Button
           variant="ghost"
@@ -71,4 +83,4 @@ export function Banner({
       )}
     </section>
   )
-} 
+}

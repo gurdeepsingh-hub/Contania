@@ -31,7 +31,7 @@ export default function TenantHomePage() {
         // Not authenticated, show login page
       }
     }
-    
+
     if (!loading && tenant) {
       checkAuth()
     }
@@ -80,7 +80,9 @@ export default function TenantHomePage() {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Tenant Not Found</CardTitle>
-            <CardDescription>The subdomain you&apos;re trying to access is not valid.</CardDescription>
+            <CardDescription>
+              The subdomain you&apos;re trying to access is not valid.
+            </CardDescription>
           </CardHeader>
         </Card>
       </div>
@@ -89,16 +91,14 @@ export default function TenantHomePage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left side - Contania promotional content */}
+      {/* Left side - Containa promotional content */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-700 items-center justify-center p-12">
         <div className="max-w-md text-white space-y-6">
-          <h1 className="text-4xl font-bold">Contania</h1>
-          <p className="text-xl text-blue-100">
-            The Future of Transportation Management
-          </p>
+          <h1 className="text-4xl font-bold">Containa</h1>
+          <p className="text-xl text-blue-100">The Future of Transportation Management</p>
           <p className="text-blue-100">
-            Transform your logistics operations with intelligent precision. 
-            Join industry leaders who trust Contania for their critical operations.
+            Transform your logistics operations with intelligent precision. Join industry leaders
+            who trust Containa for their critical operations.
           </p>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -191,5 +191,3 @@ export default function TenantHomePage() {
     </div>
   )
 }
-
-

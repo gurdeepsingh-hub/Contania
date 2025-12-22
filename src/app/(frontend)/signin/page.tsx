@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { Logo } from '@/components/home/logo'
+import { getLogoProps } from '@/lib/logo-config'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -16,6 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
   const { login, isLoading } = useAuth()
+  const logoProps = getLogoProps('header')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,12 +26,13 @@ export default function LoginPage() {
 
     try {
       const data = await login(email, password)
-      // Check if user is super admin and redirect accordingly
+      // Regular signin page should redirect non-super admins only
+      // Super admins should use /admin-signin
       if (data?.user?.role === 'superadmin') {
-        router.push('/super-admin')
-      } else {
-        router.push('/')
+        setError('Super admin access is not available on this page. Please use the super admin sign in page.')
+        return
       }
+      router.push('/')
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Login failed')
     }
@@ -39,9 +43,7 @@ export default function LoginPage() {
       <Card className="shadow-xl w-full max-w-md">
         <CardHeader className="space-y-1 pb-8">
           <div className="flex justify-center mb-4">
-            <div className="bg-primary p-3 rounded-full">
-              <Lock className="w-6 h-6 text-primary-foreground" />
-            </div>
+            <Logo {...logoProps} />
           </div>
           <CardTitle className="font-bold text-2xl text-center">Admin Login</CardTitle>
           <CardDescription className="text-center">

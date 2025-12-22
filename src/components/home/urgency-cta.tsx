@@ -21,16 +21,6 @@ export function UrgencyCTA({ className }: UrgencyCTAProps) {
           <p className="mx-auto max-w-2xl text-lg text-muted-foreground mb-8">
             Join thousands of companies that have already revolutionized their transportation operations with Containa TMS.
           </p>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Button variant="cta" size="lg" className="group">
-              Start Free Trial
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-            <Button variant="ctaOutline" size="lg" className="group">
-              Schedule Demo
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
         </div>
       </div>
     </section>

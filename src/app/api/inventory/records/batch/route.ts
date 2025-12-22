@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (ids.length > 500) {
       return NextResponse.json(
         { message: 'Maximum 500 records per batch request' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -75,10 +75,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching batch LPN records:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch batch LPN records' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch batch LPN records' }, { status: 500 })
   }
 }
 
@@ -103,10 +100,7 @@ export async function PUT(request: NextRequest) {
 
     // Limit batch size to prevent abuse
     if (updates.length > 500) {
-      return NextResponse.json(
-        { message: 'Maximum 500 records per batch update' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Maximum 500 records per batch update' }, { status: 400 })
     }
 
     // Process updates - for status changes with side effects, process sequentially
@@ -264,7 +258,11 @@ export async function PUT(request: NextRequest) {
             })
             continue
           }
-          if (currentStatus === 'allocated' && newStatus !== 'picked' && newStatus !== 'available') {
+          if (
+            currentStatus === 'allocated' &&
+            newStatus !== 'picked' &&
+            newStatus !== 'available'
+          ) {
             results.push({
               id,
               success: false,
@@ -272,7 +270,11 @@ export async function PUT(request: NextRequest) {
             })
             continue
           }
-          if (currentStatus === 'picked' && newStatus !== 'available' && newStatus !== 'allocated') {
+          if (
+            currentStatus === 'picked' &&
+            newStatus !== 'available' &&
+            newStatus !== 'allocated'
+          ) {
             results.push({
               id,
               success: false,
@@ -470,4 +472,3 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ message: 'Failed to process batch update' }, { status: 500 })
   }
 }
-

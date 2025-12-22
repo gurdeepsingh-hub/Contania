@@ -1,6 +1,6 @@
 # Environment Variables
 
-This document lists all environment variables used in the Contania application.
+This document lists all environment variables used in the Containa application.
 
 ## Required Variables
 
@@ -41,7 +41,7 @@ NEXT_PUBLIC_SERVER_URL=https://containa.io
 ```env
 # Email sender address
 EMAIL_FROM=noreply@containa.io
-EMAIL_FROM_NAME=Contania
+EMAIL_FROM_NAME=Containa
 
 # SMTP configuration (if using custom SMTP)
 SMTP_HOST=smtp.example.com
@@ -79,7 +79,7 @@ For production deployment on EC2:
 DEFAULT_HOST=containa.io
 
 # Database
-DATABASE_URI=postgres://admin_contania:password@contania.ctesssq8oy6x.ap-southeast-2.rds.amazonaws.com/contania
+DATABASE_URI=postgres://admin_containa:password@containa.ctesssq8oy6x.ap-southeast-2.rds.amazonaws.com/containa
 
 # Payload
 PAYLOAD_SECRET=your-random-secret-key-here-minimum-32-characters

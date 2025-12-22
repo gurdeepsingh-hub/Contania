@@ -61,7 +61,7 @@ export function Header({ className, notifications = 0 }: HeaderProps) {
   // Get unified header logo configuration
   const headerLogoProps = getLogoProps('header')
 
-  // Show tenant company name on subdomain, otherwise show Contania logo
+  // Show tenant company name on subdomain, otherwise show Containa logo
   const brandDisplay = tenant ? (
     <Link href="/" className="font-semibold text-lg hover:opacity-90 transition-opacity">
       {tenant.companyName}
@@ -125,11 +125,8 @@ export function Header({ className, notifications = 0 }: HeaderProps) {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/signin">Sign In</Link>
-              </Button>
               <Button size="sm" asChild>
-                <Link href="/onboarding">Apply as Tenant</Link>
+                <Link href="/onboarding">Sign Up</Link>
               </Button>
             </div>
           )}

@@ -33,7 +33,7 @@ export function Footer({ className }: FooterProps) {
         { name: "About", href: "#" },
         { name: "Blog", href: "#" },
         { name: "Careers", href: "#" },
-        { name: "Contact", href: "#" },
+        { name: "Contact", href: "/contact" },
       ],
     },
     {

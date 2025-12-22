@@ -5,8 +5,8 @@ import { RootHeaderbarWrapper } from '@/components/common/root-headerbar-wrapper
 import { ConditionalHeader } from '@/components/common/conditional-header'
 
 export const metadata = {
-  description: 'A blank template using Payload in a Next.js app.',
-  title: 'Payload Blank Template',
+  description: 'Containa - Transport Management System. Streamline your logistics operations with intelligent precision.',
+  title: 'Containa - Transport Management System',
 }
 
 export default async function RootLayout(props: { children: React.ReactNode }) {

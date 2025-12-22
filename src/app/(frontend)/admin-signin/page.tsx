@@ -1,77 +1,42 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useTenant } from '@/lib/tenant-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
 import { Logo } from '@/components/home/logo'
 import { getLogoProps } from '@/lib/logo-config'
 
-export default function TenantLoginPage() {
-  const router = useRouter()
-  const { tenant, loading: tenantLoading } = useTenant()
+export default function AdminSignInPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const logoProps = getLogoProps('header')
+  const router = useRouter()
+  const { login, isLoading } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setIsLoading(true)
 
     try {
-      const response = await fetch('/api/tenant-users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Use window.location.href to force full page reload and ensure cookies are available
-        window.location.href = '/dashboard'
+      const data = await login(email, password)
+      // Check if user is super admin and redirect accordingly
+      if (data?.user?.role === 'superadmin') {
+        router.push('/super-admin')
       } else {
-        const errorData = await response.json()
-        setError(errorData.message || 'Invalid credentials')
+        setError('Access denied. This page is for super administrators only.')
       }
     } catch (error) {
-      setError('Login failed. Please try again.')
-    } finally {
-      setIsLoading(false)
+      setError(error instanceof Error ? error.message : 'Login failed')
     }
   }
 
-  if (tenantLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    )
-  }
-
-  if (!tenant) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Tenant Not Found</CardTitle>
-            <CardDescription>
-              The subdomain you&apos;re trying to access is not valid.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    )
-  }
+  const logoProps = getLogoProps('header')
 
   return (
     <div className="flex justify-center items-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 sm:px-6 lg:px-8 py-12 min-h-screen">
@@ -80,9 +45,9 @@ export default function TenantLoginPage() {
           <div className="flex justify-center mb-4">
             <Logo {...logoProps} />
           </div>
-          <CardTitle className="font-bold text-2xl text-center">{tenant.companyName}</CardTitle>
+          <CardTitle className="font-bold text-2xl text-center">Super Admin Login</CardTitle>
           <CardDescription className="text-center">
-            Sign in to access your tenant portal
+            Enter your credentials to access the super admin panel
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -96,7 +61,7 @@ export default function TenantLoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="user@company.com"
+                  placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -113,6 +78,7 @@ export default function TenantLoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pr-10 pl-10"
@@ -136,6 +102,14 @@ export default function TenantLoginPage() {
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
+          <div className="mt-6 text-center">
+            <p className="text-muted-foreground text-sm">
+              Forgot your password?{' '}
+              <a href="#" className="text-primary hover:underline">
+                Reset it here
+              </a>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

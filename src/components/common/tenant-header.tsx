@@ -75,7 +75,7 @@ export function TenantHeader({ className }: TenantHeaderProps) {
       )}
     >
       <div className="flex justify-between items-center mx-auto px-6 sm:px-8 lg:px-12 max-w-7xl h-16">
-        {/* Left side - Contania Logo */}
+        {/* Left side - Containa Logo */}
         <div className="flex items-center">
           <Logo {...headerLogoProps} href="/" />
         </div>

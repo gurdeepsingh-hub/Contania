@@ -37,6 +37,7 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [validatedSteps, setValidatedSteps] = useState<Set<number>>(new Set())
 
   // Step 1: Company Information
   const [companyName, setCompanyName] = useState('')
@@ -150,6 +151,9 @@ export default function OnboardingPage() {
   }, [subdomain])
 
   const next = () => {
+    // Mark current step as validated
+    setValidatedSteps((prev) => new Set(prev).add(step))
+
     // Validation
     if (step === 0 && !companyName) {
       setError('Company name is required')
@@ -166,9 +170,15 @@ export default function OnboardingPage() {
     setError(null)
     setStep((s) => Math.min(4, s + 1))
   }
-  const back = () => setStep((s) => Math.max(0, s - 1))
+  const back = () => {
+    setError(null)
+    setStep((s) => Math.max(0, s - 1))
+  }
 
   const submit = async () => {
+    // Mark step 3 as validated if not already
+    setValidatedSteps((prev) => new Set(prev).add(3))
+
     if (!privacyConsent) {
       setError('You must accept the privacy policy to continue')
       return
@@ -246,7 +256,9 @@ export default function OnboardingPage() {
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   placeholder="Trading name"
-                  error={step === 0 && !companyName ? 'Company name is required' : undefined}
+                  error={
+                    validatedSteps.has(0) && !companyName ? 'Company name is required' : undefined
+                  }
                 />
                 <FormInput
                   label="Full legal name"
@@ -336,7 +348,7 @@ export default function OnboardingPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="contact@company.com"
-                  error={step === 1 && !email ? 'Email is required' : undefined}
+                  error={validatedSteps.has(1) && !email ? 'Email is required' : undefined}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormInput
@@ -490,7 +502,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="pt-4 border-t">
                   <label
-                    className={`flex items-center gap-2 ${step === 3 && !privacyConsent && error ? 'text-red-600' : ''}`}
+                    className={`flex items-center gap-2 ${validatedSteps.has(3) && !privacyConsent && error ? 'text-red-600' : ''}`}
                   >
                     <input
                       type="checkbox"
@@ -503,7 +515,7 @@ export default function OnboardingPage() {
                       }}
                       required
                       className={
-                        step === 3 && !privacyConsent && error
+                        validatedSteps.has(3) && !privacyConsent && error
                           ? 'border-red-500 accent-red-500'
                           : ''
                       }
@@ -512,7 +524,7 @@ export default function OnboardingPage() {
                       I accept the privacy policy and terms of service *
                     </span>
                   </label>
-                  {step === 3 && !privacyConsent && error && (
+                  {validatedSteps.has(3) && !privacyConsent && error && (
                     <p className="text-sm text-red-600 mt-1 ml-6">{error}</p>
                   )}
                 </div>

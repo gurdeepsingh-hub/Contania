@@ -14,7 +14,7 @@ export default function HomePage() {
       {/* Full-screen Banner Section */}
       <Banner
         primaryAction={{
-          label: 'Start Free Trial',
+          label: 'Sign Up',
           href: '/onboarding',
         }}
         secondaryAction={{
@@ -27,16 +27,7 @@ export default function HomePage() {
       <ValueProposition />
 
       {/* Hero Section */}
-      <Hero
-        primaryAction={{
-          label: 'Learn More',
-          href: '/features',
-        }}
-        secondaryAction={{
-          label: 'View Documentation',
-          href: '/docs',
-        }}
-      />
+      <Hero />
 
       {/* Feature Cards Section */}
       <FeatureCards />
