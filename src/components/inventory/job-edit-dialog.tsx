@@ -144,194 +144,209 @@ export function JobEditDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, jobId, jobType])
 
-  const handleCustomerChange = useCallback(async (
-    field: 'customerId' | 'customerToId' | 'customerFromId',
-    customerValue: string,
-  ) => {
-    const [collection, idStr] = customerValue.split(':')
-    const customerId = parseInt(idStr, 10)
+  const handleCustomerChange = useCallback(
+    async (field: 'customerId' | 'customerToId' | 'customerFromId', customerValue: string) => {
+      const [collection, idStr] = customerValue.split(':')
+      const customerId = parseInt(idStr, 10)
 
-    if (!collection || !customerId) return
+      if (!collection || !customerId) return
 
-    try {
-      if (collection === 'warehouses') {
-        const res = await fetch(`/api/warehouses/${customerId}`)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success && data.warehouse) {
-            const wh = data.warehouse as { name?: string; city?: string; state?: string }
-            if (field === 'customerToId') {
-              setValue('customerToName', wh.name || '')
-              setValue('customerToLocation', wh.city || '')
-              setValue('customerToState', wh.state || '')
-            } else if (field === 'customerFromId') {
-              setValue('customerFromName', wh.name || '')
-              setValue('customerFromLocation', wh.city || '')
-              setValue('customerFromState', wh.state || '')
-            }
-          }
-        }
-      } else if (collection === 'customers' || collection === 'paying-customers') {
-        const apiPath =
-          collection === 'customers'
-            ? `/api/customers/${customerId}`
-            : `/api/paying-customers/${customerId}`
-        const res = await fetch(apiPath)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success) {
-            if (field === 'customerId') {
-              if (collection === 'customers' && data.customer) {
-                const cust = data.customer as Customer
-                setValue('customerName', cust.customer_name)
-                setValue('customerLocation', [cust.city, cust.state].filter(Boolean).join(', '))
-                setValue('customerState', cust.state || '')
-                setValue('customerContact', cust.contact_name || '')
-              } else if (collection === 'paying-customers' && data.payingCustomer) {
-                const cust = data.payingCustomer as PayingCustomer
-                const city =
-                  cust.delivery_city ||
-                  (cust.delivery_same_as_billing ? cust.billing_city : undefined)
-                const state =
-                  cust.delivery_state ||
-                  (cust.delivery_same_as_billing ? cust.billing_state : undefined)
-                setValue('customerName', cust.customer_name)
-                setValue('customerLocation', [city, state].filter(Boolean).join(', '))
-                setValue('customerState', state || '')
-                setValue('customerContact', cust.contact_name || '')
-              }
-            } else if (field === 'customerToId') {
-              if (collection === 'customers' && data.customer) {
-                const cust = data.customer as Customer
-                setValue('customerToName', cust.customer_name)
-                setValue('customerToLocation', [cust.city, cust.state].filter(Boolean).join(', '))
-                setValue('customerToState', cust.state || '')
-                setValue('customerToContact', cust.contact_name || '')
-              } else if (collection === 'paying-customers' && data.payingCustomer) {
-                const cust = data.payingCustomer as PayingCustomer
-                const city =
-                  cust.delivery_city ||
-                  (cust.delivery_same_as_billing ? cust.billing_city : undefined)
-                const state =
-                  cust.delivery_state ||
-                  (cust.delivery_same_as_billing ? cust.billing_state : undefined)
-                setValue('customerToName', cust.customer_name)
-                setValue('customerToLocation', [city, state].filter(Boolean).join(', '))
-                setValue('customerToState', state || '')
-                setValue('customerToContact', cust.contact_name || '')
-              }
-            } else if (field === 'customerFromId') {
-              if (collection === 'customers' && data.customer) {
-                const cust = data.customer as Customer
-                setValue('customerFromName', cust.customer_name)
-                setValue('customerFromLocation', [cust.city, cust.state].filter(Boolean).join(', '))
-                setValue('customerFromState', cust.state || '')
-                setValue('customerFromContact', cust.contact_name || '')
-              } else if (collection === 'paying-customers' && data.payingCustomer) {
-                const cust = data.payingCustomer as PayingCustomer
-                const city =
-                  cust.delivery_city ||
-                  (cust.delivery_same_as_billing ? cust.billing_city : undefined)
-                const state =
-                  cust.delivery_state ||
-                  (cust.delivery_same_as_billing ? cust.billing_state : undefined)
-                setValue('customerFromName', cust.customer_name)
-                setValue('customerFromLocation', [city, state].filter(Boolean).join(', '))
-                setValue('customerFromState', state || '')
-                setValue('customerFromContact', cust.contact_name || '')
+      try {
+        if (collection === 'warehouses') {
+          const res = await fetch(`/api/warehouses/${customerId}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.success && data.warehouse) {
+              const wh = data.warehouse as { name?: string; city?: string; state?: string }
+              if (field === 'customerToId') {
+                setValue('customerToName', wh.name || '')
+                setValue('customerToLocation', wh.city || '')
+                setValue('customerToState', wh.state || '')
+              } else if (field === 'customerFromId') {
+                setValue('customerFromName', wh.name || '')
+                setValue('customerFromLocation', wh.city || '')
+                setValue('customerFromState', wh.state || '')
               }
             }
           }
+        } else if (collection === 'customers' || collection === 'paying-customers') {
+          const apiPath =
+            collection === 'customers'
+              ? `/api/customers/${customerId}`
+              : `/api/paying-customers/${customerId}`
+          const res = await fetch(apiPath)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.success) {
+              if (field === 'customerId') {
+                if (collection === 'customers' && data.customer) {
+                  const cust = data.customer as Customer
+                  setValue('customerName', cust.customer_name)
+                  setValue('customerLocation', [cust.city, cust.state].filter(Boolean).join(', '))
+                  setValue('customerState', cust.state || '')
+                  setValue('customerContact', cust.contact_name || '')
+                } else if (collection === 'paying-customers' && data.payingCustomer) {
+                  const cust = data.payingCustomer as PayingCustomer
+                  const city =
+                    cust.delivery_city ||
+                    (cust.delivery_same_as_billing ? cust.billing_city : undefined)
+                  const state =
+                    cust.delivery_state ||
+                    (cust.delivery_same_as_billing ? cust.billing_state : undefined)
+                  setValue('customerName', cust.customer_name)
+                  setValue('customerLocation', [city, state].filter(Boolean).join(', '))
+                  setValue('customerState', state || '')
+                  setValue('customerContact', cust.contact_name || '')
+                }
+              } else if (field === 'customerToId') {
+                if (collection === 'customers' && data.customer) {
+                  const cust = data.customer as Customer
+                  setValue('customerToName', cust.customer_name)
+                  setValue('customerToLocation', [cust.city, cust.state].filter(Boolean).join(', '))
+                  setValue('customerToState', cust.state || '')
+                  setValue('customerToContact', cust.contact_name || '')
+                } else if (collection === 'paying-customers' && data.payingCustomer) {
+                  const cust = data.payingCustomer as PayingCustomer
+                  const city =
+                    cust.delivery_city ||
+                    (cust.delivery_same_as_billing ? cust.billing_city : undefined)
+                  const state =
+                    cust.delivery_state ||
+                    (cust.delivery_same_as_billing ? cust.billing_state : undefined)
+                  setValue('customerToName', cust.customer_name)
+                  setValue('customerToLocation', [city, state].filter(Boolean).join(', '))
+                  setValue('customerToState', state || '')
+                  setValue('customerToContact', cust.contact_name || '')
+                }
+              } else if (field === 'customerFromId') {
+                if (collection === 'customers' && data.customer) {
+                  const cust = data.customer as Customer
+                  setValue('customerFromName', cust.customer_name)
+                  setValue(
+                    'customerFromLocation',
+                    [cust.city, cust.state].filter(Boolean).join(', '),
+                  )
+                  setValue('customerFromState', cust.state || '')
+                  setValue('customerFromContact', cust.contact_name || '')
+                } else if (collection === 'paying-customers' && data.payingCustomer) {
+                  const cust = data.payingCustomer as PayingCustomer
+                  const city =
+                    cust.delivery_city ||
+                    (cust.delivery_same_as_billing ? cust.billing_city : undefined)
+                  const state =
+                    cust.delivery_state ||
+                    (cust.delivery_same_as_billing ? cust.billing_state : undefined)
+                  setValue('customerFromName', cust.customer_name)
+                  setValue('customerFromLocation', [city, state].filter(Boolean).join(', '))
+                  setValue('customerFromState', state || '')
+                  setValue('customerFromContact', cust.contact_name || '')
+                }
+              }
+            }
+          }
         }
+      } catch (error) {
+        console.error('Error fetching customer details:', error)
       }
-    } catch (error) {
-      console.error('Error fetching customer details:', error)
-    }
-  }, [setValue])
+    },
+    [setValue],
+  )
 
-  const handleInboundCustomerChange = useCallback(async (
-    field: 'deliveryCustomerId' | 'supplierId',
-    customerValue: string,
-  ) => {
-    const [collection, idStr] = customerValue.split(':')
-    const customerId = parseInt(idStr, 10)
+  const handleInboundCustomerChange = useCallback(
+    async (field: 'deliveryCustomerId' | 'supplierId', customerValue: string) => {
+      const [collection, idStr] = customerValue.split(':')
+      const customerId = parseInt(idStr, 10)
 
-    if (!collection || !customerId) return
+      if (!collection || !customerId) return
 
-    try {
-      if (collection === 'customers' || collection === 'paying-customers') {
-        const apiPath =
-          collection === 'customers'
-            ? `/api/customers/${customerId}`
-            : `/api/paying-customers/${customerId}`
-        const res = await fetch(apiPath)
-        if (res.ok) {
-          const data = await res.json()
-          if (data.success) {
-            if (field === 'deliveryCustomerId') {
-              if (collection === 'customers' && data.customer) {
-                const cust = data.customer as Customer
-                setValue('customerName', cust.customer_name)
-                setValue('customerAddress', [cust.street, cust.city, cust.state, cust.postcode].filter(Boolean).join(', '))
-                setValue('customerLocation', [cust.city, cust.state].filter(Boolean).join(', '))
-                setValue('customerState', cust.state || '')
-                setValue('customerContactName', cust.contact_name || '')
-              } else if (collection === 'paying-customers' && data.payingCustomer) {
-                const cust = data.payingCustomer as PayingCustomer
-                const street =
-                  cust.delivery_street ||
-                  (cust.delivery_same_as_billing ? cust.billing_street : undefined)
-                const city =
-                  cust.delivery_city ||
-                  (cust.delivery_same_as_billing ? cust.billing_city : undefined)
-                const state =
-                  cust.delivery_state ||
-                  (cust.delivery_same_as_billing ? cust.billing_state : undefined)
-                const postcode =
-                  cust.delivery_postcode ||
-                  (cust.delivery_same_as_billing ? cust.billing_postcode : undefined)
-                setValue('customerName', cust.customer_name)
-                setValue('customerAddress', [street, city, state, postcode].filter(Boolean).join(', '))
-                setValue('customerLocation', [city, state].filter(Boolean).join(', '))
-                setValue('customerState', state || '')
-                setValue('customerContactName', cust.contact_name || '')
-              }
-            } else if (field === 'supplierId') {
-              if (collection === 'customers' && data.customer) {
-                const cust = data.customer as Customer
-                setValue('supplierName', cust.customer_name)
-                setValue('supplierAddress', [cust.street, cust.city, cust.state, cust.postcode].filter(Boolean).join(', '))
-                setValue('supplierLocation', [cust.city, cust.state].filter(Boolean).join(', '))
-                setValue('supplierState', cust.state || '')
-                setValue('supplierContactName', cust.contact_name || '')
-              } else if (collection === 'paying-customers' && data.payingCustomer) {
-                const cust = data.payingCustomer as PayingCustomer
-                const street =
-                  cust.delivery_street ||
-                  (cust.delivery_same_as_billing ? cust.billing_street : undefined)
-                const city =
-                  cust.delivery_city ||
-                  (cust.delivery_same_as_billing ? cust.billing_city : undefined)
-                const state =
-                  cust.delivery_state ||
-                  (cust.delivery_same_as_billing ? cust.billing_state : undefined)
-                const postcode =
-                  cust.delivery_postcode ||
-                  (cust.delivery_same_as_billing ? cust.billing_postcode : undefined)
-                setValue('supplierName', cust.customer_name)
-                setValue('supplierAddress', [street, city, state, postcode].filter(Boolean).join(', '))
-                setValue('supplierLocation', [city, state].filter(Boolean).join(', '))
-                setValue('supplierState', state || '')
-                setValue('supplierContactName', cust.contact_name || '')
+      try {
+        if (collection === 'customers' || collection === 'paying-customers') {
+          const apiPath =
+            collection === 'customers'
+              ? `/api/customers/${customerId}`
+              : `/api/paying-customers/${customerId}`
+          const res = await fetch(apiPath)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.success) {
+              if (field === 'deliveryCustomerId') {
+                if (collection === 'customers' && data.customer) {
+                  const cust = data.customer as Customer
+                  setValue('customerName', cust.customer_name)
+                  setValue(
+                    'customerAddress',
+                    [cust.street, cust.city, cust.state, cust.postcode].filter(Boolean).join(', '),
+                  )
+                  setValue('customerLocation', [cust.city, cust.state].filter(Boolean).join(', '))
+                  setValue('customerState', cust.state || '')
+                  setValue('customerContactName', cust.contact_name || '')
+                } else if (collection === 'paying-customers' && data.payingCustomer) {
+                  const cust = data.payingCustomer as PayingCustomer
+                  const street =
+                    cust.delivery_street ||
+                    (cust.delivery_same_as_billing ? cust.billing_street : undefined)
+                  const city =
+                    cust.delivery_city ||
+                    (cust.delivery_same_as_billing ? cust.billing_city : undefined)
+                  const state =
+                    cust.delivery_state ||
+                    (cust.delivery_same_as_billing ? cust.billing_state : undefined)
+                  const postcode =
+                    cust.delivery_postcode ||
+                    (cust.delivery_same_as_billing ? cust.billing_postcode : undefined)
+                  setValue('customerName', cust.customer_name)
+                  setValue(
+                    'customerAddress',
+                    [street, city, state, postcode].filter(Boolean).join(', '),
+                  )
+                  setValue('customerLocation', [city, state].filter(Boolean).join(', '))
+                  setValue('customerState', state || '')
+                  setValue('customerContactName', cust.contact_name || '')
+                }
+              } else if (field === 'supplierId') {
+                if (collection === 'customers' && data.customer) {
+                  const cust = data.customer as Customer
+                  setValue('supplierName', cust.customer_name)
+                  setValue(
+                    'supplierAddress',
+                    [cust.street, cust.city, cust.state, cust.postcode].filter(Boolean).join(', '),
+                  )
+                  setValue('supplierLocation', [cust.city, cust.state].filter(Boolean).join(', '))
+                  setValue('supplierState', cust.state || '')
+                  setValue('supplierContactName', cust.contact_name || '')
+                } else if (collection === 'paying-customers' && data.payingCustomer) {
+                  const cust = data.payingCustomer as PayingCustomer
+                  const street =
+                    cust.delivery_street ||
+                    (cust.delivery_same_as_billing ? cust.billing_street : undefined)
+                  const city =
+                    cust.delivery_city ||
+                    (cust.delivery_same_as_billing ? cust.billing_city : undefined)
+                  const state =
+                    cust.delivery_state ||
+                    (cust.delivery_same_as_billing ? cust.billing_state : undefined)
+                  const postcode =
+                    cust.delivery_postcode ||
+                    (cust.delivery_same_as_billing ? cust.billing_postcode : undefined)
+                  setValue('supplierName', cust.customer_name)
+                  setValue(
+                    'supplierAddress',
+                    [street, city, state, postcode].filter(Boolean).join(', '),
+                  )
+                  setValue('supplierLocation', [city, state].filter(Boolean).join(', '))
+                  setValue('supplierState', state || '')
+                  setValue('supplierContactName', cust.contact_name || '')
+                }
               }
             }
           }
         }
+      } catch (error) {
+        console.error('Error fetching customer details:', error)
       }
-    } catch (error) {
-      console.error('Error fetching customer details:', error)
-    }
-  }, [setValue])
+    },
+    [setValue],
+  )
 
   // Handle customer changes for outbound jobs
   useEffect(() => {
@@ -442,9 +457,12 @@ export function JobEditDialog({
         if (data.success && data.job) {
           // Format dates for datetime-local inputs and ensure customer IDs are in correct format
           const formattedJob = { ...data.job }
-          
+
           // Helper function to format customer ID
-          const formatCustomerId = (customerId: any, defaultCollection: 'customers' | 'paying-customers' = 'customers'): string | undefined => {
+          const formatCustomerId = (
+            customerId: any,
+            defaultCollection: 'customers' | 'paying-customers' = 'customers',
+          ): string | undefined => {
             if (!customerId) return undefined
             if (typeof customerId === 'string' && customerId.includes(':')) {
               return customerId // Already in correct format
@@ -617,13 +635,18 @@ export function JobEditDialog({
                     <FormCombobox
                       label="Delivery Customer"
                       placeholder="Select customer..."
-                      searchPlaceholder="Search customers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
                       value={watch('deliveryCustomerId')}
-                      onValueChange={(value) => setValue('deliveryCustomerId', value.toString())}
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          setValue('deliveryCustomerId', '')
+                          return
+                        }
+                        setValue('deliveryCustomerId', value.toString())
+                      }}
                       disabled={loading || loadingOptions}
                     />
                   </div>
@@ -678,13 +701,18 @@ export function JobEditDialog({
                     <FormCombobox
                       label="Supplier"
                       placeholder="Select supplier..."
-                      searchPlaceholder="Search suppliers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
                       value={watch('supplierId')}
-                      onValueChange={(value) => setValue('supplierId', value.toString())}
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          setValue('supplierId', '')
+                          return
+                        }
+                        setValue('supplierId', value.toString())
+                      }}
                       disabled={loading || loadingOptions}
                     />
                   </div>
@@ -832,13 +860,18 @@ export function JobEditDialog({
                     <FormCombobox
                       label="Customer"
                       placeholder="Select customer..."
-                      searchPlaceholder="Search customers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
                       value={watch('customerId')}
-                      onValueChange={(value) => setValue('customerId', value.toString())}
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          setValue('customerId', '')
+                          return
+                        }
+                        setValue('customerId', value.toString())
+                      }}
                       disabled={loading || loadingOptions}
                     />
                   </div>
@@ -893,13 +926,18 @@ export function JobEditDialog({
                     <FormCombobox
                       label="Delivery Destination"
                       placeholder="Select destination..."
-                      searchPlaceholder="Search destinations..."
                       options={unifiedDestinations.map((dest) => ({
                         value: dest.value,
                         label: dest.label,
                       }))}
                       value={watch('customerToId')}
-                      onValueChange={(value) => setValue('customerToId', value.toString())}
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          setValue('customerToId', '')
+                          return
+                        }
+                        setValue('customerToId', value.toString())
+                      }}
                       disabled={loading || loadingOptions}
                     />
                   </div>
@@ -954,13 +992,18 @@ export function JobEditDialog({
                     <FormCombobox
                       label="Pickup Location"
                       placeholder="Select pickup location..."
-                      searchPlaceholder="Search locations..."
                       options={unifiedDestinations.map((dest) => ({
                         value: dest.value,
                         label: dest.label,
                       }))}
                       value={watch('customerFromId')}
-                      onValueChange={(value) => setValue('customerFromId', value.toString())}
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          setValue('customerFromId', '')
+                          return
+                        }
+                        setValue('customerFromId', value.toString())
+                      }}
                       disabled={loading || loadingOptions}
                     />
                   </div>

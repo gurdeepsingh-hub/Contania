@@ -299,9 +299,15 @@ export function ProductLineForm({
           label: `${sku.skuCode} - ${sku.description || ''}`,
         }))}
         placeholder="Select SKU..."
-        searchPlaceholder="Search SKUs..."
         value={watch('skuId')}
         onValueChange={(value) => {
+          if (value === undefined) {
+            // For required fields, we don't clear the value but reset related state
+            // The form validation will handle the required check
+            setSelectedSku(null)
+            setSkuDescription('')
+            return
+          }
           const skuId = typeof value === 'number' ? value : parseInt(value.toString())
           setValue('skuId', skuId)
           handleSKUChange(skuId)

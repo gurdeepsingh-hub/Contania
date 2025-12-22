@@ -10,14 +10,14 @@ export async function GET(request: NextRequest) {
     // If subdomain not in header (client-side fetch), extract from hostname
     if (!subdomain) {
       const hostname = request.headers.get('host') || ''
-      
+
       // Remove port if present
       const cleanHostname = hostname.split(':')[0]
       const defaultHost = process.env.DEFAULT_HOST || 'containa.io'
 
       // Check if we are on the root domain or localhost
       if (
-        cleanHostname === defaultHost || 
+        cleanHostname === defaultHost ||
         cleanHostname === 'localhost' ||
         cleanHostname === 'www.' + defaultHost
       ) {
@@ -25,20 +25,20 @@ export async function GET(request: NextRequest) {
       } else {
         // Extract subdomain
         const subdomainMatch = cleanHostname.match(/^([^.]+)\.(.+)$/)
-        
+
         // Ensure the domain part matches defaultHost to avoid false positives on different domains
         // or just accept the first part as subdomain if it's not the root.
         // If we are on 'tenant.containa.io', match[1] is 'tenant', match[2] is 'containa.io'
         if (subdomainMatch && subdomainMatch[2] === defaultHost) {
-           subdomain = subdomainMatch[1]
+          subdomain = subdomainMatch[1]
         } else if (subdomainMatch && cleanHostname !== 'localhost') {
-           // Fallback for localhost subdomains like tenant.localhost
-           subdomain = subdomainMatch[1]
+          // Fallback for localhost subdomains like tenant.localhost
+          subdomain = subdomainMatch[1]
         } else {
-           subdomain = null
+          subdomain = null
         }
       }
-      
+
       // Explicitly ignore 'www'
       if (subdomain === 'www') {
         subdomain = null
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         limit: 1,
       })
       tenant = result.docs[0]
-      
+
       // Log for debugging if tenant not found
       if (!tenant) {
         console.log(`Tenant not found for subdomain: ${subdomain}`)
@@ -77,10 +77,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (!tenant || !tenant.approved) {
-      return NextResponse.json({ 
-        message: 'Tenant not found or not approved',
-        debug: subdomain ? { subdomain } : undefined
-      }, { status: 404 })
+      return NextResponse.json(
+        {
+          message: 'Tenant not found or not approved',
+          debug: subdomain ? { subdomain } : undefined,
+        },
+        { status: 404 },
+      )
     }
 
     return NextResponse.json({
@@ -89,10 +92,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching current tenant:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch tenant' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch tenant' }, { status: 500 })
   }
 }
 
@@ -104,14 +104,14 @@ export async function PATCH(request: NextRequest) {
     // If subdomain not in header (client-side fetch), extract from hostname
     if (!subdomain) {
       const hostname = request.headers.get('host') || ''
-      
+
       // Remove port if present
       const cleanHostname = hostname.split(':')[0]
       const defaultHost = process.env.DEFAULT_HOST || 'containa.io'
 
       // Check if we are on the root domain or localhost
       if (
-        cleanHostname === defaultHost || 
+        cleanHostname === defaultHost ||
         cleanHostname === 'localhost' ||
         cleanHostname === 'www.' + defaultHost
       ) {
@@ -119,18 +119,18 @@ export async function PATCH(request: NextRequest) {
       } else {
         // Extract subdomain
         const subdomainMatch = cleanHostname.match(/^([^.]+)\.(.+)$/)
-        
+
         // Ensure the domain part matches defaultHost to avoid false positives on different domains
         if (subdomainMatch && subdomainMatch[2] === defaultHost) {
-           subdomain = subdomainMatch[1]
+          subdomain = subdomainMatch[1]
         } else if (subdomainMatch && cleanHostname !== 'localhost') {
-           // Fallback for localhost subdomains like tenant.localhost
-           subdomain = subdomainMatch[1]
+          // Fallback for localhost subdomains like tenant.localhost
+          subdomain = subdomainMatch[1]
         } else {
-           subdomain = null
+          subdomain = null
         }
       }
-      
+
       // Explicitly ignore 'www'
       if (subdomain === 'www') {
         subdomain = null
@@ -174,9 +174,8 @@ export async function PATCH(request: NextRequest) {
 
     // Verify user belongs to the tenant
     const tenantUser = user as { tenantId?: number | { id: number } }
-    const tenantUserId = typeof tenantUser.tenantId === 'object' 
-      ? tenantUser.tenantId.id 
-      : tenantUser.tenantId
+    const tenantUserId =
+      typeof tenantUser.tenantId === 'object' ? tenantUser.tenantId.id : tenantUser.tenantId
 
     if (tenantUserId !== tenant.id) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 })
@@ -221,10 +220,6 @@ export async function PATCH(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error updating tenant:', error)
-    return NextResponse.json(
-      { message: 'Failed to update tenant' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to update tenant' }, { status: 500 })
   }
 }
-

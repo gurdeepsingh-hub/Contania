@@ -43,7 +43,7 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null)
   const [selectedDriverId, setSelectedDriverId] = useState<number | null>(null)
-  
+
   // Quick create states
   const [showCreateVehicle, setShowCreateVehicle] = useState(false)
   const [showCreateDriver, setShowCreateDriver] = useState(false)
@@ -150,7 +150,9 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Dispatch Job</DialogTitle>
-            <DialogDescription>Select vehicle and optionally assign driver for dispatch.</DialogDescription>
+            <DialogDescription>
+              Select vehicle and optionally assign driver for dispatch.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -238,14 +240,21 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                     </Button>
                   </div>
                   <Combobox
-                    options={vehicles.filter((v) => v.id !== undefined).map((v) => ({
-                      value: v.id!,
-                      label: `${v.fleetNumber || ''} (${v.rego || ''})`,
-                    }))}
+                    options={vehicles
+                      .filter((v) => v.id !== undefined)
+                      .map((v) => ({
+                        value: v.id!,
+                        label: `${v.fleetNumber || ''} (${v.rego || ''})`,
+                      }))}
                     value={selectedVehicleId || undefined}
-                    onValueChange={(value) => setSelectedVehicleId(value as number)}
+                    onValueChange={(value) => {
+                      if (value === undefined) {
+                        setSelectedVehicleId(null)
+                        return
+                      }
+                      setSelectedVehicleId(value as number)
+                    }}
                     placeholder="Select vehicle..."
-                    searchPlaceholder="Search vehicles..."
                     emptyText="No vehicles found"
                     className="mt-1"
                   />
@@ -290,14 +299,21 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                     </Button>
                   </div>
                   <Combobox
-                    options={drivers.filter((d) => d.id !== undefined).map((d) => ({
-                      value: d.id!,
-                      label: `${d.name || ''} (${d.phoneNumber || ''})`,
-                    }))}
+                    options={drivers
+                      .filter((d) => d.id !== undefined)
+                      .map((d) => ({
+                        value: d.id!,
+                        label: `${d.name || ''} (${d.phoneNumber || ''})`,
+                      }))}
                     value={selectedDriverId || undefined}
-                    onValueChange={(value) => setSelectedDriverId(value as number)}
+                    onValueChange={(value) => {
+                      if (value === undefined) {
+                        setSelectedDriverId(null)
+                        return
+                      }
+                      setSelectedDriverId(value as number)
+                    }}
                     placeholder="Select driver..."
-                    searchPlaceholder="Search drivers..."
                     emptyText="No drivers found"
                     className="mt-1"
                   />
@@ -317,14 +333,21 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                     </Button>
                   </div>
                   <Combobox
-                    options={vehicles.filter((v) => v.id !== undefined).map((v) => ({
-                      value: v.id!,
-                      label: `${v.fleetNumber || ''} (${v.rego || ''})`,
-                    }))}
+                    options={vehicles
+                      .filter((v) => v.id !== undefined)
+                      .map((v) => ({
+                        value: v.id!,
+                        label: `${v.fleetNumber || ''} (${v.rego || ''})`,
+                      }))}
                     value={selectedVehicleId || undefined}
-                    onValueChange={(value) => setSelectedVehicleId(value as number)}
+                    onValueChange={(value) => {
+                      if (value === undefined) {
+                        setSelectedVehicleId(null)
+                        return
+                      }
+                      setSelectedVehicleId(value as number)
+                    }}
                     placeholder="Select vehicle..."
-                    searchPlaceholder="Search vehicles..."
                     emptyText="No vehicles found"
                     className="mt-1"
                   />
@@ -386,4 +409,3 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
     </Dialog>
   )
 }
-

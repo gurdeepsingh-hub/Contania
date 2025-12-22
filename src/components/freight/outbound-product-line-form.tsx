@@ -246,7 +246,11 @@ export function OutboundProductLineForm({
       expectedQty: data.requiredQty,
       expectedWeight: data.requiredWeight,
       expectedCubicPerHU: data.requiredCubicPerHU,
-    } as OutboundProductLine & { expectedQty?: number; expectedWeight?: number; expectedCubicPerHU?: number })
+    } as OutboundProductLine & {
+      expectedQty?: number
+      expectedWeight?: number
+      expectedCubicPerHU?: number
+    })
   }
 
   return (
@@ -262,9 +266,12 @@ export function OutboundProductLineForm({
             label: batch.batchNumber,
           }))}
           placeholder={loadingBatches ? 'Loading batches...' : 'Select batch number'}
-          searchPlaceholder="Search batches..."
           value={watch('batchNumber')}
           onValueChange={(value) => {
+            if (value === undefined) {
+              handleBatchChange('')
+              return
+            }
             handleBatchChange(value as string)
           }}
         />

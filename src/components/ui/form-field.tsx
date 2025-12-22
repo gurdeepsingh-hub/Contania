@@ -176,11 +176,10 @@ export interface FormComboboxProps {
   required?: boolean
   containerClassName?: string
   placeholder?: string
-  searchPlaceholder?: string
   emptyText?: string
   options?: ComboboxOption[]
   value?: string | number
-  onValueChange?: (value: string | number) => void
+  onValueChange?: (value: string | number | undefined) => void
   disabled?: boolean
   className?: string
   id?: string

@@ -815,13 +815,19 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                   <FormCombobox
                     label="Warehouse"
                     placeholder="Select warehouse..."
-                    searchPlaceholder="Search warehouses..."
                     options={warehouses.map((wh) => ({
                       value: wh.id,
                       label: wh.name,
                     }))}
                     value={formData.warehouseId}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      if (value === undefined) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          warehouseId: undefined,
+                        }))
+                        return
+                      }
                       setFormData((prev) => ({
                         ...prev,
                         warehouseId:
@@ -829,7 +835,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                             ? value
                             : parseInt(value.toString()) || undefined,
                       }))
-                    }
+                    }}
                     containerClassName="flex-1"
                   />
                   <Button
@@ -923,15 +929,18 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                     <FormCombobox
                       label="Delivery Customer"
                       placeholder="Select delivery customer..."
-                      searchPlaceholder="Search customers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
                       value={formData.deliveryCustomerId}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          handleCustomerChange('deliveryCustomerId', '')
+                          return
+                        }
                         handleCustomerChange('deliveryCustomerId', value.toString())
-                      }
+                      }}
                       containerClassName="flex-1"
                     />
                     {validationErrors[1]?.deliveryCustomerId && (
@@ -990,15 +999,18 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                     <FormCombobox
                       label="Supplier"
                       placeholder="Select supplier..."
-                      searchPlaceholder="Search suppliers..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
                       }))}
                       value={formData.supplierId}
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
+                        if (value === undefined) {
+                          handleCustomerChange('supplierId', '')
+                          return
+                        }
                         handleCustomerChange('supplierId', value.toString())
-                      }
+                      }}
                       containerClassName="flex-1"
                     />
                     {validationErrors[1]?.supplierId && (
@@ -1057,18 +1069,24 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                 <FormCombobox
                   label="Transport Mode"
                   placeholder="Select mode..."
-                  searchPlaceholder="Search transport mode..."
                   options={[
                     { value: 'our', label: 'Our' },
                     { value: 'third_party', label: 'Third Party' },
                   ]}
                   value={formData.transportMode}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
+                    if (value === undefined) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        transportMode: undefined,
+                      }))
+                      return
+                    }
                     setFormData((prev) => ({
                       ...prev,
                       transportMode: value as 'our' | 'third_party',
                     }))
-                  }
+                  }}
                   containerClassName="mb-4"
                 />
                 {formData.transportMode === 'third_party' && (
@@ -1078,17 +1096,20 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                         <FormCombobox
                           label="Transport Company"
                           placeholder="Select transport company..."
-                          searchPlaceholder="Search transport companies..."
                           options={transportCompanies.map((tc) => ({
                             value: tc.id,
                             label: tc.name,
                           }))}
                           value={formData.transportCompanyId}
-                          onValueChange={(value) =>
+                          onValueChange={(value) => {
+                            if (value === undefined) {
+                              setFormData((prev) => ({ ...prev, transportCompanyId: undefined }))
+                              return
+                            }
                             handleTransportCompanyChange(
                               typeof value === 'number' ? value : parseInt(value.toString()),
                             )
-                          }
+                          }}
                           containerClassName="flex-1"
                         />
                         {validationErrors[2]?.transportCompanyId && (

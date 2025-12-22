@@ -331,7 +331,7 @@ export function MultistepOutboundForm({
     // handleCustomerChange will update formData and fetch customer details
     if (customerId || customerToId || customerFromId) {
       customerDataLoadedRef.current = true
-      
+
       if (customerId) {
         handleCustomerChange('customerId', customerId)
       }
@@ -343,7 +343,13 @@ export function MultistepOutboundForm({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData?.customerId, initialData?.customerToId, initialData?.customerFromId, unifiedCustomers.length, unifiedDestinations.length])
+  }, [
+    initialData?.customerId,
+    initialData?.customerToId,
+    initialData?.customerFromId,
+    unifiedCustomers.length,
+    unifiedDestinations.length,
+  ])
 
   // Reset the ref when initialData changes (new job loaded)
   useEffect(() => {
@@ -962,13 +968,19 @@ export function MultistepOutboundForm({
                       <FormCombobox
                         label="Warehouse"
                         placeholder="Select warehouse..."
-                        searchPlaceholder="Search warehouses..."
                         options={warehouses.map((wh) => ({
                           value: wh.id,
                           label: wh.name,
                         }))}
                         value={formData.warehouseId}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
+                          if (value === undefined) {
+                            setFormData((prev) => ({
+                              ...prev,
+                              warehouseId: undefined,
+                            }))
+                            return
+                          }
                           setFormData((prev) => ({
                             ...prev,
                             warehouseId:
@@ -976,7 +988,7 @@ export function MultistepOutboundForm({
                                 ? value
                                 : parseInt(value.toString()) || undefined,
                           }))
-                        }
+                        }}
                         containerClassName="flex-1"
                         className={validationErrors[0]?.warehouseId ? 'border-red-500' : ''}
                       />
@@ -1112,15 +1124,18 @@ export function MultistepOutboundForm({
                       <FormCombobox
                         label="Customer"
                         placeholder="Select customer..."
-                        searchPlaceholder="Search customers..."
                         options={unifiedCustomers.map((cust) => ({
                           value: cust.value,
                           label: cust.label,
                         }))}
                         value={formData.customerId}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
+                          if (value === undefined) {
+                            handleCustomerChange('customerId', '')
+                            return
+                          }
                           handleCustomerChange('customerId', value.toString())
-                        }
+                        }}
                         containerClassName="flex-1"
                         className={validationErrors[1]?.customerId ? 'border-red-500' : ''}
                       />
@@ -1180,15 +1195,18 @@ export function MultistepOutboundForm({
                       <FormCombobox
                         label="Delivery Destination"
                         placeholder="Select destination..."
-                        searchPlaceholder="Search destinations..."
                         options={unifiedDestinations.map((dest) => ({
                           value: dest.value,
                           label: dest.label,
                         }))}
                         value={formData.customerToId}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
+                          if (value === undefined) {
+                            handleCustomerChange('customerToId', '')
+                            return
+                          }
                           handleCustomerChange('customerToId', value.toString())
-                        }
+                        }}
                         containerClassName="flex-1"
                         className={validationErrors[1]?.customerToId ? 'border-red-500' : ''}
                       />
@@ -1248,15 +1266,18 @@ export function MultistepOutboundForm({
                       <FormCombobox
                         label="Pickup Location"
                         placeholder="Select pickup location..."
-                        searchPlaceholder="Search locations..."
                         options={unifiedDestinations.map((dest) => ({
                           value: dest.value,
                           label: dest.label,
                         }))}
                         value={formData.customerFromId}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
+                          if (value === undefined) {
+                            handleCustomerChange('customerFromId', '')
+                            return
+                          }
                           handleCustomerChange('customerFromId', value.toString())
-                        }
+                        }}
                         containerClassName="flex-1"
                         className={validationErrors[1]?.customerFromId ? 'border-red-500' : ''}
                       />
@@ -1384,9 +1405,7 @@ export function MultistepOutboundForm({
                           <span className="text-sm font-medium text-muted-foreground">
                             Cubic Required (m³):
                           </span>
-                          <p>
-                            {line.requiredCubicPerHU?.toFixed(6) || 'N/A'}
-                          </p>
+                          <p>{line.requiredCubicPerHU?.toFixed(6) || 'N/A'}</p>
                         </div>
                         {(line as { expiry?: string }).expiry && (
                           <div>
