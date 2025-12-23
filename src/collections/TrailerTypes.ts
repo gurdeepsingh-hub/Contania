@@ -111,6 +111,90 @@ export const TrailerTypes: CollectionConfig = {
         description: 'Whether this type supports Trailer C',
       },
     },
+    {
+      name: 'trailerAEnabled',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Enable Trailer A configuration',
+      },
+    },
+    {
+      name: 'trailerAMaxWeight',
+      type: 'number',
+      admin: {
+        description: 'Maximum weight capacity for Trailer A in kg',
+        condition: (data) => data.trailerAEnabled === true,
+      },
+    },
+    {
+      name: 'trailerATeuCapacity',
+      type: 'select',
+      options: [
+        {
+          label: 'Empty',
+          value: '0',
+        },
+        {
+          label: '1',
+          value: '1',
+        },
+        {
+          label: '2',
+          value: '2',
+        },
+      ],
+      admin: {
+        description: 'TEU capacity for Trailer A',
+        condition: (data) => data.trailerAEnabled === true,
+      },
+    },
+    {
+      name: 'trailerBEnabled',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Enable Trailer B configuration',
+      },
+    },
+    {
+      name: 'trailerBMaxWeight',
+      type: 'number',
+      admin: {
+        description: 'Maximum weight capacity for Trailer B in kg',
+        condition: (data) => data.trailerBEnabled === true,
+      },
+    },
+    {
+      name: 'trailerBTeuCapacity',
+      type: 'select',
+      options: [
+        {
+          label: 'Empty',
+          value: '0',
+        },
+        {
+          label: '1',
+          value: '1',
+        },
+        {
+          label: '2',
+          value: '2',
+        },
+      ],
+      admin: {
+        description: 'TEU capacity for Trailer B',
+        condition: (data) => data.trailerBEnabled === true,
+      },
+    },
+    {
+      name: 'maxTeuCapacity',
+      type: 'number',
+      admin: {
+        description: 'Maximum TEU capacity (calculated from Trailer A and B TEU capacities)',
+        readOnly: true,
+      },
+    },
   ],
   timestamps: true,
   hooks: {
@@ -124,6 +208,19 @@ export const TrailerTypes: CollectionConfig = {
             data.tenantId = user.tenantId
           }
         }
+        
+        // Calculate maxTeuCapacity from Trailer A and B TEU capacities
+        let maxTeu = 0
+        if (data.trailerAEnabled && data.trailerATeuCapacity) {
+          const trailerATeu = parseInt(data.trailerATeuCapacity, 10) || 0
+          maxTeu += trailerATeu
+        }
+        if (data.trailerBEnabled && data.trailerBTeuCapacity) {
+          const trailerBTeu = parseInt(data.trailerBTeuCapacity, 10) || 0
+          maxTeu += trailerBTeu
+        }
+        data.maxTeuCapacity = maxTeu
+        
         return data
       },
     ],

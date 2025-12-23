@@ -102,7 +102,6 @@ export async function PATCH(
     if (body.city !== undefined) updateData.city = body.city || undefined
     if (body.state !== undefined) updateData.state = body.state || undefined
     if (body.postcode !== undefined) updateData.postcode = body.postcode || undefined
-    if (body.store !== undefined) updateData.store = body.store || undefined
     if (body.type !== undefined) updateData.type = body.type || undefined
 
     // Update warehouse

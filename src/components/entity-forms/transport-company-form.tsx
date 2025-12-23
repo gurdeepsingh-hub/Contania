@@ -71,19 +71,30 @@ export function TransportCompanyForm({
             ? 'Transport company updated successfully'
             : 'Transport company created successfully',
         )
-        onSuccess(transportCompany)
-        reset()
+        // Keep dialog open briefly showing success, then close automatically
+        setTimeout(() => {
+          onSuccess(transportCompany)
+          reset()
+        }, 1500)
       } else {
-        const errorData = await res.json()
-        toast.error(
-          errorData.message || `Failed to ${mode === 'edit' ? 'update' : 'create'} transport company`,
-        )
+        // Handle API error responses
+        try {
+          const errorData = await res.json()
+          const errorMessage = errorData.message || errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} transport company`
+          toast.error(errorMessage)
+        } catch (jsonError) {
+          // If response is not JSON, show generic error
+          toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} transport company. Please try again.`)
+        }
       }
     } catch (error) {
       console.error('Error saving transport company:', error)
-      toast.error(
-        `An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the transport company`,
-      )
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the transport company. Please try again.`)
+      }
     }
   }
 

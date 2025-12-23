@@ -158,16 +158,6 @@ const step2Schema = z
       path: ['deliveryCustomerId'],
     },
   )
-  .refine(
-    (data) => {
-      const value = data.supplierId
-      return typeof value === 'string' && value.trim() !== ''
-    },
-    {
-      message: 'Supplier is required',
-      path: ['supplierId'],
-    },
-  )
 
 const step3Schema = z
   .object({
@@ -436,6 +426,32 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
     field: 'deliveryCustomerId' | 'supplierId',
     customerValue: string, // Format: "collection:id"
   ) => {
+    // If customer value is empty, clear all auto-filled fields for this field
+    if (!customerValue || customerValue.trim() === '') {
+      if (field === 'deliveryCustomerId') {
+        setFormData((prev) => ({
+          ...prev,
+          deliveryCustomerId: '',
+          customerName: '',
+          customerAddress: '',
+          customerLocation: '',
+          customerState: '',
+          customerContactName: '',
+        }))
+      } else if (field === 'supplierId') {
+        setFormData((prev) => ({
+          ...prev,
+          supplierId: '',
+          supplierName: '',
+          supplierAddress: '',
+          supplierLocation: '',
+          supplierState: '',
+          supplierContactName: '',
+        }))
+      }
+      return
+    }
+
     setFormData((prev) => ({ ...prev, [field]: customerValue }))
 
     // Parse collection and ID
@@ -792,9 +808,9 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                 <FormInput
                   label="Job Number"
                   value={formData.jobCode || ''}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, jobCode: e.target.value }))}
+                  readOnly
                   placeholder="Auto-generated job number"
-                  className={validationErrors[0]?.jobCode ? 'border-red-500' : ''}
+                  className={`bg-muted ${validationErrors[0]?.jobCode ? 'border-red-500' : ''}`}
                 />
                 <FormInput
                   label="Expected Date"
@@ -921,14 +937,14 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
 
           {step === 1 && (
             <div className="space-y-4 md:space-y-6">
-              {/* Section 1: Delivery Customer */}
+              {/* Section 1: Customer */}
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Delivery Customer</h3>
+                <h3 className="font-semibold text-lg">Customer</h3>
                 <div className="flex gap-2 mb-4">
                   <div className="flex-1">
                     <FormCombobox
-                      label="Delivery Customer"
-                      placeholder="Select delivery customer..."
+                      label="Customer"
+                      placeholder="Select customer..."
                       options={unifiedCustomers.map((cust) => ({
                         value: cust.value,
                         label: cust.label,
@@ -1070,7 +1086,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                   label="Transport Mode"
                   placeholder="Select mode..."
                   options={[
-                    { value: 'our', label: 'Our' },
+                    { value: 'our', label: 'Our Transport' },
                     { value: 'third_party', label: 'Third Party' },
                   ]}
                   value={formData.transportMode}

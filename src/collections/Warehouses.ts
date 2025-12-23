@@ -116,21 +116,6 @@ export const Warehouses: CollectionConfig = {
       },
     },
     {
-      name: 'store',
-      type: 'array',
-      admin: {
-        description: 'Array of strings for stores in warehouse',
-      },
-      fields: [
-        {
-          name: 'store_name',
-          type: 'text',
-          required: true,
-        },
-      ],
-      minRows: 0,
-    },
-    {
       name: 'type',
       type: 'select',
       options: [

@@ -41,12 +41,58 @@ type OutboundProductLine = {
   attribute2?: string
 }
 
+// Helper to convert NaN/empty to undefined
+const numberOrUndefined = z.union([
+  z.undefined(),
+  z.preprocess((val) => {
+    // Convert NaN, null, undefined, or empty string to undefined
+    if (val === null || val === undefined || val === '') {
+      return undefined
+    }
+    // Handle NaN
+    if (typeof val === 'number' && (Number.isNaN(val) || !Number.isFinite(val))) {
+      return undefined
+    }
+    // If it's already a valid number, return it
+    if (typeof val === 'number') {
+      return val
+    }
+    // If it's a string, try to parse it
+    if (typeof val === 'string') {
+      const parsed = parseFloat(val)
+      return Number.isNaN(parsed) || !Number.isFinite(parsed) ? undefined : parsed
+    }
+    return undefined
+  }, z.number()),
+])
+
 const productLineSchema = z.object({
   skuId: z.number().min(1, 'SKU is required'),
   batchNumber: z.string().min(1, 'Batch number is required'),
-  requiredQty: z.number().min(1, 'Required quantity must be at least 1').optional(),
-  requiredWeight: z.number().min(0, 'Required weight must be 0 or greater').optional(),
-  requiredCubicPerHU: z.number().min(0, 'Required cubic per HU must be 0 or greater').optional(),
+  requiredQty: z.union([
+    z.undefined(),
+    z.preprocess(
+      (val) => {
+        if (val === '' || val === null || val === undefined) {
+          return undefined
+        }
+        if (typeof val === 'number' && Number.isNaN(val)) {
+          return undefined
+        }
+        if (typeof val === 'number') {
+          return val
+        }
+        if (typeof val === 'string') {
+          const parsed = parseFloat(val)
+          return Number.isNaN(parsed) ? undefined : parsed
+        }
+        return undefined
+      },
+      z.number().min(1, 'Required quantity must be at least 1'),
+    ),
+  ]),
+  requiredWeight: numberOrUndefined,
+  requiredCubicPerHU: numberOrUndefined,
   containerNumber: z.string().optional(),
 })
 
@@ -74,14 +120,16 @@ export function OutboundProductLineForm({
   onCancel,
 }: OutboundProductLineFormProps) {
   const [batchOptions, setBatchOptions] = useState<BatchOption[]>([])
-  const [_loading, setLoading] = useState(false)
+  const [skuOptions, setSkuOptions] = useState<SKU[]>([])
   const [loadingBatches, setLoadingBatches] = useState(false)
+  const [loadingSkus, setLoadingSkus] = useState(false)
   const [skuDescription, setSkuDescription] = useState<string>('')
   const [selectedSku, setSelectedSku] = useState<SKU | null>(null)
   const [expiryDate, setExpiryDate] = useState<string>('')
   const [attribute1, setAttribute1] = useState<string>('')
   const [attribute2, setAttribute2] = useState<string>('')
   const [requiredCubicPerHU, setRequiredCubicPerHU] = useState<number | undefined>()
+  const [selectedBatchSkuId, setSelectedBatchSkuId] = useState<number | null>(null)
 
   const {
     register,
@@ -90,7 +138,7 @@ export function OutboundProductLineForm({
     setValue,
     watch,
   } = useForm<ProductLineFormData>({
-    resolver: zodResolver(productLineSchema),
+    resolver: zodResolver(productLineSchema) as any,
     defaultValues: {
       skuId: initialData?.skuId,
       batchNumber: initialData?.batchNumber || '',
@@ -120,6 +168,23 @@ export function OutboundProductLineForm({
     }
   }, [warehouseId])
 
+  const loadSkuOptions = useCallback(async () => {
+    setLoadingSkus(true)
+    try {
+      const res = await fetch('/api/skus?limit=1000')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.skus) {
+          setSkuOptions(data.skus)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading SKUs:', error)
+    } finally {
+      setLoadingSkus(false)
+    }
+  }, [])
+
   const handleBatchChange = useCallback(
     async (batchNumber: string, skuId?: number) => {
       setValue('batchNumber', batchNumber)
@@ -131,7 +196,10 @@ export function OutboundProductLineForm({
       const batchSkuId = skuId || (typeof batch.skuId === 'object' ? batch.skuId.id : batch.skuId)
       if (!batchSkuId) return
 
-      // Set SKU ID
+      // Store the batch's SKU ID for filtering
+      setSelectedBatchSkuId(batchSkuId)
+
+      // Set SKU ID (will be updated if user selects different SKU)
       setValue('skuId', batchSkuId)
 
       // Auto-fetch SKU data from batch
@@ -167,12 +235,25 @@ export function OutboundProductLineForm({
             }
 
             // Auto-calculate cubic from SKU dimensions (length × width × height in m³)
-            if (sku.lengthPerHU_mm && sku.widthPerHU_mm && sku.heightPerHU_mm) {
+            if (
+              sku.lengthPerHU_mm &&
+              sku.widthPerHU_mm &&
+              sku.heightPerHU_mm &&
+              !Number.isNaN(sku.lengthPerHU_mm) &&
+              !Number.isNaN(sku.widthPerHU_mm) &&
+              !Number.isNaN(sku.heightPerHU_mm)
+            ) {
               // Convert from mm³ to m³: divide by 1,000,000,000
               const cubicM3 =
                 (sku.lengthPerHU_mm * sku.widthPerHU_mm * sku.heightPerHU_mm) / 1_000_000_000
-              setRequiredCubicPerHU(cubicM3)
-              setValue('requiredCubicPerHU', cubicM3)
+              // Ensure the result is a valid number
+              if (!Number.isNaN(cubicM3) && Number.isFinite(cubicM3)) {
+                setRequiredCubicPerHU(cubicM3)
+                setValue('requiredCubicPerHU', cubicM3)
+              } else {
+                setRequiredCubicPerHU(undefined)
+                setValue('requiredCubicPerHU', undefined)
+              }
             } else {
               setRequiredCubicPerHU(undefined)
               setValue('requiredCubicPerHU', undefined)
@@ -190,7 +271,8 @@ export function OutboundProductLineForm({
     if (warehouseId) {
       loadBatchOptions()
     }
-  }, [warehouseId, loadBatchOptions])
+    loadSkuOptions()
+  }, [warehouseId, loadBatchOptions, loadSkuOptions])
 
   useEffect(() => {
     if (initialData) {
@@ -270,6 +352,7 @@ export function OutboundProductLineForm({
           onValueChange={(value) => {
             if (value === undefined) {
               handleBatchChange('')
+              setSelectedBatchSkuId(null)
               return
             }
             handleBatchChange(value as string)
@@ -286,7 +369,83 @@ export function OutboundProductLineForm({
         />
       )}
 
-      {/* SKU Description (auto-fetched from batch) */}
+      {/* SKU Selection - Filtered by batch's SKU */}
+      {watch('batchNumber') && selectedBatchSkuId && (
+        <FormCombobox
+          label="SKU Number"
+          required
+          error={errors.skuId?.message}
+          options={skuOptions
+            .filter((sku) => sku.id === selectedBatchSkuId)
+            .map((sku) => ({
+              value: sku.id,
+              label: `${sku.skuCode}${sku.description ? ` - ${sku.description}` : ''}`,
+            }))}
+          placeholder={loadingSkus ? 'Loading SKUs...' : 'Select SKU number'}
+          value={watch('skuId')}
+          onValueChange={(value) => {
+            if (value === undefined) {
+              // Don't clear required skuId, just reset UI state
+              setSelectedSku(null)
+              setSkuDescription('')
+              return
+            }
+            const skuIdNum = typeof value === 'number' ? value : parseInt(value.toString())
+            setValue('skuId', skuIdNum)
+            // Load SKU details
+            const sku = skuOptions.find((s) => s.id === skuIdNum)
+            if (sku) {
+              setSelectedSku(sku)
+              setSkuDescription(sku.description || '')
+              // Auto-populate expiry, attributes, cubic if SKU has them
+              if (sku.isExpriy && sku.expiryDate) {
+                const dateStr =
+                  typeof sku.expiryDate === 'string'
+                    ? sku.expiryDate.split('T')[0]
+                    : new Date(sku.expiryDate).toISOString().split('T')[0]
+                setExpiryDate(dateStr)
+              } else {
+                setExpiryDate('')
+              }
+              if (sku.isAttribute1 && sku.attribute1) {
+                setAttribute1(sku.attribute1)
+              } else {
+                setAttribute1('')
+              }
+              if (sku.isAttribute2 && sku.attribute2) {
+                setAttribute2(sku.attribute2)
+              } else {
+                setAttribute2('')
+              }
+              // Auto-calculate cubic from SKU dimensions
+              if (
+                sku.lengthPerHU_mm &&
+                sku.widthPerHU_mm &&
+                sku.heightPerHU_mm &&
+                !Number.isNaN(sku.lengthPerHU_mm) &&
+                !Number.isNaN(sku.widthPerHU_mm) &&
+                !Number.isNaN(sku.heightPerHU_mm)
+              ) {
+                const cubicM3 =
+                  (sku.lengthPerHU_mm * sku.widthPerHU_mm * sku.heightPerHU_mm) / 1_000_000_000
+                // Ensure the result is a valid number
+                if (!Number.isNaN(cubicM3) && Number.isFinite(cubicM3)) {
+                  setRequiredCubicPerHU(cubicM3)
+                  setValue('requiredCubicPerHU', cubicM3)
+                } else {
+                  setRequiredCubicPerHU(undefined)
+                  setValue('requiredCubicPerHU', undefined)
+                }
+              } else {
+                setRequiredCubicPerHU(undefined)
+                setValue('requiredCubicPerHU', undefined)
+              }
+            }
+          }}
+        />
+      )}
+
+      {/* SKU Description (auto-fetched from batch or selected SKU) */}
       <FormInput label="SKU Description" value={skuDescription} readOnly className="bg-muted" />
 
       {/* SKU-related fields (only show if present in SKU, non-editable, auto-populated) */}
@@ -337,13 +496,26 @@ export function OutboundProductLineForm({
           {...register('requiredQty', { valueAsNumber: true })}
         />
         <FormInput
-          label="Required Weight (kg)"
+          label="Required Weight (kg) (optional)"
           type="number"
           min="0"
           step="0.01"
           error={errors.requiredWeight?.message}
           placeholder="Enter required weight"
-          {...register('requiredWeight', { valueAsNumber: true })}
+          {...register('requiredWeight', {
+            valueAsNumber: true,
+            setValueAs: (v) => {
+              if (
+                v === '' ||
+                v === null ||
+                v === undefined ||
+                (typeof v === 'number' && Number.isNaN(v))
+              ) {
+                return undefined
+              }
+              return typeof v === 'string' ? parseFloat(v) : v
+            },
+          })}
         />
         <FormInput
           label="Required Cubic per HU (m³) (auto-calculated)"

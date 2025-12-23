@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FormInput } from '@/components/ui/form-field'
+import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -33,6 +33,7 @@ import {
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
 type TrailerTypeItem = {
   id: number
@@ -43,6 +44,13 @@ type TrailerTypeItem = {
   trailerA?: boolean
   trailerB?: boolean
   trailerC?: boolean
+  trailerAEnabled?: boolean
+  trailerAMaxWeight?: number
+  trailerATeuCapacity?: string
+  trailerBEnabled?: boolean
+  trailerBMaxWeight?: number
+  trailerBTeuCapacity?: string
+  maxTeuCapacity?: number
 }
 
 type TenantUser = {
@@ -60,8 +68,6 @@ export default function TrailerTypesPage() {
   const [loadingTrailerTypes, setLoadingTrailerTypes] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingTrailerType, setEditingTrailerType] = useState<TrailerTypeItem | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -80,6 +86,13 @@ export default function TrailerTypesPage() {
     trailerA: z.boolean().optional(),
     trailerB: z.boolean().optional(),
     trailerC: z.boolean().optional(),
+    trailerAEnabled: z.boolean().optional(),
+    trailerAMaxWeight: z.number().optional(),
+    trailerATeuCapacity: z.string().optional(),
+    trailerBEnabled: z.boolean().optional(),
+    trailerBMaxWeight: z.number().optional(),
+    trailerBTeuCapacity: z.string().optional(),
+    maxTeuCapacity: z.number().optional(),
   })
 
   type TrailerTypeFormData = z.infer<typeof trailerTypeSchema>
@@ -101,12 +114,42 @@ export default function TrailerTypesPage() {
       trailerA: false,
       trailerB: false,
       trailerC: false,
+      trailerAEnabled: false,
+      trailerAMaxWeight: undefined,
+      trailerATeuCapacity: undefined,
+      trailerBEnabled: false,
+      trailerBMaxWeight: undefined,
+      trailerBTeuCapacity: undefined,
+      maxTeuCapacity: undefined,
     },
   })
 
   const watchedTrailerA = watch('trailerA')
   const watchedTrailerB = watch('trailerB')
   const watchedTrailerC = watch('trailerC')
+  const watchedTrailerAEnabled = watch('trailerAEnabled')
+  const watchedTrailerATeuCapacity = watch('trailerATeuCapacity')
+  const watchedTrailerBEnabled = watch('trailerBEnabled')
+  const watchedTrailerBTeuCapacity = watch('trailerBTeuCapacity')
+
+  // Calculate maxTeuCapacity in real-time
+  const calculatedMaxTeuCapacity = (() => {
+    let maxTeu = 0
+    if (watchedTrailerAEnabled && watchedTrailerATeuCapacity) {
+      const trailerATeu = parseInt(watchedTrailerATeuCapacity, 10) || 0
+      maxTeu += trailerATeu
+    }
+    if (watchedTrailerBEnabled && watchedTrailerBTeuCapacity) {
+      const trailerBTeu = parseInt(watchedTrailerBTeuCapacity, 10) || 0
+      maxTeu += trailerBTeu
+    }
+    return maxTeu
+  })()
+
+  // Update maxTeuCapacity when dependencies change
+  useEffect(() => {
+    setValue('maxTeuCapacity', calculatedMaxTeuCapacity)
+  }, [calculatedMaxTeuCapacity, setValue])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -196,9 +239,14 @@ export default function TrailerTypesPage() {
       trailerA: false,
       trailerB: false,
       trailerC: false,
+      trailerAEnabled: false,
+      trailerAMaxWeight: undefined,
+      trailerATeuCapacity: undefined,
+      trailerBEnabled: false,
+      trailerBMaxWeight: undefined,
+      trailerBTeuCapacity: undefined,
+      maxTeuCapacity: undefined,
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddTrailerType = () => {
@@ -216,11 +264,16 @@ export default function TrailerTypesPage() {
       trailerA: trailerType.trailerA || false,
       trailerB: trailerType.trailerB || false,
       trailerC: trailerType.trailerC || false,
+      trailerAEnabled: trailerType.trailerAEnabled || false,
+      trailerAMaxWeight: trailerType.trailerAMaxWeight || undefined,
+      trailerATeuCapacity: trailerType.trailerATeuCapacity || undefined,
+      trailerBEnabled: trailerType.trailerBEnabled || false,
+      trailerBMaxWeight: trailerType.trailerBMaxWeight || undefined,
+      trailerBTeuCapacity: trailerType.trailerBTeuCapacity || undefined,
+      maxTeuCapacity: trailerType.maxTeuCapacity || undefined,
     })
     setEditingTrailerType(trailerType)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -230,9 +283,6 @@ export default function TrailerTypesPage() {
   }
 
   const onSubmit = async (data: TrailerTypeFormData) => {
-    setError(null)
-    setSuccess(null)
-
     try {
       if (editingTrailerType) {
         const res = await fetch(`/api/trailer-types/${editingTrailerType.id}`, {
@@ -242,14 +292,14 @@ export default function TrailerTypesPage() {
         })
 
         if (res.ok) {
-          setSuccess('Trailer type updated successfully')
+          toast.success('Trailer type updated successfully')
           await loadTrailerTypes()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update trailer type')
+          toast.error(responseData.message || 'Failed to update trailer type')
         }
       } else {
         const res = await fetch('/api/trailer-types', {
@@ -259,19 +309,19 @@ export default function TrailerTypesPage() {
         })
 
         if (res.ok) {
-          setSuccess('Trailer type created successfully')
+          toast.success('Trailer type created successfully')
           await loadTrailerTypes()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create trailer type')
+          toast.error(responseData.message || 'Failed to create trailer type')
         }
       }
     } catch (error) {
       console.error('Error saving trailer type:', error)
-      setError('An error occurred while saving the trailer type')
+      toast.error('An error occurred while saving the trailer type')
     }
   }
 
@@ -288,16 +338,15 @@ export default function TrailerTypesPage() {
       })
 
       if (res.ok) {
-        setSuccess('Trailer type deleted successfully')
+        toast.success('Trailer type deleted successfully')
         await loadTrailerTypes()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete trailer type')
+        toast.error(data.message || 'Failed to delete trailer type')
       }
     } catch (error) {
       console.error('Error deleting trailer type:', error)
-      setError('An error occurred while deleting the trailer type')
+      toast.error('An error occurred while deleting the trailer type')
     }
   }
 
@@ -341,14 +390,6 @@ export default function TrailerTypesPage() {
         </Button>
       </div>
 
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -428,6 +469,103 @@ export default function TrailerTypesPage() {
                   </Label>
                 </div>
               </div>
+            </div>
+
+            {/* Max TEU Capacity (calculated) */}
+            <div className="border-t pt-4">
+              <FormInput
+                label="Max TEU Capacity"
+                value={calculatedMaxTeuCapacity.toString()}
+                readOnly
+                placeholder="Calculated from Trailer A and B TEU capacities"
+                className="bg-muted"
+              />
+            </div>
+
+            {/* Trailer A Configuration */}
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="trailerAEnabled"
+                  checked={watchedTrailerAEnabled}
+                  onCheckedChange={(checked) => {
+                    setValue('trailerAEnabled', checked === true)
+                    if (!checked) {
+                      setValue('trailerAMaxWeight', undefined)
+                      setValue('trailerATeuCapacity', undefined)
+                    }
+                  }}
+                />
+                <Label htmlFor="trailerAEnabled" className="cursor-pointer font-medium">
+                  Trailer A
+                </Label>
+              </div>
+
+              {watchedTrailerAEnabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                  <FormInput
+                    label="Trailer A Max Weight (kg)"
+                    type="number"
+                    error={errors.trailerAMaxWeight?.message}
+                    placeholder="Maximum weight capacity"
+                    {...register('trailerAMaxWeight', { valueAsNumber: true })}
+                  />
+                  <FormSelect
+                    label="Trailer A TEU Capacity"
+                    error={errors.trailerATeuCapacity?.message}
+                    placeholder="Select TEU capacity"
+                    options={[
+                      { value: '0', label: 'Empty' },
+                      { value: '1', label: '1' },
+                      { value: '2', label: '2' },
+                    ]}
+                    {...register('trailerATeuCapacity')}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Trailer B Configuration */}
+            <div className="border-t pt-4 space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="trailerBEnabled"
+                  checked={watchedTrailerBEnabled}
+                  onCheckedChange={(checked) => {
+                    setValue('trailerBEnabled', checked === true)
+                    if (!checked) {
+                      setValue('trailerBMaxWeight', undefined)
+                      setValue('trailerBTeuCapacity', undefined)
+                    }
+                  }}
+                />
+                <Label htmlFor="trailerBEnabled" className="cursor-pointer font-medium">
+                  Trailer B
+                </Label>
+              </div>
+
+              {watchedTrailerBEnabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6">
+                  <FormInput
+                    label="Trailer B Max Weight (kg)"
+                    type="number"
+                    error={errors.trailerBMaxWeight?.message}
+                    placeholder="Maximum weight capacity"
+                    {...register('trailerBMaxWeight', { valueAsNumber: true })}
+                  />
+                  <FormSelect
+                    label="Trailer B TEU Capacity"
+                    error={errors.trailerBTeuCapacity?.message}
+                    placeholder="Select TEU capacity"
+                    options={[
+                      { value: '0', label: 'Empty' },
+                      { value: '1', label: '1' },
+                      { value: '2', label: '2' },
+                    ]}
+                    {...register('trailerBTeuCapacity')}
+                  />
+                </div>
+              )}
             </div>
 
             <DialogFooter className="flex flex-col sm:flex-row gap-2">

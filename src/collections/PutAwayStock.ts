@@ -186,7 +186,7 @@ export const PutAwayStock: CollectionConfig = {
       type: 'text',
       required: true,
       admin: {
-        description: 'Storage location within the warehouse (from warehouse stores)',
+        description: 'Storage location within the warehouse (from Stores collection)',
       },
     },
     {

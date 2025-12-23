@@ -169,7 +169,6 @@ export const OutboundInventory: CollectionConfig = {
     {
       name: 'containerNumber',
       type: 'text',
-      required: true,
       admin: {
         description: 'Container number assigned to this outbound job',
       },
@@ -177,7 +176,6 @@ export const OutboundInventory: CollectionConfig = {
     {
       name: 'inspectionNumber',
       type: 'text',
-      required: true,
       admin: {
         description: 'Inspection or quality check reference number',
       },
@@ -194,7 +192,6 @@ export const OutboundInventory: CollectionConfig = {
     {
       name: 'inboundJobNumber',
       type: 'text',
-      required: true,
       admin: {
         description: 'Inbound job number from which stock will be allocated',
       },

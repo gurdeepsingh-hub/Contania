@@ -31,6 +31,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { toast } from 'sonner'
 
 type StorageUnit = {
   id: number
@@ -57,8 +58,6 @@ export default function StorageUnitsPage() {
   const [loadingUnits, setLoadingUnits] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingUnit, setEditingUnit] = useState<StorageUnit | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -184,8 +183,6 @@ export default function StorageUnitsPage() {
       widthPerSU_mm: '',
       whstoChargeBy: '',
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddUnit = () => {
@@ -205,8 +202,6 @@ export default function StorageUnitsPage() {
     })
     setEditingUnit(unit)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -216,8 +211,6 @@ export default function StorageUnitsPage() {
   }
 
   const onSubmit = async (data: StorageUnitFormData) => {
-    setError(null)
-    setSuccess(null)
 
     try {
       const submitData: Record<string, unknown> = {
@@ -237,14 +230,14 @@ export default function StorageUnitsPage() {
         })
 
         if (res.ok) {
-          setSuccess('Storage unit updated successfully')
+          toast.success('Storage unit updated successfully')
           await loadStorageUnits()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update storage unit')
+          toast.error(responseData.message || 'Failed to update storage unit')
         }
       } else {
         const res = await fetch('/api/storage-units', {
@@ -254,19 +247,19 @@ export default function StorageUnitsPage() {
         })
 
         if (res.ok) {
-          setSuccess('Storage unit created successfully')
+          toast.success('Storage unit created successfully')
           await loadStorageUnits()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create storage unit')
+          toast.error(responseData.message || 'Failed to create storage unit')
         }
       }
     } catch (error) {
       console.error('Error saving storage unit:', error)
-      setError('An error occurred while saving the storage unit')
+      toast.error('An error occurred while saving the storage unit')
     }
   }
 
@@ -281,16 +274,15 @@ export default function StorageUnitsPage() {
       })
 
       if (res.ok) {
-        setSuccess('Storage unit deleted successfully')
+        toast.success('Storage unit deleted successfully')
         await loadStorageUnits()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete storage unit')
+        toast.error(data.message || 'Failed to delete storage unit')
       }
     } catch (error) {
       console.error('Error deleting storage unit:', error)
-      setError('An error occurred while deleting the storage unit')
+      toast.error('An error occurred while deleting the storage unit')
     }
   }
 
@@ -333,15 +325,6 @@ export default function StorageUnitsPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

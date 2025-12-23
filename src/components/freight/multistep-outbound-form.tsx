@@ -152,36 +152,6 @@ const step1Schema = z
       path: ['consigneeRefNumber'],
     },
   )
-  .refine(
-    (data) => {
-      const value = data.containerNumber
-      return typeof value === 'string' && value.trim() !== ''
-    },
-    {
-      message: 'Container number is required',
-      path: ['containerNumber'],
-    },
-  )
-  .refine(
-    (data) => {
-      const value = data.inspectionNumber
-      return typeof value === 'string' && value.trim() !== ''
-    },
-    {
-      message: 'Inspection number is required',
-      path: ['inspectionNumber'],
-    },
-  )
-  .refine(
-    (data) => {
-      const value = data.inboundJobNumber
-      return typeof value === 'string' && value.trim() !== ''
-    },
-    {
-      message: 'Inbound job number is required',
-      path: ['inboundJobNumber'],
-    },
-  )
 
 const step2Schema = z
   .object({
@@ -519,6 +489,39 @@ export function MultistepOutboundForm({
     field: 'customerId' | 'customerToId' | 'customerFromId',
     customerValue: string, // Format: "collection:id"
   ) => {
+    // If customer value is empty, clear all auto-filled fields for this field
+    if (!customerValue || customerValue.trim() === '') {
+      if (field === 'customerId') {
+        setFormData((prev) => ({
+          ...prev,
+          customerId: '',
+          customerName: '',
+          customerLocation: '',
+          customerState: '',
+          customerContact: '',
+        }))
+      } else if (field === 'customerToId') {
+        setFormData((prev) => ({
+          ...prev,
+          customerToId: '',
+          customerToName: '',
+          customerToLocation: '',
+          customerToState: '',
+          customerToContact: '',
+        }))
+      } else if (field === 'customerFromId') {
+        setFormData((prev) => ({
+          ...prev,
+          customerFromId: '',
+          customerFromName: '',
+          customerFromLocation: '',
+          customerFromState: '',
+          customerFromContact: '',
+        }))
+      }
+      return
+    }
+
     // Update form data first
     const newFormData = { ...formData, [field]: customerValue }
     setFormData(newFormData)
@@ -709,10 +712,11 @@ export function MultistepOutboundForm({
             // Don't call onSave here - it would create a duplicate job
             // The job is already saved, so we're done
           } else {
-            toast.error('Failed to update job')
+            toast.error(data.message || 'Failed to update job')
           }
         } else {
-          toast.error('Failed to update job')
+          const errorData = await res.json().catch(() => ({ message: 'Failed to update job' }))
+          toast.error(errorData.message || 'Failed to update job')
         }
       } else {
         // Job doesn't exist yet, create it via onSave callback
@@ -756,9 +760,12 @@ export function MultistepOutboundForm({
         if (data.success) {
           setFormData((prev) => ({ ...prev, id: data.job.id }))
           toast.success('Job saved successfully')
+        } else {
+          toast.error(data.message || 'Failed to save job')
         }
       } else {
-        toast.error('Failed to save job')
+        const errorData = await res.json().catch(() => ({ message: 'Failed to save job' }))
+        toast.error(errorData.message || 'Failed to save job')
       }
     } catch (error) {
       console.error('Error saving:', error)
@@ -915,11 +922,9 @@ export function MultistepOutboundForm({
                     <FormInput
                       label="Job Number"
                       value={formData.jobCode || ''}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, jobCode: e.target.value }))
-                      }
+                      readOnly
                       placeholder="Auto-generated job number"
-                      className={validationErrors[0]?.jobCode ? 'border-red-500' : ''}
+                      className={`bg-muted ${validationErrors[0]?.jobCode ? 'border-red-500' : ''}`}
                     />
                     {validationErrors[0]?.jobCode && (
                       <p className="text-sm text-red-500 mt-1">{validationErrors[0].jobCode}</p>
@@ -1114,9 +1119,9 @@ export function MultistepOutboundForm({
 
           {step === 1 && (
             <div className="space-y-4 md:space-y-6">
-              {/* Three sections side by side */}
+              {/* Three sections side by side: Customer (left), Pick From (middle), Deliver To (right) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {/* Section 1: Customer */}
+                {/* Section 1: Customer (left) */}
                 <div className="space-y-4 border rounded-lg p-4">
                   <h3 className="font-semibold text-lg">Customer</h3>
                   <div className="flex gap-2">
@@ -1187,9 +1192,80 @@ export function MultistepOutboundForm({
                   </div>
                 </div>
 
-                {/* Section 2: Delivery To (Optional) */}
+                {/* Section 2: Pick From (middle) */}
                 <div className="space-y-4 border rounded-lg p-4">
-                  <h3 className="font-semibold text-lg">Delivery To (Optional)</h3>
+                  <h3 className="font-semibold text-lg">Pick From (Optional)</h3>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <FormCombobox
+                        label="Pickup Location"
+                        placeholder="Select pickup location..."
+                        options={unifiedDestinations.map((dest) => ({
+                          value: dest.value,
+                          label: dest.label,
+                        }))}
+                        value={formData.customerFromId}
+                        onValueChange={(value) => {
+                          if (value === undefined) {
+                            handleCustomerChange('customerFromId', '')
+                            return
+                          }
+                          handleCustomerChange('customerFromId', value.toString())
+                        }}
+                        containerClassName="flex-1"
+                        className={validationErrors[1]?.customerFromId ? 'border-red-500' : ''}
+                      />
+                      {validationErrors[1]?.customerFromId && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {validationErrors[1].customerFromId}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="mt-8"
+                      onClick={() => {
+                        setCustomerTypeModalField('customerFromId')
+                        setShowCustomerTypeModal(true)
+                      }}
+                      title="Quick create customer"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                    <FormInput
+                      label="Name"
+                      value={formData.customerFromName || ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <FormInput
+                      label="Location"
+                      value={formData.customerFromLocation || ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <FormInput
+                      label="State"
+                      value={formData.customerFromState || ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                    <FormInput
+                      label="Contact"
+                      value={formData.customerFromContact || ''}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+
+                {/* Section 3: Deliver To (right) */}
+                <div className="space-y-4 border rounded-lg p-4">
+                  <h3 className="font-semibold text-lg">Deliver To (Optional)</h3>
                   <div className="flex gap-2">
                     <div className="flex-1">
                       <FormCombobox
@@ -1258,76 +1334,6 @@ export function MultistepOutboundForm({
                   </div>
                 </div>
 
-                {/* Section 3: Pickup From (Optional) */}
-                <div className="space-y-4 border rounded-lg p-4">
-                  <h3 className="font-semibold text-lg">Pickup From (Optional)</h3>
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <FormCombobox
-                        label="Pickup Location"
-                        placeholder="Select pickup location..."
-                        options={unifiedDestinations.map((dest) => ({
-                          value: dest.value,
-                          label: dest.label,
-                        }))}
-                        value={formData.customerFromId}
-                        onValueChange={(value) => {
-                          if (value === undefined) {
-                            handleCustomerChange('customerFromId', '')
-                            return
-                          }
-                          handleCustomerChange('customerFromId', value.toString())
-                        }}
-                        containerClassName="flex-1"
-                        className={validationErrors[1]?.customerFromId ? 'border-red-500' : ''}
-                      />
-                      {validationErrors[1]?.customerFromId && (
-                        <p className="text-sm text-red-500 mt-1">
-                          {validationErrors[1].customerFromId}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="mt-8"
-                      onClick={() => {
-                        setCustomerTypeModalField('customerFromId')
-                        setShowCustomerTypeModal(true)
-                      }}
-                      title="Quick create customer"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-                    <FormInput
-                      label="Name"
-                      value={formData.customerFromName || ''}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <FormInput
-                      label="Location"
-                      value={formData.customerFromLocation || ''}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <FormInput
-                      label="State"
-                      value={formData.customerFromState || ''}
-                      readOnly
-                      className="bg-muted"
-                    />
-                    <FormInput
-                      label="Contact"
-                      value={formData.customerFromContact || ''}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           )}

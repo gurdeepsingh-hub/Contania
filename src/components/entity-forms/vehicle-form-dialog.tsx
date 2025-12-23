@@ -42,16 +42,18 @@ type Vehicle = {
   gpsId?: string
   description?: string
   defaultDepotId?: number | { id: number; name?: string }
-  aTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
-  bTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
-  cTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
+  aTrailerId?: number | { id: number; name?: string }
+  bTrailerId?: number | { id: number; name?: string }
+  cTrailerId?: number | { id: number; name?: string }
   sideloader?: boolean
 }
 
-type Trailer = {
+type TrailerType = {
   id: number
-  fleetNumber: string
-  rego: string
+  name: string
+  trailerA: boolean
+  trailerB: boolean
+  trailerC: boolean
 }
 
 type Warehouse = {
@@ -74,7 +76,7 @@ export function VehicleFormDialog({
   mode = 'create',
   onSuccess,
 }: VehicleFormDialogProps) {
-  const [trailers, setTrailers] = useState<Trailer[]>([])
+  const [trailerTypes, setTrailerTypes] = useState<TrailerType[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -105,7 +107,7 @@ export function VehicleFormDialog({
 
   useEffect(() => {
     if (open) {
-      loadTrailers()
+      loadTrailerTypes()
       loadWarehouses()
       if (initialData) {
         const depotId =
@@ -148,17 +150,17 @@ export function VehicleFormDialog({
     }
   }, [open, initialData, reset])
 
-  const loadTrailers = async () => {
+  const loadTrailerTypes = async () => {
     try {
-      const res = await fetch('/api/trailers?limit=1000')
+      const res = await fetch('/api/trailer-types?limit=1000')
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.trailers) {
-          setTrailers(data.trailers)
+        if (data.success && data.trailerTypes) {
+          setTrailerTypes(data.trailerTypes)
         }
       }
     } catch (error) {
-      console.error('Error loading trailers:', error)
+      console.error('Error loading trailer types:', error)
     }
   }
 
@@ -189,11 +191,20 @@ export function VehicleFormDialog({
         if (res.ok) {
           const responseData = await res.json()
           toast.success('Vehicle updated successfully')
-          onSuccess?.(responseData.vehicle)
-          onOpenChange(false)
+          // Keep dialog open briefly showing success, then close automatically
+          setTimeout(() => {
+            onSuccess?.(responseData.vehicle)
+            onOpenChange(false)
+          }, 1500)
         } else {
-          const responseData = await res.json()
-          toast.error(responseData.message || 'Failed to update vehicle')
+          // Handle API error responses
+          try {
+            const responseData = await res.json()
+            const errorMessage = responseData.message || responseData.error || 'Failed to update vehicle'
+            toast.error(errorMessage)
+          } catch (jsonError) {
+            toast.error('Failed to update vehicle. Please try again.')
+          }
         }
       } else {
         const res = await fetch('/api/vehicles', {
@@ -205,16 +216,30 @@ export function VehicleFormDialog({
         if (res.ok) {
           const responseData = await res.json()
           toast.success('Vehicle created successfully')
-          onSuccess?.(responseData.vehicle)
-          onOpenChange(false)
+          // Keep dialog open briefly showing success, then close automatically
+          setTimeout(() => {
+            onSuccess?.(responseData.vehicle)
+            onOpenChange(false)
+          }, 1500)
         } else {
-          const responseData = await res.json()
-          toast.error(responseData.message || 'Failed to create vehicle')
+          // Handle API error responses
+          try {
+            const responseData = await res.json()
+            const errorMessage = responseData.message || responseData.error || 'Failed to create vehicle'
+            toast.error(errorMessage)
+          } catch (jsonError) {
+            toast.error('Failed to create vehicle. Please try again.')
+          }
         }
       }
     } catch (error) {
       console.error('Error saving vehicle:', error)
-      toast.error('An error occurred while saving the vehicle')
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error('An error occurred while saving the vehicle. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -278,39 +303,45 @@ export function VehicleFormDialog({
             />
             <FormSelect
               label="A Trailer"
-              placeholder="Select trailer"
+              placeholder="Select trailer type"
               options={[
                 { value: '', label: 'None' },
-                ...trailers.map((trailer) => ({
-                  value: trailer.id.toString(),
-                  label: `${trailer.fleetNumber} (${trailer.rego})`,
-                })),
+                ...trailerTypes
+                  .filter((trailerType) => trailerType.trailerA === true)
+                  .map((trailerType) => ({
+                    value: trailerType.id.toString(),
+                    label: trailerType.name,
+                  })),
               ]}
               error={errors.aTrailerId?.message}
               {...register('aTrailerId', { valueAsNumber: true })}
             />
             <FormSelect
               label="B Trailer"
-              placeholder="Select trailer"
+              placeholder="Select trailer type"
               options={[
                 { value: '', label: 'None' },
-                ...trailers.map((trailer) => ({
-                  value: trailer.id.toString(),
-                  label: `${trailer.fleetNumber} (${trailer.rego})`,
-                })),
+                ...trailerTypes
+                  .filter((trailerType) => trailerType.trailerB === true)
+                  .map((trailerType) => ({
+                    value: trailerType.id.toString(),
+                    label: trailerType.name,
+                  })),
               ]}
               error={errors.bTrailerId?.message}
               {...register('bTrailerId', { valueAsNumber: true })}
             />
             <FormSelect
               label="C Trailer"
-              placeholder="Select trailer"
+              placeholder="Select trailer type"
               options={[
                 { value: '', label: 'None' },
-                ...trailers.map((trailer) => ({
-                  value: trailer.id.toString(),
-                  label: `${trailer.fleetNumber} (${trailer.rego})`,
-                })),
+                ...trailerTypes
+                  .filter((trailerType) => trailerType.trailerC === true)
+                  .map((trailerType) => ({
+                    value: trailerType.id.toString(),
+                    label: trailerType.name,
+                  })),
               ]}
               error={errors.cTrailerId?.message}
               {...register('cTrailerId', { valueAsNumber: true })}

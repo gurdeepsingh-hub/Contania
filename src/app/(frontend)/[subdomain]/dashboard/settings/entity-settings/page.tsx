@@ -16,6 +16,7 @@ import {
   CreditCard,
   Truck,
   User,
+  Store,
 } from 'lucide-react'
 import { hasViewPermission, hasPermission, canManageRoles } from '@/lib/permissions'
 
@@ -322,6 +323,35 @@ export default function EntitySettingsPage() {
                 }}
               >
                 Manage Storage Units
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/stores')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Store className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Stores</CardTitle>
+              <CardDescription>Manage store information and zone types</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/stores')
+                }}
+              >
+                Manage Stores
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>

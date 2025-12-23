@@ -119,19 +119,30 @@ export function PayingCustomerForm({
             ? 'Paying customer updated successfully'
             : 'Paying customer created successfully',
         )
-        onSuccess(customer)
-        reset()
+        // Keep dialog open briefly showing success, then close automatically
+        setTimeout(() => {
+          onSuccess(customer)
+          reset()
+        }, 1500)
       } else {
-        const errorData = await res.json()
-        toast.error(
-          errorData.message || `Failed to ${mode === 'edit' ? 'update' : 'create'} paying customer`,
-        )
+        // Handle API error responses
+        try {
+          const errorData = await res.json()
+          const errorMessage = errorData.message || errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} paying customer`
+          toast.error(errorMessage)
+        } catch (jsonError) {
+          // If response is not JSON, show generic error
+          toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} paying customer. Please try again.`)
+        }
       }
     } catch (error) {
       console.error('Error saving paying customer:', error)
-      toast.error(
-        `An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the paying customer`,
-      )
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the paying customer. Please try again.`)
+      }
     }
   }
 

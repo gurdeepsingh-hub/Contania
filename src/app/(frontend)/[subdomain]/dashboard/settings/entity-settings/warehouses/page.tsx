@@ -32,6 +32,7 @@ import {
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 type WarehouseItem = {
   id: number
@@ -43,7 +44,6 @@ type WarehouseItem = {
   city?: string
   state?: string
   postcode?: string
-  store?: Array<{ store_name: string; id?: string }>
   type?: string
 }
 
@@ -62,8 +62,9 @@ export default function WarehousesPage() {
   const [loadingWarehouses, setLoadingWarehouses] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingWarehouse, setEditingWarehouse] = useState<WarehouseItem | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [showStoreForm, setShowStoreForm] = useState(false)
+  const [creatingStore, setCreatingStore] = useState(false)
+  const [currentWarehouseId, setCurrentWarehouseId] = useState<number | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -84,18 +85,22 @@ export default function WarehousesPage() {
     state: z.string().optional(),
     postcode: z.string().optional(),
     type: z.string().optional(),
-    store: z.array(z.object({ store_name: z.string() })),
+  })
+
+  const storeSchema = z.object({
+    storeName: z.string().min(1, 'Store name is required'),
+    countable: z.boolean(),
+    zoneType: z.enum(['Indock', 'Outdock', 'Storage']),
   })
 
   type WarehouseFormData = z.infer<typeof warehouseSchema>
+  type StoreFormData = z.infer<typeof storeSchema>
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
-    setValue,
   } = useForm<WarehouseFormData>({
     resolver: zodResolver(warehouseSchema),
     defaultValues: {
@@ -108,12 +113,22 @@ export default function WarehousesPage() {
       state: '',
       postcode: '',
       type: '',
-      store: [],
     },
   })
 
-  const [storeInput, setStoreInput] = useState('')
-  const watchedStores = watch('store')
+  const {
+    register: registerStore,
+    handleSubmit: handleSubmitStore,
+    formState: { errors: storeErrors },
+    reset: resetStore,
+  } = useForm<StoreFormData>({
+    resolver: zodResolver(storeSchema),
+    defaultValues: {
+      storeName: '',
+      countable: false,
+      zoneType: undefined,
+    },
+  })
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -205,17 +220,15 @@ export default function WarehousesPage() {
       state: '',
       postcode: '',
       type: '',
-      store: [],
     })
-    setStoreInput('')
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddWarehouse = () => {
     resetForm()
     setShowAddForm(true)
     setEditingWarehouse(null)
+    setCurrentWarehouseId(null)
+    setShowStoreForm(false)
   }
 
   const handleEditWarehouse = (warehouse: WarehouseItem) => {
@@ -229,43 +242,57 @@ export default function WarehousesPage() {
       state: warehouse.state || '',
       postcode: warehouse.postcode || '',
       type: warehouse.type || '',
-      store: warehouse.store?.map((s) => ({ store_name: s.store_name })) || [],
     })
     setEditingWarehouse(warehouse)
+    setCurrentWarehouseId(warehouse.id)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
     setShowAddForm(false)
     setEditingWarehouse(null)
+    setCurrentWarehouseId(null)
+    setShowStoreForm(false)
     resetForm()
+    resetStore()
   }
 
-  const addStore = () => {
-    if (storeInput.trim()) {
-      const currentStores = watchedStores || []
-      setValue('store', [...currentStores, { store_name: storeInput.trim() }], {
-        shouldValidate: true,
+  const onCreateStore = async (storeData: StoreFormData) => {
+    const warehouseId = currentWarehouseId || editingWarehouse?.id || null
+    if (!warehouseId) {
+      toast.error('Please create the warehouse first before adding stores')
+      return
+    }
+
+    setCreatingStore(true)
+    try {
+      const res = await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          warehouseId,
+          ...storeData,
+        }),
       })
-      setStoreInput('')
+
+      if (res.ok) {
+        const _responseData = await res.json()
+        toast.success('Store created successfully')
+        resetStore()
+        setShowStoreForm(false)
+      } else {
+        const errorData = await res.json()
+        toast.error(errorData.message || 'Failed to create store')
+      }
+    } catch (error) {
+      console.error('Error creating store:', error)
+      toast.error('Failed to create store')
+    } finally {
+      setCreatingStore(false)
     }
   }
 
-  const removeStore = (index: number) => {
-    const currentStores = watchedStores || []
-    setValue(
-      'store',
-      currentStores.filter((_, i) => i !== index),
-      { shouldValidate: true },
-    )
-  }
-
   const onSubmit = async (data: WarehouseFormData) => {
-    setError(null)
-    setSuccess(null)
-
     try {
       if (editingWarehouse) {
         const res = await fetch(`/api/warehouses/${editingWarehouse.id}`, {
@@ -275,14 +302,19 @@ export default function WarehousesPage() {
         })
 
         if (res.ok) {
-          setSuccess('Warehouse updated successfully')
+          const responseData = await res.json()
+          const warehouse = responseData.warehouse || responseData
+          if (warehouse.id) {
+            setCurrentWarehouseId(warehouse.id)
+          }
+          toast.success('Warehouse updated successfully')
           await loadWarehouses()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update warehouse')
+          toast.error(responseData.message || 'Failed to update warehouse')
         }
       } else {
         const res = await fetch('/api/warehouses', {
@@ -292,19 +324,24 @@ export default function WarehousesPage() {
         })
 
         if (res.ok) {
-          setSuccess('Warehouse created successfully')
+          const responseData = await res.json()
+          const warehouse = responseData.warehouse || responseData
+          if (warehouse.id) {
+            setCurrentWarehouseId(warehouse.id)
+          }
+          toast.success('Warehouse created successfully')
           await loadWarehouses()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create warehouse')
+          toast.error(responseData.message || 'Failed to create warehouse')
         }
       }
     } catch (error) {
       console.error('Error saving warehouse:', error)
-      setError('An error occurred while saving the warehouse')
+      toast.error('An error occurred while saving the warehouse')
     }
   }
 
@@ -321,16 +358,15 @@ export default function WarehousesPage() {
       })
 
       if (res.ok) {
-        setSuccess('Warehouse deleted successfully')
+        toast.success('Warehouse deleted successfully')
         await loadWarehouses()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete warehouse')
+        toast.error(data.message || 'Failed to delete warehouse')
       }
     } catch (error) {
       console.error('Error deleting warehouse:', error)
-      setError('An error occurred while deleting the warehouse')
+      toast.error('An error occurred while deleting the warehouse')
     }
   }
 
@@ -373,15 +409,6 @@ export default function WarehousesPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -458,49 +485,82 @@ export default function WarehousesPage() {
               />
             </div>
 
-            <div className="border-t pt-4">
-              <Label htmlFor="store">Stores</Label>
-              <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                <FormInput
-                  id="store"
-                  value={storeInput}
-                  onChange={(e) => setStoreInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addStore()
-                    }
-                  }}
-                  placeholder="Store name"
-                  containerClassName="flex-1"
-                  label=""
-                />
-                <Button type="button" onClick={addStore} variant="outline" className="min-h-[44px]">
-                  Add Store
-                </Button>
-              </div>
-              {watchedStores && watchedStores.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  {watchedStores.map((store, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 bg-muted rounded"
-                    >
-                      <span>{store.store_name}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeStore(index)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+            {/* Quick Create Store Section */}
+            {(editingWarehouse?.id || currentWarehouseId) && (
+              <div className="border-t pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Stores</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowStoreForm(!showStoreForm)}
+                    className="min-h-[36px]"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {showStoreForm ? 'Hide' : 'Quick Create Store'}
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                {showStoreForm && (
+                  <div className="p-4 bg-muted rounded-lg space-y-4">
+                    <form onSubmit={handleSubmitStore(onCreateStore)} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormInput
+                          label="Store Name"
+                          required
+                          error={storeErrors.storeName?.message}
+                          placeholder="Store name"
+                          {...registerStore('storeName')}
+                        />
+                        <FormSelect
+                          label="Zone Type"
+                          required
+                          error={storeErrors.zoneType?.message}
+                          placeholder="Select zone type"
+                          options={[
+                            { value: 'Indock', label: 'Indock' },
+                            { value: 'Outdock', label: 'Outdock' },
+                            { value: 'Storage', label: 'Storage' },
+                          ]}
+                          {...registerStore('zoneType')}
+                        />
+                        <div className="flex items-center space-x-2 pt-6">
+                          <input
+                            type="checkbox"
+                            id="countable-store"
+                            {...registerStore('countable')}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <label
+                            htmlFor="countable-store"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Countable
+                          </label>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setShowStoreForm(false)
+                            resetStore()
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button type="submit" size="sm" disabled={creatingStore}>
+                          {creatingStore ? 'Creating...' : 'Create Store'}
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+              </div>
+            )}
 
             <DialogFooter className="flex flex-col sm:flex-row gap-2">
               <Button
@@ -622,14 +682,6 @@ export default function WarehousesPage() {
                               ]
                                 .filter(Boolean)
                                 .join(', ')}
-                            </span>
-                          </div>
-                        )}
-                        {warehouse.store && warehouse.store.length > 0 && (
-                          <div className="flex items-start gap-2">
-                            <span className="font-medium min-w-[60px]">Stores:</span>
-                            <span className="wrap-break-word">
-                              {warehouse.store.map((s) => s.store_name).join(', ')}
                             </span>
                           </div>
                         )}

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 type VehicleItem = {
   id: number
@@ -59,8 +60,6 @@ export default function VehiclesPage() {
   const [loadingVehicles, setLoadingVehicles] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<VehicleItem | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -155,15 +154,11 @@ export default function VehiclesPage() {
   const handleAddVehicle = () => {
     setEditingVehicle(null)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleEditVehicle = (vehicle: VehicleItem) => {
     setEditingVehicle(vehicle)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleVehicleSuccess = async () => {
@@ -185,16 +180,15 @@ export default function VehiclesPage() {
       })
 
       if (res.ok) {
-        setSuccess('Vehicle deleted successfully')
+        toast.success('Vehicle deleted successfully')
         await loadVehicles()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete vehicle')
+        toast.error(data.message || 'Failed to delete vehicle')
       }
     } catch (error) {
       console.error('Error deleting vehicle:', error)
-      setError('An error occurred while deleting the vehicle')
+      toast.error('An error occurred while deleting the vehicle')
     }
   }
 
@@ -238,15 +232,6 @@ export default function VehiclesPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <VehicleFormDialog
         open={showAddForm}

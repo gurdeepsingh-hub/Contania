@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 type TrailerItem = {
   id: number
@@ -74,8 +75,6 @@ export default function TrailersPage() {
   const [loadingTrailers, setLoadingTrailers] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingTrailer, setEditingTrailer] = useState<TrailerItem | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -91,8 +90,8 @@ export default function TrailersPage() {
     rego: z.string().min(1, 'Registration is required'),
     regoExpiryDate: z.string().optional(),
     trailerTypeId: z.number().optional(),
-    maxWeightKg: z.number().optional(),
-    maxCubeM3: z.number().optional(),
+    maxWeightKg: z.any().optional(),
+    maxCubeM3: z.any().optional(),
     maxPallet: z.number().optional(),
     defaultWarehouseId: z.number().optional(),
     dangerousCertNumber: z.string().optional(),
@@ -108,7 +107,7 @@ export default function TrailersPage() {
     formState: { errors },
     reset,
   } = useForm<TrailerFormData>({
-    resolver: zodResolver(trailerSchema),
+    resolver: zodResolver(trailerSchema) as any,
     defaultValues: {
       fleetNumber: '',
       rego: '',
@@ -248,8 +247,6 @@ export default function TrailersPage() {
       dangerousCertExpiry: '',
       description: '',
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddTrailer = () => {
@@ -281,8 +278,6 @@ export default function TrailersPage() {
     })
     setEditingTrailer(trailer)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -292,9 +287,6 @@ export default function TrailersPage() {
   }
 
   const onSubmit = async (data: TrailerFormData) => {
-    setError(null)
-    setSuccess(null)
-
     try {
       if (editingTrailer) {
         const res = await fetch(`/api/trailers/${editingTrailer.id}`, {
@@ -304,14 +296,14 @@ export default function TrailersPage() {
         })
 
         if (res.ok) {
-          setSuccess('Trailer updated successfully')
+          toast.success('Trailer updated successfully')
           await loadTrailers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update trailer')
+          toast.error(responseData.message || 'Failed to update trailer')
         }
       } else {
         const res = await fetch('/api/trailers', {
@@ -321,25 +313,27 @@ export default function TrailersPage() {
         })
 
         if (res.ok) {
-          setSuccess('Trailer created successfully')
+          toast.success('Trailer created successfully')
           await loadTrailers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create trailer')
+          toast.error(responseData.message || 'Failed to create trailer')
         }
       }
     } catch (error) {
       console.error('Error saving trailer:', error)
-      setError('An error occurred while saving the trailer')
+      toast.error('An error occurred while saving the trailer')
     }
   }
 
   const handleDeleteTrailer = async (trailer: TrailerItem) => {
     if (
-      !confirm(`Are you sure you want to delete ${trailer.fleetNumber}? This action cannot be undone.`)
+      !confirm(
+        `Are you sure you want to delete ${trailer.fleetNumber}? This action cannot be undone.`,
+      )
     ) {
       return
     }
@@ -350,16 +344,15 @@ export default function TrailersPage() {
       })
 
       if (res.ok) {
-        setSuccess('Trailer deleted successfully')
+        toast.success('Trailer deleted successfully')
         await loadTrailers()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete trailer')
+        toast.error(data.message || 'Failed to delete trailer')
       }
     } catch (error) {
       console.error('Error deleting trailer:', error)
-      setError('An error occurred while deleting the trailer')
+      toast.error('An error occurred while deleting the trailer')
     }
   }
 
@@ -407,24 +400,10 @@ export default function TrailersPage() {
           <h1 className="text-3xl font-bold">Trailers</h1>
           <p className="text-muted-foreground">Manage trailer information</p>
         </div>
-        <Button
-          onClick={handleAddTrailer}
-          className="min-h-[44px]"
-          size="icon"
-          title="Add Trailer"
-        >
+        <Button onClick={handleAddTrailer} className="min-h-[44px]" size="icon" title="Add Trailer">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -470,18 +449,42 @@ export default function TrailersPage() {
                 {...register('trailerTypeId', { valueAsNumber: true })}
               />
               <FormInput
-                label="Max Weight (kg)"
+                label="Max Weight (kg) (optional)"
                 type="number"
-                error={errors.maxWeightKg?.message}
+                step="0.01"
+                error={errors.maxWeightKg?.message as string | undefined}
                 placeholder="Maximum weight"
-                {...register('maxWeightKg', { valueAsNumber: true })}
+                {...register('maxWeightKg', {
+                  setValueAs: (v) => {
+                    // Handle empty string, null, undefined, or NaN
+                    if (v === '' || v === null || v === undefined) {
+                      return undefined
+                    }
+                    // Convert to number
+                    const num = typeof v === 'string' ? parseFloat(v) : Number(v)
+                    // Return undefined if NaN or invalid, otherwise return the number
+                    return Number.isNaN(num) || !Number.isFinite(num) ? undefined : num
+                  },
+                })}
               />
               <FormInput
-                label="Max Cubic Volume (m³)"
+                label="Max Cubic Volume (m³) (optional)"
                 type="number"
-                error={errors.maxCubeM3?.message}
+                step="0.01"
+                error={errors.maxCubeM3?.message as string | undefined}
                 placeholder="Maximum volume"
-                {...register('maxCubeM3', { valueAsNumber: true })}
+                {...register('maxCubeM3', {
+                  setValueAs: (v) => {
+                    // Handle empty string, null, undefined, or NaN
+                    if (v === '' || v === null || v === undefined) {
+                      return undefined
+                    }
+                    // Convert to number
+                    const num = typeof v === 'string' ? parseFloat(v) : Number(v)
+                    // Return undefined if NaN or invalid, otherwise return the number
+                    return Number.isNaN(num) || !Number.isFinite(num) ? undefined : num
+                  },
+                })}
               />
               <FormInput
                 label="Max Pallet Capacity"
@@ -695,4 +698,3 @@ export default function TrailersPage() {
     </div>
   )
 }
-

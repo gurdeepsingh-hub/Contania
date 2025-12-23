@@ -131,7 +131,6 @@ export async function POST(request: NextRequest) {
         city: body.city || undefined,
         state: body.state || undefined,
         postcode: body.postcode || undefined,
-        store: body.store || undefined,
         type: body.type || undefined,
       },
     })

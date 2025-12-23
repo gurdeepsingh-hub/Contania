@@ -45,14 +45,70 @@ type ProductLine = {
   attribute2?: string
 }
 
+// Helper to convert NaN/empty to undefined
+const numberOrUndefined = z.preprocess((val) => {
+  // Convert NaN, null, undefined, or empty string to undefined
+  if (val === null || val === undefined || val === '') {
+    return undefined
+  }
+  // Handle NaN
+  if (typeof val === 'number' && (Number.isNaN(val) || !Number.isFinite(val))) {
+    return undefined
+  }
+  // If it's already a valid number, return it
+  if (typeof val === 'number') {
+    return val
+  }
+  // If it's a string, try to parse it
+  if (typeof val === 'string') {
+    const parsed = parseFloat(val)
+    return Number.isNaN(parsed) || !Number.isFinite(parsed) ? undefined : parsed
+  }
+  return undefined
+}, z.number().optional())
+
 const productLineSchema = z.object({
   skuId: z.number().min(1, 'SKU is required'),
   batchNumber: z.string().min(1, 'Batch number is required'),
   expectedQty: z.number().min(1, 'Expected quantity must be at least 1'),
-  weightPerHU: z.number().min(0, 'Weight per HU must be 0 or greater').optional(),
-  expectedWeight: z.number().min(0, 'Expected weight must be 0 or greater').optional(),
-  sqmPerSU: z.number().min(0, 'SQM per SU must be 0 or greater').optional(),
-  expectedCubicPerHU: z.number().min(0, 'Expected cubic per HU must be 0 or greater').optional(),
+  weightPerHU: numberOrUndefined,
+  expectedWeight: numberOrUndefined,
+  sqmPerSU: z.preprocess((val) => {
+    if (val === null || val === undefined || val === '') {
+      return undefined
+    }
+    if (typeof val === 'number' && (Number.isNaN(val) || !Number.isFinite(val))) {
+      return undefined
+    }
+    if (typeof val === 'number') {
+      return val
+    }
+    if (typeof val === 'string') {
+      const parsed = parseFloat(val)
+      return Number.isNaN(parsed) || !Number.isFinite(parsed) ? undefined : parsed
+    }
+    return undefined
+  }, z.number().min(0, 'SQM per SU must be 0 or greater').optional()) as z.ZodType<
+    number | undefined
+  >,
+  expectedCubicPerHU: z.preprocess((val) => {
+    if (val === null || val === undefined || val === '') {
+      return undefined
+    }
+    if (typeof val === 'number' && (Number.isNaN(val) || !Number.isFinite(val))) {
+      return undefined
+    }
+    if (typeof val === 'number') {
+      return val
+    }
+    if (typeof val === 'string') {
+      const parsed = parseFloat(val)
+      return Number.isNaN(parsed) || !Number.isFinite(parsed) ? undefined : parsed
+    }
+    return undefined
+  }, z.number().min(0, 'Expected cubic per HU must be 0 or greater').optional()) as z.ZodType<
+    number | undefined
+  >,
   expiryDate: z.string().optional(),
   attribute1: z.string().optional(),
   attribute2: z.string().optional(),
@@ -92,7 +148,7 @@ export function ProductLineForm({
     setValue,
     watch,
   } = useForm<ProductLineFormData>({
-    resolver: zodResolver(productLineSchema),
+    resolver: zodResolver(productLineSchema) as any,
     defaultValues: {
       skuId: initialData?.skuId,
       batchNumber: initialData?.batchNumber || '',
@@ -219,12 +275,25 @@ export function ProductLineForm({
           }
 
           // Auto-calculate cubic from SKU dimensions (length × width × height in m³)
-          if (sku.lengthPerHU_mm && sku.widthPerHU_mm && sku.heightPerHU_mm) {
+          if (
+            sku.lengthPerHU_mm &&
+            sku.widthPerHU_mm &&
+            sku.heightPerHU_mm &&
+            !Number.isNaN(sku.lengthPerHU_mm) &&
+            !Number.isNaN(sku.widthPerHU_mm) &&
+            !Number.isNaN(sku.heightPerHU_mm)
+          ) {
             // Convert from mm³ to m³: divide by 1,000,000,000
             const cubicM3 =
               (sku.lengthPerHU_mm * sku.widthPerHU_mm * sku.heightPerHU_mm) / 1_000_000_000
-            setExpectedCubicPerHU(cubicM3)
-            setValue('expectedCubicPerHU', cubicM3)
+            // Ensure the result is a valid number
+            if (!Number.isNaN(cubicM3) && Number.isFinite(cubicM3)) {
+              setExpectedCubicPerHU(cubicM3)
+              setValue('expectedCubicPerHU', cubicM3)
+            } else {
+              setExpectedCubicPerHU(undefined)
+              setValue('expectedCubicPerHU', undefined)
+            }
           } else {
             setExpectedCubicPerHU(undefined)
             setValue('expectedCubicPerHU', undefined)
@@ -246,12 +315,23 @@ export function ProductLineForm({
                   }
 
                   // Auto-calculate SQM/SU from Storage Unit dimensions (length × width in m²)
-                  if (storageUnit.lengthPerSU_mm && storageUnit.widthPerSU_mm) {
+                  if (
+                    storageUnit.lengthPerSU_mm &&
+                    storageUnit.widthPerSU_mm &&
+                    !Number.isNaN(storageUnit.lengthPerSU_mm) &&
+                    !Number.isNaN(storageUnit.widthPerSU_mm)
+                  ) {
                     // Convert from mm² to m²: divide by 1,000,000
                     const sqmPerSUValue =
                       (storageUnit.lengthPerSU_mm * storageUnit.widthPerSU_mm) / 1_000_000
-                    setSqmPerSU(sqmPerSUValue)
-                    setValue('sqmPerSU', sqmPerSUValue)
+                    // Ensure the result is a valid number
+                    if (!Number.isNaN(sqmPerSUValue) && Number.isFinite(sqmPerSUValue)) {
+                      setSqmPerSU(sqmPerSUValue)
+                      setValue('sqmPerSU', sqmPerSUValue)
+                    } else {
+                      setSqmPerSU(undefined)
+                      setValue('sqmPerSU', undefined)
+                    }
                   } else {
                     setSqmPerSU(undefined)
                     setValue('sqmPerSU', undefined)
@@ -319,13 +399,26 @@ export function ProductLineForm({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormInput label="LPN Qty (HU per SU)" value={lpnQty} readOnly className="bg-muted" />
         <FormInput
-          label="Weight per HU (kg)"
+          label="Weight per HU (kg) (optional)"
           type="number"
           step="0.01"
           min="0"
           error={errors.weightPerHU?.message}
           placeholder="Enter weight per HU"
-          {...register('weightPerHU', { valueAsNumber: true })}
+          {...register('weightPerHU', {
+            valueAsNumber: true,
+            setValueAs: (v) => {
+              if (
+                v === '' ||
+                v === null ||
+                v === undefined ||
+                (typeof v === 'number' && Number.isNaN(v))
+              ) {
+                return undefined
+              }
+              return typeof v === 'string' ? parseFloat(v) : v
+            },
+          })}
         />
       </div>
 
@@ -356,12 +449,26 @@ export function ProductLineForm({
       </div>
 
       <FormInput
-        label="Expected Weight"
+        label="Expected Weight (optional)"
         type="number"
         min="0"
+        step="0.01"
         error={errors.expectedWeight?.message}
         placeholder="Enter expected weight"
-        {...register('expectedWeight', { valueAsNumber: true })}
+        {...register('expectedWeight', {
+          valueAsNumber: true,
+          setValueAs: (v) => {
+            if (
+              v === '' ||
+              v === null ||
+              v === undefined ||
+              (typeof v === 'number' && Number.isNaN(v))
+            ) {
+              return undefined
+            }
+            return typeof v === 'string' ? parseFloat(v) : v
+          },
+        })}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

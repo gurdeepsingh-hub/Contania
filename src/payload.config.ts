@@ -18,6 +18,7 @@ import { StorageUnits } from './collections/StorageUnits'
 import { SKUs } from './collections/SKUs'
 import { PayingCustomers } from './collections/PayingCustomers'
 import { Warehouses } from './collections/Warehouses'
+import { Stores } from './collections/Stores'
 import { TransportCompanies } from './collections/TransportCompanies'
 import { InboundInventory } from './collections/InboundInventory'
 import { InboundProductLine } from './collections/InboundProductLine'
@@ -53,6 +54,7 @@ export default buildConfig({
     SKUs,
     PayingCustomers,
     Warehouses,
+    Stores,
     TransportCompanies,
     InboundInventory,
     InboundProductLine,

@@ -112,155 +112,35 @@ export default function UserSettingsPage() {
               <UserCog className="h-8 w-8" />
               Account Settings
             </h1>
-            <p className="text-muted-foreground">Configure account settings and company information</p>
+            <p className="text-muted-foreground">Configure your personal account settings</p>
           </div>
         </div>
-        <Button onClick={() => router.push('/dashboard/settings/user-settings/edit')}>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Company Information
-        </Button>
       </div>
 
-      {/* Company Information */}
+      {/* User Account Information */}
       <Card>
         <CardHeader>
-          <CardTitle>Company Information</CardTitle>
-          <CardDescription>Your company details and contact information</CardDescription>
+          <CardTitle>Account Information</CardTitle>
+          <CardDescription>Your personal account details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground block mb-1">
-              Company Name
-            </label>
-            <p className="font-medium">{tenant.companyName}</p>
-          </div>
-          {tenant.fullName && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground block mb-1">
-                Full Legal Name
-              </label>
-              <p className="font-medium">{tenant.fullName}</p>
-            </div>
-          )}
           <div>
             <label className="text-sm font-medium text-muted-foreground block mb-1">Email</label>
             <p className="font-medium flex items-center gap-2">
               <Mail className="h-4 w-4" />
-              {tenant.email}
+              {(currentUser?.email as string) || 'N/A'}
             </p>
           </div>
-          {tenant.phone && (
+          {currentUser && (currentUser as { fullName?: string }).fullName && (
             <div>
-              <label className="text-sm font-medium text-muted-foreground block mb-1">Phone</label>
-              <p className="font-medium flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                {tenant.phone}
-              </p>
-            </div>
-          )}
-          {tenant.fax && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground block mb-1">Fax</label>
-              <p className="font-medium">{tenant.fax}</p>
-            </div>
-          )}
-          {tenant.website && (
-            <div>
-              <label className="text-sm font-medium text-muted-foreground block mb-1">Website</label>
-              <p className="font-medium flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                <a
-                  href={tenant.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {tenant.website}
-                </a>
-              </p>
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
+                Full Name
+              </label>
+              <p className="font-medium">{(currentUser as { fullName?: string }).fullName}</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Address Information */}
-      {tenant.address && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Address</CardTitle>
-            <CardDescription>Business address</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {tenant.address.street && (
-              <p className="font-medium">{tenant.address.street}</p>
-            )}
-            <p className="text-muted-foreground">
-              {[
-                tenant.address.city,
-                tenant.address.state,
-                tenant.address.postalCode,
-                tenant.address.countryCode,
-              ]
-                .filter(Boolean)
-                .join(', ')}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Department Emails */}
-      {tenant.emails && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Department Emails</CardTitle>
-            <CardDescription>Contact emails by department</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {tenant.emails.account && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">
-                    Account
-                  </label>
-                  <p className="text-sm">{tenant.emails.account}</p>
-                </div>
-              )}
-              {tenant.emails.bookings && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">
-                    Bookings
-                  </label>
-                  <p className="text-sm">{tenant.emails.bookings}</p>
-                </div>
-              )}
-              {tenant.emails.management && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">
-                    Management
-                  </label>
-                  <p className="text-sm">{tenant.emails.management}</p>
-                </div>
-              )}
-              {tenant.emails.operations && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">
-                    Operations
-                  </label>
-                  <p className="text-sm">{tenant.emails.operations}</p>
-                </div>
-              )}
-              {tenant.emails.replyTo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1">
-                    Reply-To
-                  </label>
-                  <p className="text-sm">{tenant.emails.replyTo}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

@@ -230,11 +230,20 @@ export function DriverFormDialog({
         if (res.ok) {
           const responseData = await res.json()
           toast.success('Driver updated successfully')
-          onSuccess?.(responseData.driver)
-          onOpenChange(false)
+          // Keep dialog open briefly showing success, then close automatically
+          setTimeout(() => {
+            onSuccess?.(responseData.driver)
+            onOpenChange(false)
+          }, 1500)
         } else {
-          const responseData = await res.json()
-          toast.error(responseData.message || 'Failed to update driver')
+          // Handle API error responses
+          try {
+            const responseData = await res.json()
+            const errorMessage = responseData.message || responseData.error || 'Failed to update driver'
+            toast.error(errorMessage)
+          } catch (jsonError) {
+            toast.error('Failed to update driver. Please try again.')
+          }
         }
       } else {
         const res = await fetch('/api/drivers', {
@@ -246,16 +255,30 @@ export function DriverFormDialog({
         if (res.ok) {
           const responseData = await res.json()
           toast.success('Driver created successfully')
-          onSuccess?.(responseData.driver)
-          onOpenChange(false)
+          // Keep dialog open briefly showing success, then close automatically
+          setTimeout(() => {
+            onSuccess?.(responseData.driver)
+            onOpenChange(false)
+          }, 1500)
         } else {
-          const responseData = await res.json()
-          toast.error(responseData.message || 'Failed to create driver')
+          // Handle API error responses
+          try {
+            const responseData = await res.json()
+            const errorMessage = responseData.message || responseData.error || 'Failed to create driver'
+            toast.error(errorMessage)
+          } catch (jsonError) {
+            toast.error('Failed to create driver. Please try again.')
+          }
         }
       }
     } catch (error) {
       console.error('Error saving driver:', error)
-      toast.error('An error occurred while saving the driver')
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error('An error occurred while saving the driver. Please try again.')
+      }
     } finally {
       setLoading(false)
     }

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 type TransportCompany = {
   id: number
@@ -56,8 +57,6 @@ export default function TransportCompaniesPage() {
   const [editingTransportCompany, setEditingTransportCompany] = useState<TransportCompany | null>(
     null,
   )
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -175,8 +174,6 @@ export default function TransportCompaniesPage() {
       contact: '',
       mobile: '',
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddTransportCompany = () => {
@@ -193,8 +190,6 @@ export default function TransportCompaniesPage() {
     })
     setEditingTransportCompany(transportCompany)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -204,8 +199,6 @@ export default function TransportCompaniesPage() {
   }
 
   const onSubmit = async (data: TransportCompanyFormData) => {
-    setError(null)
-    setSuccess(null)
 
     try {
       if (editingTransportCompany) {
@@ -216,14 +209,14 @@ export default function TransportCompaniesPage() {
         })
 
         if (res.ok) {
-          setSuccess('Transport company updated successfully')
+          toast.success('Transport company updated successfully')
           await loadTransportCompanies()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update transport company')
+          toast.error(responseData.message || 'Failed to update transport company')
         }
       } else {
         const res = await fetch('/api/transport-companies', {
@@ -233,19 +226,19 @@ export default function TransportCompaniesPage() {
         })
 
         if (res.ok) {
-          setSuccess('Transport company created successfully')
+          toast.success('Transport company created successfully')
           await loadTransportCompanies()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create transport company')
+          toast.error(responseData.message || 'Failed to create transport company')
         }
       }
     } catch (error) {
       console.error('Error saving transport company:', error)
-      setError('An error occurred while saving the transport company')
+      toast.error('An error occurred while saving the transport company')
     }
   }
 
@@ -264,16 +257,15 @@ export default function TransportCompaniesPage() {
       })
 
       if (res.ok) {
-        setSuccess('Transport company deleted successfully')
+        toast.success('Transport company deleted successfully')
         await loadTransportCompanies()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete transport company')
+        toast.error(data.message || 'Failed to delete transport company')
       }
     } catch (error) {
       console.error('Error deleting transport company:', error)
-      setError('An error occurred while deleting the transport company')
+      toast.error('An error occurred while deleting the transport company')
     }
   }
 
@@ -316,15 +308,6 @@ export default function TransportCompaniesPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

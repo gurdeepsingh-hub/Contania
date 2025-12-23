@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { Label } from '@/components/ui/label'
-import { X, Save } from 'lucide-react'
+import { X, Save, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
 const warehouseSchema = z.object({
@@ -20,7 +20,6 @@ const warehouseSchema = z.object({
   state: z.string().optional(),
   postcode: z.string().optional(),
   type: z.string().optional(),
-  store: z.array(z.object({ store_name: z.string() })),
 })
 
 type WarehouseFormData = z.infer<typeof warehouseSchema>
@@ -36,7 +35,6 @@ type Warehouse = {
   state?: string
   postcode?: string
   type?: string
-  store?: Array<{ store_name: string; id?: string }>
 }
 
 interface WarehouseFormProps {
@@ -46,15 +44,30 @@ interface WarehouseFormProps {
   mode?: 'create' | 'edit'
 }
 
-export function WarehouseForm({ initialData, onSuccess, onCancel, mode = 'create' }: WarehouseFormProps) {
-  const [storeInput, setStoreInput] = useState('')
+const storeSchema = z.object({
+  storeName: z.string().min(1, 'Store name is required'),
+  countable: z.boolean(),
+  zoneType: z.enum(['Indock', 'Outdock', 'Storage']),
+})
+
+type StoreFormData = z.infer<typeof storeSchema>
+
+export function WarehouseForm({
+  initialData,
+  onSuccess,
+  onCancel,
+  mode = 'create',
+}: WarehouseFormProps) {
+  const [showStoreForm, setShowStoreForm] = useState(false)
+  const [creatingStore, setCreatingStore] = useState(false)
+  const [currentWarehouseId, setCurrentWarehouseId] = useState<number | null>(
+    initialData?.id || null,
+  )
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-    watch,
-    setValue,
   } = useForm<WarehouseFormData>({
     resolver: zodResolver(warehouseSchema),
     defaultValues: {
@@ -67,36 +80,64 @@ export function WarehouseForm({ initialData, onSuccess, onCancel, mode = 'create
       state: initialData?.state || '',
       postcode: initialData?.postcode || '',
       type: initialData?.type || '',
-      store: initialData?.store?.map((s) => ({ store_name: s.store_name })) || [],
     },
   })
 
-  const watchedStores = watch('store')
+  const {
+    register: registerStore,
+    handleSubmit: handleSubmitStore,
+    formState: { errors: storeErrors },
+    reset: resetStore,
+  } = useForm<StoreFormData>({
+    resolver: zodResolver(storeSchema),
+    defaultValues: {
+      storeName: '',
+      countable: false,
+      zoneType: undefined,
+    },
+  })
 
-  const addStore = () => {
-    if (storeInput.trim()) {
-      const currentStores = watchedStores || []
-      setValue('store', [...currentStores, { store_name: storeInput.trim() }], {
-        shouldValidate: true,
-      })
-      setStoreInput('')
+  const onCreateStore = async (storeData: StoreFormData) => {
+    const warehouseId =
+      currentWarehouseId || (mode === 'edit' && initialData?.id ? initialData.id : null)
+    if (!warehouseId) {
+      toast.error('Please create the warehouse first before adding stores')
+      return
     }
-  }
 
-  const removeStore = (index: number) => {
-    const currentStores = watchedStores || []
-    setValue(
-      'store',
-      currentStores.filter((_, i) => i !== index),
-      { shouldValidate: true },
-    )
+    setCreatingStore(true)
+    try {
+      const res = await fetch('/api/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          warehouseId,
+          ...storeData,
+        }),
+      })
+
+      if (res.ok) {
+        const _responseData = await res.json()
+        toast.success('Store created successfully')
+        resetStore()
+        setShowStoreForm(false)
+        // Optionally refresh the warehouse data or call a callback
+      } else {
+        const errorData = await res.json()
+        toast.error(errorData.message || 'Failed to create store')
+      }
+    } catch (error) {
+      console.error('Error creating store:', error)
+      toast.error('Failed to create store')
+    } finally {
+      setCreatingStore(false)
+    }
   }
 
   const onSubmit = async (data: WarehouseFormData) => {
     try {
-      const url = mode === 'edit' && initialData?.id
-        ? `/api/warehouses/${initialData.id}`
-        : '/api/warehouses'
+      const url =
+        mode === 'edit' && initialData?.id ? `/api/warehouses/${initialData.id}` : '/api/warehouses'
       const method = mode === 'edit' && initialData?.id ? 'PATCH' : 'POST'
 
       const res = await fetch(url, {
@@ -108,16 +149,46 @@ export function WarehouseForm({ initialData, onSuccess, onCancel, mode = 'create
       if (res.ok) {
         const responseData = await res.json()
         const warehouse = responseData.warehouse || responseData
-        toast.success(mode === 'edit' ? 'Warehouse updated successfully' : 'Warehouse created successfully')
-        onSuccess(warehouse)
-        reset()
+        toast.success(
+          mode === 'edit' ? 'Warehouse updated successfully' : 'Warehouse created successfully',
+        )
+
+        // Update current warehouse ID so store creation becomes available
+        if (warehouse.id) {
+          setCurrentWarehouseId(warehouse.id)
+        }
+
+        // Keep dialog open briefly showing success, then close automatically
+        setTimeout(() => {
+          onSuccess(warehouse)
+          reset()
+        }, 1500)
       } else {
-        const errorData = await res.json()
-        toast.error(errorData.message || `Failed to ${mode === 'edit' ? 'update' : 'create'} warehouse`)
+        // Handle API error responses
+        try {
+          const errorData = await res.json()
+          const errorMessage =
+            errorData.message ||
+            errorData.error ||
+            `Failed to ${mode === 'edit' ? 'update' : 'create'} warehouse`
+          toast.error(errorMessage)
+        } catch (_jsonError) {
+          // If response is not JSON, show generic error
+          toast.error(
+            `Failed to ${mode === 'edit' ? 'update' : 'create'} warehouse. Please try again.`,
+          )
+        }
       }
     } catch (error) {
       console.error('Error saving warehouse:', error)
-      toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the warehouse`)
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(
+          `An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the warehouse. Please try again.`,
+        )
+      }
     }
   }
 
@@ -187,46 +258,82 @@ export function WarehouseForm({ initialData, onSuccess, onCancel, mode = 'create
         />
       </div>
 
-      <div className="border-t pt-4">
-        <Label htmlFor="store">Stores</Label>
-        <div className="flex flex-col sm:flex-row gap-2 mt-2">
-          <FormInput
-            id="store"
-            value={storeInput}
-            onChange={(e) => setStoreInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addStore()
-              }
-            }}
-            placeholder="Store name"
-            containerClassName="flex-1"
-            label=""
-          />
-          <Button type="button" onClick={addStore} variant="outline" className="min-h-[44px]">
-            Add Store
-          </Button>
-        </div>
-        {watchedStores && watchedStores.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {watchedStores.map((store, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
-                <span>{store.store_name}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeStore(index)}
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+      {/* Quick Create Store Section - Show in edit mode or after warehouse is created */}
+      {(mode === 'edit' || currentWarehouseId) && (
+        <div className="border-t pt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <Label>Stores</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowStoreForm(!showStoreForm)}
+              className="min-h-[36px]"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {showStoreForm ? 'Hide' : 'Quick Create Store'}
+            </Button>
           </div>
-        )}
-      </div>
+
+          {showStoreForm && (
+            <div className="p-4 bg-muted rounded-lg space-y-4">
+              <form onSubmit={handleSubmitStore(onCreateStore)} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormInput
+                    label="Store Name"
+                    required
+                    error={storeErrors.storeName?.message}
+                    placeholder="Store name"
+                    {...registerStore('storeName')}
+                  />
+                  <FormSelect
+                    label="Zone Type"
+                    required
+                    error={storeErrors.zoneType?.message}
+                    placeholder="Select zone type"
+                    options={[
+                      { value: 'Indock', label: 'Indock' },
+                      { value: 'Outdock', label: 'Outdock' },
+                      { value: 'Storage', label: 'Storage' },
+                    ]}
+                    {...registerStore('zoneType')}
+                  />
+                  <div className="flex items-center space-x-2 pt-6">
+                    <input
+                      type="checkbox"
+                      id="countable"
+                      {...registerStore('countable')}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                    <label
+                      htmlFor="countable"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Countable
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowStoreForm(false)
+                      resetStore()
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={creatingStore}>
+                    {creatingStore ? 'Creating...' : 'Create Store'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
@@ -247,4 +354,3 @@ export function WarehouseForm({ initialData, onSuccess, onCancel, mode = 'create
     </form>
   )
 }
-

@@ -26,6 +26,7 @@ import {
   AlertCircle,
   X,
   Edit,
+  LogIn,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
@@ -90,6 +91,7 @@ export default function TenantDetailsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editFormData, setEditFormData] = useState<Partial<Tenant>>({})
+  const [signingIn, setSigningIn] = useState(false)
 
   useEffect(() => {
     if (tenantId) {
@@ -643,6 +645,54 @@ export default function TenantDetailsPage() {
             <p className="text-sm text-muted-foreground">
               Resending credentials will generate a new temporary password for the tenant admin
               user.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sign in as Tenant Section - Only show for approved tenants */}
+      {tenant.approved && tenant.subdomain && (
+        <Card className="relative rounded-none shadow-zinc-950/5">
+          <CardDecorator />
+          <CardHeader>
+            <CardTitle className="text-lg sm:text-xl">Super Admin Access</CardTitle>
+            <CardDescription>
+              Sign into this tenant&apos;s dashboard with full admin permissions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              onClick={async () => {
+                setSigningIn(true)
+                try {
+                  const res = await fetch(`/api/admin/tenants/${tenantId}/sign-in`, {
+                    method: 'POST',
+                  })
+
+                  const data = await res.json()
+
+                  if (res.ok && data.success) {
+                    // Open in new tab - the callback URL will set the cookie and redirect
+                    window.open(data.url, '_blank')
+                  } else {
+                    alert(data.message || 'Failed to sign in as tenant')
+                  }
+                } catch (error) {
+                  console.error('Error signing in as tenant:', error)
+                  alert('Failed to sign in as tenant')
+                } finally {
+                  setSigningIn(false)
+                }
+              }}
+              disabled={signingIn}
+              className="bg-primary hover:bg-primary/90 min-h-[44px]"
+            >
+              <LogIn className="h-4 w-4 mr-2" />
+              {signingIn ? 'Signing in...' : 'Sign in as Tenant'}
+            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              This will sign you into the tenant dashboard with full admin permissions. You will be
+              redirected to the tenant&apos;s subdomain.
             </p>
           </CardContent>
         </Card>

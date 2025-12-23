@@ -128,6 +128,14 @@ export const Vehicles: CollectionConfig = {
       },
     },
     {
+      name: 'defaultTrailerCombinationId',
+      type: 'relationship',
+      relationTo: 'trailer-types',
+      admin: {
+        description: 'Default trailer combination for this vehicle',
+      },
+    },
+    {
       name: 'sideloader',
       type: 'checkbox',
       required: true,

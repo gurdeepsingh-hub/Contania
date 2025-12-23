@@ -77,15 +77,30 @@ export function CustomerForm({ initialData, onSuccess, onCancel, mode = 'create'
         const responseData = await res.json()
         const customer = responseData.customer || responseData
         toast.success(mode === 'edit' ? 'Customer updated successfully' : 'Customer created successfully')
-        onSuccess(customer)
-        reset()
+        // Keep dialog open briefly showing success, then close automatically
+        setTimeout(() => {
+          onSuccess(customer)
+          reset()
+        }, 1500)
       } else {
-        const errorData = await res.json()
-        toast.error(errorData.message || `Failed to ${mode === 'edit' ? 'update' : 'create'} customer`)
+        // Handle API error responses
+        try {
+          const errorData = await res.json()
+          const errorMessage = errorData.message || errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} customer`
+          toast.error(errorMessage)
+        } catch (jsonError) {
+          // If response is not JSON, show generic error
+          toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} customer. Please try again.`)
+        }
       }
     } catch (error) {
       console.error('Error saving customer:', error)
-      toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the customer`)
+      // Handle network errors and other exceptions
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error. Please check your connection and try again.')
+      } else {
+        toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the customer. Please try again.`)
+      }
     }
   }
 

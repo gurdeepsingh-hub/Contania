@@ -18,9 +18,9 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
     // Check if user is authenticated and is super admin
     if (!isAuthenticated || !user || (user as { role?: string }).role !== 'superadmin') {
-      // Redirect to signin if not authenticated or not super admin
+      // Redirect to admin-signin if not authenticated or not super admin
       hasRedirected.current = true
-      router.replace('/signin')
+      router.replace('/admin-signin')
       return
     }
   }, [isLoading, isAuthenticated, user, router])

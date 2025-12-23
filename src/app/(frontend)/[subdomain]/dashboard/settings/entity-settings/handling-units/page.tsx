@@ -31,6 +31,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { toast } from 'sonner'
 
 type HandlingUnit = {
   id: number
@@ -53,8 +54,6 @@ export default function HandlingUnitsPage() {
   const [loadingUnits, setLoadingUnits] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingUnit, setEditingUnit] = useState<HandlingUnit | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -168,8 +167,6 @@ export default function HandlingUnitsPage() {
       name: '',
       abbreviation: '',
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddUnit = () => {
@@ -185,8 +182,6 @@ export default function HandlingUnitsPage() {
     })
     setEditingUnit(unit)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -196,8 +191,6 @@ export default function HandlingUnitsPage() {
   }
 
   const onSubmit = async (data: HandlingUnitFormData) => {
-    setError(null)
-    setSuccess(null)
 
     try {
       if (editingUnit) {
@@ -208,14 +201,14 @@ export default function HandlingUnitsPage() {
         })
 
         if (res.ok) {
-          setSuccess('Handling unit updated successfully')
+          toast.success('Handling unit updated successfully')
           await loadHandlingUnits()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update handling unit')
+          toast.error(responseData.message || 'Failed to update handling unit')
         }
       } else {
         const res = await fetch('/api/handling-units', {
@@ -225,19 +218,19 @@ export default function HandlingUnitsPage() {
         })
 
         if (res.ok) {
-          setSuccess('Handling unit created successfully')
+          toast.success('Handling unit created successfully')
           await loadHandlingUnits()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create handling unit')
+          toast.error(responseData.message || 'Failed to create handling unit')
         }
       }
     } catch (error) {
       console.error('Error saving handling unit:', error)
-      setError('An error occurred while saving the handling unit')
+      toast.error('An error occurred while saving the handling unit')
     }
   }
 
@@ -252,16 +245,15 @@ export default function HandlingUnitsPage() {
       })
 
       if (res.ok) {
-        setSuccess('Handling unit deleted successfully')
+        toast.success('Handling unit deleted successfully')
         await loadHandlingUnits()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete handling unit')
+        toast.error(data.message || 'Failed to delete handling unit')
       }
     } catch (error) {
       console.error('Error deleting handling unit:', error)
-      setError('An error occurred while deleting the handling unit')
+      toast.error('An error occurred while deleting the handling unit')
     }
   }
 
@@ -304,15 +296,6 @@ export default function HandlingUnitsPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

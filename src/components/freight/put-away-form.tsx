@@ -29,7 +29,14 @@ type PutAwayRecord = {
 type Warehouse = {
   id: number
   name: string
-  store?: Array<{ store_name: string }>
+}
+
+type Store = {
+  id: number
+  storeName: string
+  warehouseId: number | { id: number }
+  zoneType: 'Indock' | 'Outdock' | 'Storage'
+  countable?: boolean
 }
 
 interface PutAwayFormProps {
@@ -50,6 +57,7 @@ export function PutAwayForm({
   existingPutAwayRecords = [],
 }: PutAwayFormProps) {
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null)
+  const [stores, setStores] = useState<Store[]>([])
   const [saving, setSaving] = useState(false)
   const [bulkPutAway, setBulkPutAway] = useState<Record<number, boolean>>({})
   const [locations, setLocations] = useState<Record<number, Record<number, string>>>({})
@@ -156,6 +164,35 @@ export function PutAwayForm({
     }
   }, [warehouseId])
 
+  // Load stores for this warehouse
+  useEffect(() => {
+    const loadStores = async () => {
+      try {
+        const res = await fetch(`/api/stores?limit=1000&depth=0`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.stores) {
+            // Filter stores by warehouseId
+            const warehouseStores = data.stores.filter((store: Store) => {
+              const storeWarehouseId = typeof store.warehouseId === 'object' 
+                ? store.warehouseId.id 
+                : store.warehouseId
+              return storeWarehouseId === warehouseId
+            })
+            setStores(warehouseStores)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading stores:', error)
+        toast.error('Failed to load store locations')
+      }
+    }
+
+    if (warehouseId) {
+      loadStores()
+    }
+  }, [warehouseId])
+
   // Calculate number of pallets for a product line based on RECEIVED qty only
   const getPalletCount = (line: ProductLine): number => {
     // Use received qty, not expected qty (palletSpaces is based on expected qty)
@@ -223,10 +260,10 @@ export function PutAwayForm({
 
   // Get warehouse store locations
   const getStoreLocations = (): string[] => {
-    if (!warehouse?.store || warehouse.store.length === 0) {
+    if (!stores || stores.length === 0) {
       return []
     }
-    return warehouse.store.map((s) => s.store_name).filter(Boolean)
+    return stores.map((s) => s.storeName).filter(Boolean)
   }
 
   // Toggle expanded state for accordion
@@ -610,7 +647,7 @@ export function PutAwayForm({
 
       {storeLocations.length === 0 && (
         <div className="text-center py-4 text-muted-foreground">
-          No storage locations found for this warehouse. Please add stores to the warehouse first.
+          No storage locations found for this warehouse. Please add stores in Entity Settings first.
         </div>
       )}
 

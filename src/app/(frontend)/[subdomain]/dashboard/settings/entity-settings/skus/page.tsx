@@ -32,6 +32,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { toast } from 'sonner'
 
 type SKU = {
   id: number
@@ -96,8 +97,6 @@ export default function SKUsPage() {
   const [loadingRelations, setLoadingRelations] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingSku, setEditingSku] = useState<SKU | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Quick-create modal states
   const [showQuickCreateCustomer, setShowQuickCreateCustomer] = useState(false)
@@ -378,7 +377,7 @@ export default function SKUsPage() {
   // Quick-create handlers
   const handleQuickCreateCustomer = async () => {
     if (!quickCreateData.name) {
-      setError('Customer name is required')
+      toast.error('Customer name is required')
       return
     }
     try {
@@ -401,21 +400,21 @@ export default function SKUsPage() {
             widthPerSU_mm: '',
             whstoChargeBy: '',
           })
-          setSuccess('Customer created successfully')
+          toast.success('Customer created successfully')
         }
       } else {
         const errorData = await res.json()
-        setError(errorData.message || 'Failed to create customer')
+        toast.error(errorData.message || 'Failed to create customer')
       }
     } catch (error) {
       console.error('Error creating customer:', error)
-      setError('Failed to create customer')
+      toast.error('Failed to create customer')
     }
   }
 
   const handleQuickCreateStorageUnit = async () => {
     if (!quickCreateData.name) {
-      setError('Storage unit name is required')
+      toast.error('Storage unit name is required')
       return
     }
     try {
@@ -451,21 +450,21 @@ export default function SKUsPage() {
             widthPerSU_mm: '',
             whstoChargeBy: '',
           })
-          setSuccess('Storage unit created successfully')
+          toast.success('Storage unit created successfully')
         }
       } else {
         const errorData = await res.json()
-        setError(errorData.message || 'Failed to create storage unit')
+        toast.error(errorData.message || 'Failed to create storage unit')
       }
     } catch (error) {
       console.error('Error creating storage unit:', error)
-      setError('Failed to create storage unit')
+      toast.error('Failed to create storage unit')
     }
   }
 
   const handleQuickCreateHandlingUnit = async () => {
     if (!quickCreateData.name) {
-      setError('Handling unit name is required')
+      toast.error('Handling unit name is required')
       return
     }
     try {
@@ -491,15 +490,15 @@ export default function SKUsPage() {
             widthPerSU_mm: '',
             whstoChargeBy: '',
           })
-          setSuccess('Handling unit created successfully')
+          toast.success('Handling unit created successfully')
         }
       } else {
         const errorData = await res.json()
-        setError(errorData.message || 'Failed to create handling unit')
+        toast.error(errorData.message || 'Failed to create handling unit')
       }
     } catch (error) {
       console.error('Error creating handling unit:', error)
-      setError('Failed to create handling unit')
+      toast.error('Failed to create handling unit')
     }
   }
 
@@ -530,8 +529,6 @@ export default function SKUsPage() {
       attribute2: '',
     })
     setAutoCalculatedFields(new Set())
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddSku = () => {
@@ -589,8 +586,6 @@ export default function SKUsPage() {
     })
     setEditingSku(sku)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -600,8 +595,6 @@ export default function SKUsPage() {
   }
 
   const onSubmit = async (data: SKUFormData) => {
-    setError(null)
-    setSuccess(null)
 
     try {
       const submitData: Record<string, unknown> = {
@@ -638,14 +631,14 @@ export default function SKUsPage() {
         })
 
         if (res.ok) {
-          setSuccess('SKU updated successfully')
+          toast.success('SKU updated successfully')
           await loadSKUs()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update SKU')
+          toast.error(responseData.message || 'Failed to update SKU')
         }
       } else {
         const res = await fetch('/api/skus', {
@@ -655,19 +648,19 @@ export default function SKUsPage() {
         })
 
         if (res.ok) {
-          setSuccess('SKU created successfully')
+          toast.success('SKU created successfully')
           await loadSKUs()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create SKU')
+          toast.error(responseData.message || 'Failed to create SKU')
         }
       }
     } catch (error) {
       console.error('Error saving SKU:', error)
-      setError('An error occurred while saving the SKU')
+      toast.error('An error occurred while saving the SKU')
     }
   }
 
@@ -684,16 +677,15 @@ export default function SKUsPage() {
       })
 
       if (res.ok) {
-        setSuccess('SKU deleted successfully')
+        toast.success('SKU deleted successfully')
         await loadSKUs()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete SKU')
+        toast.error(data.message || 'Failed to delete SKU')
       }
     } catch (error) {
       console.error('Error deleting SKU:', error)
-      setError('An error occurred while deleting the SKU')
+      toast.error('An error occurred while deleting the SKU')
     }
   }
 
@@ -765,17 +757,14 @@ export default function SKUsPage() {
         </Button>
       </div>
 
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
-
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent 
+          className={`max-w-4xl max-h-[90vh] overflow-y-auto ${
+            showQuickCreateCustomer || showQuickCreateStorageUnit || showQuickCreateHandlingUnit
+              ? 'pointer-events-none'
+              : ''
+          }`}
+        >
           <DialogHeader>
             <DialogTitle>{editingSku ? 'Edit SKU' : 'Add New SKU'}</DialogTitle>
             <DialogDescription>
@@ -1103,7 +1092,7 @@ export default function SKUsPage() {
       {/* Quick-create Customer Modal */}
       {showQuickCreateCustomer && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowQuickCreateCustomer(false)
@@ -1117,8 +1106,13 @@ export default function SKUsPage() {
               })
             }
           }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          <Card className="relative w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card 
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <CardHeader>
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">
@@ -1187,7 +1181,7 @@ export default function SKUsPage() {
       {/* Quick-create Storage Unit Modal */}
       {showQuickCreateStorageUnit && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowQuickCreateStorageUnit(false)
@@ -1201,8 +1195,13 @@ export default function SKUsPage() {
               })
             }
           }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          <Card className="relative w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card 
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <CardHeader>
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">
@@ -1282,7 +1281,7 @@ export default function SKUsPage() {
       {/* Quick-create Handling Unit Modal */}
       {showQuickCreateHandlingUnit && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowQuickCreateHandlingUnit(false)
@@ -1296,8 +1295,13 @@ export default function SKUsPage() {
               })
             }
           }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          <Card className="relative w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card 
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <CardHeader>
               <div className="flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">

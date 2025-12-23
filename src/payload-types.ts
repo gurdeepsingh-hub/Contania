@@ -79,6 +79,7 @@ export interface Config {
     skus: Skus;
     'paying-customers': PayingCustomer;
     warehouses: Warehouse;
+    stores: Store;
     'transport-companies': TransportCompany;
     'inbound-inventory': InboundInventory;
     'inbound-product-line': InboundProductLine;
@@ -107,6 +108,7 @@ export interface Config {
     skus: SkusSelect<false> | SkusSelect<true>;
     'paying-customers': PayingCustomersSelect<false> | PayingCustomersSelect<true>;
     warehouses: WarehousesSelect<false> | WarehousesSelect<true>;
+    stores: StoresSelect<false> | StoresSelect<true>;
     'transport-companies': TransportCompaniesSelect<false> | TransportCompaniesSelect<true>;
     'inbound-inventory': InboundInventorySelect<false> | InboundInventorySelect<true>;
     'inbound-product-line': InboundProductLineSelect<false> | InboundProductLineSelect<true>;
@@ -934,18 +936,38 @@ export interface Warehouse {
    */
   postcode?: string | null;
   /**
-   * Array of strings for stores in warehouse
-   */
-  store?:
-    | {
-        store_name: string;
-        id?: string | null;
-      }[]
-    | null;
-  /**
    * Differentiates between location types
    */
   type?: ('Depot' | 'Warehouse') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stores".
+ */
+export interface Store {
+  id: number;
+  /**
+   * Links store to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Warehouse this store belongs to
+   */
+  warehouseId: number | Warehouse;
+  /**
+   * Name of the store
+   */
+  storeName: string;
+  /**
+   * Whether this store is countable
+   */
+  countable?: boolean | null;
+  /**
+   * Zone type for the store
+   */
+  zoneType: 'Indock' | 'Outdock' | 'Storage';
   updatedAt: string;
   createdAt: string;
 }
@@ -1203,7 +1225,7 @@ export interface PutAwayStock {
    */
   warehouseId: number | Warehouse;
   /**
-   * Storage location within the warehouse (from warehouse stores)
+   * Storage location within the warehouse (from Stores collection)
    */
   location: string;
   /**
@@ -1284,11 +1306,11 @@ export interface OutboundInventory {
   /**
    * Container number assigned to this outbound job
    */
-  containerNumber: string;
+  containerNumber?: string | null;
   /**
    * Inspection or quality check reference number
    */
-  inspectionNumber: string;
+  inspectionNumber?: string | null;
   /**
    * Warehouse responsible for processing this outbound job
    */
@@ -1296,7 +1318,7 @@ export interface OutboundInventory {
   /**
    * Inbound job number from which stock will be allocated
    */
-  inboundJobNumber: string;
+  inboundJobNumber?: string | null;
   /**
    * Customer ID in format "collection:id" (e.g., "customers:123" or "paying-customers:456")
    */
@@ -1579,6 +1601,34 @@ export interface TrailerType {
    * Whether this type supports Trailer C
    */
   trailerC?: boolean | null;
+  /**
+   * Enable Trailer A configuration
+   */
+  trailerAEnabled?: boolean | null;
+  /**
+   * Maximum weight capacity for Trailer A in kg
+   */
+  trailerAMaxWeight?: number | null;
+  /**
+   * TEU capacity for Trailer A
+   */
+  trailerATeuCapacity?: ('0' | '1' | '2') | null;
+  /**
+   * Enable Trailer B configuration
+   */
+  trailerBEnabled?: boolean | null;
+  /**
+   * Maximum weight capacity for Trailer B in kg
+   */
+  trailerBMaxWeight?: number | null;
+  /**
+   * TEU capacity for Trailer B
+   */
+  trailerBTeuCapacity?: ('0' | '1' | '2') | null;
+  /**
+   * Maximum TEU capacity (calculated from Trailer A and B TEU capacities)
+   */
+  maxTeuCapacity?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1685,6 +1735,10 @@ export interface Vehicle {
    * Assigned C trailer type
    */
   cTrailerId?: (number | null) | TrailerType;
+  /**
+   * Default trailer combination for this vehicle
+   */
+  defaultTrailerCombinationId?: (number | null) | TrailerType;
   /**
    * Whether vehicle is equipped with sideloader (YES/NO)
    */
@@ -1827,6 +1881,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'warehouses';
         value: number | Warehouse;
+      } | null)
+    | ({
+        relationTo: 'stores';
+        value: number | Store;
       } | null)
     | ({
         relationTo: 'transport-companies';
@@ -2217,13 +2275,20 @@ export interface WarehousesSelect<T extends boolean = true> {
   city?: T;
   state?: T;
   postcode?: T;
-  store?:
-    | T
-    | {
-        store_name?: T;
-        id?: T;
-      };
   type?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "stores_select".
+ */
+export interface StoresSelect<T extends boolean = true> {
+  tenantId?: T;
+  warehouseId?: T;
+  storeName?: T;
+  countable?: T;
+  zoneType?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2433,6 +2498,13 @@ export interface TrailerTypesSelect<T extends boolean = true> {
   trailerA?: T;
   trailerB?: T;
   trailerC?: T;
+  trailerAEnabled?: T;
+  trailerAMaxWeight?: T;
+  trailerATeuCapacity?: T;
+  trailerBEnabled?: T;
+  trailerBMaxWeight?: T;
+  trailerBTeuCapacity?: T;
+  maxTeuCapacity?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2471,6 +2543,7 @@ export interface VehiclesSelect<T extends boolean = true> {
   aTrailerId?: T;
   bTrailerId?: T;
   cTrailerId?: T;
+  defaultTrailerCombinationId?: T;
   sideloader?: T;
   updatedAt?: T;
   createdAt?: T;

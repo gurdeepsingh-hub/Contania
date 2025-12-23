@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 
 type Customer = {
   id: number
@@ -59,8 +60,6 @@ export default function CustomersPage() {
   const [loadingCustomers, setLoadingCustomers] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -193,8 +192,6 @@ export default function CustomersPage() {
       state: '',
       postcode: '',
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddCustomer = () => {
@@ -216,8 +213,6 @@ export default function CustomersPage() {
     })
     setEditingCustomer(customer)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -227,9 +222,6 @@ export default function CustomersPage() {
   }
 
   const onSubmit = async (data: CustomerFormData) => {
-    setError(null)
-    setSuccess(null)
-
     try {
       if (editingCustomer) {
         const res = await fetch(`/api/customers/${editingCustomer.id}`, {
@@ -239,14 +231,14 @@ export default function CustomersPage() {
         })
 
         if (res.ok) {
-          setSuccess('Customer updated successfully')
+          toast.success('Customer updated successfully')
           await loadCustomers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update customer')
+          toast.error(responseData.message || 'Failed to update customer')
         }
       } else {
         const res = await fetch('/api/customers', {
@@ -256,19 +248,19 @@ export default function CustomersPage() {
         })
 
         if (res.ok) {
-          setSuccess('Customer created successfully')
+          toast.success('Customer created successfully')
           await loadCustomers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create customer')
+          toast.error(responseData.message || 'Failed to create customer')
         }
       }
     } catch (error) {
       console.error('Error saving customer:', error)
-      setError('An error occurred while saving the customer')
+      toast.error('An error occurred while saving the customer')
     }
   }
 
@@ -287,16 +279,15 @@ export default function CustomersPage() {
       })
 
       if (res.ok) {
-        setSuccess('Customer deleted successfully')
+        toast.success('Customer deleted successfully')
         await loadCustomers()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete customer')
+        toast.error(data.message || 'Failed to delete customer')
       }
     } catch (error) {
       console.error('Error deleting customer:', error)
-      setError('An error occurred while deleting the customer')
+      toast.error('An error occurred while deleting the customer')
     }
   }
 
@@ -340,14 +331,6 @@ export default function CustomersPage() {
         </Button>
       </div>
 
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

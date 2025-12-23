@@ -32,6 +32,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
+import { toast } from 'sonner'
 
 type PayingCustomer = {
   id: number
@@ -66,8 +67,6 @@ export default function PayingCustomersPage() {
   const [loadingPayingCustomers, setLoadingPayingCustomers] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingPayingCustomer, setEditingPayingCustomer] = useState<PayingCustomer | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -235,8 +234,6 @@ export default function PayingCustomersPage() {
       delivery_state: '',
       delivery_postcode: '',
     })
-    setError(null)
-    setSuccess(null)
   }
 
   const handleAddPayingCustomer = () => {
@@ -264,8 +261,6 @@ export default function PayingCustomersPage() {
     })
     setEditingPayingCustomer(payingCustomer)
     setShowAddForm(true)
-    setError(null)
-    setSuccess(null)
   }
 
   const handleCancel = () => {
@@ -275,8 +270,6 @@ export default function PayingCustomersPage() {
   }
 
   const onSubmit = async (data: PayingCustomerFormData) => {
-    setError(null)
-    setSuccess(null)
 
     try {
       if (editingPayingCustomer) {
@@ -287,14 +280,14 @@ export default function PayingCustomersPage() {
         })
 
         if (res.ok) {
-          setSuccess('Paying customer updated successfully')
+          toast.success('Paying customer updated successfully')
           await loadPayingCustomers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to update paying customer')
+          toast.error(responseData.message || 'Failed to update paying customer')
         }
       } else {
         const res = await fetch('/api/paying-customers', {
@@ -304,19 +297,19 @@ export default function PayingCustomersPage() {
         })
 
         if (res.ok) {
-          setSuccess('Paying customer created successfully')
+          toast.success('Paying customer created successfully')
           await loadPayingCustomers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          setError(responseData.message || 'Failed to create paying customer')
+          toast.error(responseData.message || 'Failed to create paying customer')
         }
       }
     } catch (error) {
       console.error('Error saving paying customer:', error)
-      setError('An error occurred while saving the paying customer')
+      toast.error('An error occurred while saving the paying customer')
     }
   }
 
@@ -335,16 +328,15 @@ export default function PayingCustomersPage() {
       })
 
       if (res.ok) {
-        setSuccess('Paying customer deleted successfully')
+        toast.success('Paying customer deleted successfully')
         await loadPayingCustomers()
-        setTimeout(() => setSuccess(null), 2000)
       } else {
         const data = await res.json()
-        setError(data.message || 'Failed to delete paying customer')
+        toast.error(data.message || 'Failed to delete paying customer')
       }
     } catch (error) {
       console.error('Error deleting paying customer:', error)
-      setError('An error occurred while deleting the paying customer')
+      toast.error('An error occurred while deleting the paying customer')
     }
   }
 
@@ -387,15 +379,6 @@ export default function PayingCustomersPage() {
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {success && (
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
-          {success}
-        </div>
-      )}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
-      )}
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">

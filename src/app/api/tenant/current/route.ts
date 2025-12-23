@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
+import { canManageRoles, isAdmin, type UserWithRole } from '@/lib/permissions'
 
 export async function GET(request: NextRequest) {
   try {
@@ -179,6 +180,32 @@ export async function PATCH(request: NextRequest) {
 
     if (tenantUserId !== tenant.id) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 })
+    }
+
+    // Check if user is super admin (from users collection) or tenant admin
+    // For super admin check, we need to check if they're from users collection with superadmin role
+    const isSuperAdmin =
+      (user as { role?: string; collection?: string }).role === 'superadmin' ||
+      (user as { collection?: string }).collection === 'users'
+
+    // For tenant admin, fetch user with role populated to check permissions
+    let isTenantAdmin = false
+    if (!isSuperAdmin) {
+      const fullUser = await payload.findByID({
+        collection: 'tenant-users',
+        id: user.id as number,
+        depth: 1,
+      })
+      isTenantAdmin =
+        canManageRoles(fullUser as unknown as UserWithRole) ||
+        isAdmin(fullUser as unknown as UserWithRole)
+    }
+
+    if (!isSuperAdmin && !isTenantAdmin) {
+      return NextResponse.json(
+        { message: 'Only admins can update company information' },
+        { status: 403 },
+      )
     }
 
     // Get update data from request body

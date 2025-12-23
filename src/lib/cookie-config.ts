@@ -24,8 +24,10 @@ export function getAuthCookieOptions(request?: NextRequest): {
   
   // For localhost or dev environments, don't set domain (allows localhost subdomains)
   // For production, set domain with leading dot to enable subdomain sharing
-  const domain = 
-    hostname === 'localhost' || !isProduction || hostname?.endsWith('.localhost')
+  // Check if hostname contains localhost (handles both localhost and tenant.localhost)
+  const isLocalhost = hostname === 'localhost' || hostname?.includes('.localhost') || !isProduction
+  
+  const domain = isLocalhost
       ? undefined
       : `.${defaultHost}`
   

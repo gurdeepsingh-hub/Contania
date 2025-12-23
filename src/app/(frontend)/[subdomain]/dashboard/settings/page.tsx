@@ -79,9 +79,19 @@ export default function SettingsPage() {
 
   const settingsSections = [
     {
+      id: 'company-settings',
+      title: 'Company Information',
+      description: 'View and manage company details (Admin only)',
+      icon: Building2,
+      href: '/dashboard/settings/company-settings',
+      enabled:
+        hasViewPermission(currentUser, 'settings') &&
+        (canManageRoles(currentUser) || (currentUser as { role?: string; collection?: string }).role === 'superadmin' || (currentUser as { collection?: string }).collection === 'users'),
+    },
+    {
       id: 'entity-settings',
       title: 'Entity Settings',
-      description: 'Manage company information and entity details',
+      description: 'Manage entity details and configurations',
       icon: Building2,
       href: '/dashboard/settings/entity-settings',
       enabled:
@@ -91,7 +101,7 @@ export default function SettingsPage() {
     {
       id: 'user-settings',
       title: 'Account Settings',
-      description: 'Configure account settings and company information',
+      description: 'Configure your personal account settings',
       icon: UserCog,
       href: '/dashboard/settings/user-settings',
       enabled:
