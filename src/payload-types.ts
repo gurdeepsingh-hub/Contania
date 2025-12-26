@@ -91,6 +91,15 @@ export interface Config {
     trailers: Trailer;
     vehicles: Vehicle;
     drivers: Driver;
+    'delay-points': DelayPoint;
+    'empty-parks': EmptyPark;
+    'shipping-lines': ShippingLine;
+    wharves: Wharf;
+    'container-sizes': ContainerSize;
+    'container-weights': ContainerWeight;
+    'damage-codes': DamageCode;
+    'detention-control': DetentionControl;
+    vessels: Vessel;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -120,6 +129,15 @@ export interface Config {
     trailers: TrailersSelect<false> | TrailersSelect<true>;
     vehicles: VehiclesSelect<false> | VehiclesSelect<true>;
     drivers: DriversSelect<false> | DriversSelect<true>;
+    'delay-points': DelayPointsSelect<false> | DelayPointsSelect<true>;
+    'empty-parks': EmptyParksSelect<false> | EmptyParksSelect<true>;
+    'shipping-lines': ShippingLinesSelect<false> | ShippingLinesSelect<true>;
+    wharves: WharvesSelect<false> | WharvesSelect<true>;
+    'container-sizes': ContainerSizesSelect<false> | ContainerSizesSelect<true>;
+    'container-weights': ContainerWeightsSelect<false> | ContainerWeightsSelect<true>;
+    'damage-codes': DamageCodesSelect<false> | DamageCodesSelect<true>;
+    'detention-control': DetentionControlSelect<false> | DetentionControlSelect<true>;
+    vessels: VesselsSelect<false> | VesselsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -1833,6 +1851,369 @@ export interface Driver {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "delay-points".
+ */
+export interface DelayPoint {
+  id: number;
+  /**
+   * Links delay point to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of delay point
+   */
+  name: string;
+  /**
+   * Delay point email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact name
+   */
+  contactName?: string | null;
+  /**
+   * Contact phone number
+   */
+  contactPhoneNumber?: string | null;
+  address?: {
+    /**
+     * Street address
+     */
+    street?: string | null;
+    /**
+     * City
+     */
+    city?: string | null;
+    /**
+     * State or province
+     */
+    state?: string | null;
+    /**
+     * Postal/ZIP code
+     */
+    postcode?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "empty-parks".
+ */
+export interface EmptyPark {
+  id: number;
+  /**
+   * Links empty park to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of empty park
+   */
+  name: string;
+  /**
+   * Empty park email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact name
+   */
+  contactName?: string | null;
+  /**
+   * Contact phone number
+   */
+  contactPhoneNumber?: string | null;
+  address?: {
+    /**
+     * Street address
+     */
+    street?: string | null;
+    /**
+     * City
+     */
+    city?: string | null;
+    /**
+     * State or province
+     */
+    state?: string | null;
+    /**
+     * Postal/ZIP code
+     */
+    postcode?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "shipping-lines".
+ */
+export interface ShippingLine {
+  id: number;
+  /**
+   * Links shipping line to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of shipping line
+   */
+  name: string;
+  /**
+   * Shipping line email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact name
+   */
+  contactName?: string | null;
+  /**
+   * Contact phone number
+   */
+  contactPhoneNumber?: string | null;
+  address?: {
+    /**
+     * Street address
+     */
+    street?: string | null;
+    /**
+     * City
+     */
+    city?: string | null;
+    /**
+     * State or province
+     */
+    state?: string | null;
+    /**
+     * Postal/ZIP code
+     */
+    postcode?: string | null;
+  };
+  /**
+   * Number of import free days
+   */
+  importFreeDays?: number | null;
+  /**
+   * Method to calculate import free days
+   */
+  calculateImportFreeDaysUsing?:
+    | ('availability_date' | 'first_free_import_date' | 'discharge_date' | 'full_gate_out')
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wharves".
+ */
+export interface Wharf {
+  id: number;
+  /**
+   * Links wharf to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of wharf
+   */
+  name: string;
+  /**
+   * Wharf email address
+   */
+  email?: string | null;
+  /**
+   * Primary contact name
+   */
+  contactName?: string | null;
+  /**
+   * Contact phone number
+   */
+  contactPhoneNumber?: string | null;
+  address?: {
+    /**
+     * Street address
+     */
+    street?: string | null;
+    /**
+     * City
+     */
+    city?: string | null;
+    /**
+     * State or province
+     */
+    state?: string | null;
+    /**
+     * Postal/ZIP code
+     */
+    postcode?: string | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-sizes".
+ */
+export interface ContainerSize {
+  id: number;
+  /**
+   * Links container size to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Container size (e.g., "20ft", "40ft")
+   */
+  size: string;
+  /**
+   * Unique code for container size
+   */
+  code?: string | null;
+  /**
+   * Description of container size
+   */
+  description?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-weights".
+ */
+export interface ContainerWeight {
+  id: number;
+  /**
+   * Links container weight to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Container size
+   */
+  size: string;
+  /**
+   * Container attribute type
+   */
+  attribute: 'HC' | 'RF' | 'GP' | 'TK' | 'OT';
+  /**
+   * Weight in kg
+   */
+  weight: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "damage-codes".
+ */
+export interface DamageCode {
+  id: number;
+  /**
+   * Links damage code to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Type of freight
+   */
+  freightType: 'Container' | 'General' | 'Warehouse';
+  /**
+   * Reason for damage code
+   */
+  reason: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "detention-control".
+ */
+export interface DetentionControl {
+  id: number;
+  /**
+   * Links detention control to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Shipping line for detention control
+   */
+  shippingLineId: number | ShippingLine;
+  /**
+   * Container type
+   */
+  containerType: 'RF' | 'DRY';
+  /**
+   * Method to calculate import free days (auto-fetched from shipping line)
+   */
+  calculateImportFreeDaysUsing?: string | null;
+  /**
+   * Number of import free days
+   */
+  importFreeDays?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vessels".
+ */
+export interface Vessel {
+  id: number;
+  /**
+   * Links vessel to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Name of vessel
+   */
+  vesselName: string;
+  /**
+   * Voyage number
+   */
+  voyageNumber?: string | null;
+  /**
+   * Lloyds number
+   */
+  lloydsNumber?: string | null;
+  /**
+   * Wharf associated with vessel
+   */
+  wharfId?: (number | null) | Wharf;
+  /**
+   * Type of job (import or export)
+   */
+  jobType: 'import' | 'export';
+  /**
+   * Estimated Time of Arrival (for import)
+   */
+  eta?: string | null;
+  /**
+   * Availability date (for import)
+   */
+  availability?: string | null;
+  /**
+   * Storage start date (for import)
+   */
+  storageStart?: string | null;
+  /**
+   * First free import date (for import)
+   */
+  firstFreeImportDate?: string | null;
+  /**
+   * Estimated Time of Departure (for export)
+   */
+  etd?: string | null;
+  /**
+   * Receival start date (for export)
+   */
+  receivalStart?: string | null;
+  /**
+   * Cutoff date (for export)
+   */
+  cutoff?: string | null;
+  /**
+   * Reefer cutoff date (for export)
+   */
+  reeferCutoff?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -1929,6 +2310,42 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'drivers';
         value: number | Driver;
+      } | null)
+    | ({
+        relationTo: 'delay-points';
+        value: number | DelayPoint;
+      } | null)
+    | ({
+        relationTo: 'empty-parks';
+        value: number | EmptyPark;
+      } | null)
+    | ({
+        relationTo: 'shipping-lines';
+        value: number | ShippingLine;
+      } | null)
+    | ({
+        relationTo: 'wharves';
+        value: number | Wharf;
+      } | null)
+    | ({
+        relationTo: 'container-sizes';
+        value: number | ContainerSize;
+      } | null)
+    | ({
+        relationTo: 'container-weights';
+        value: number | ContainerWeight;
+      } | null)
+    | ({
+        relationTo: 'damage-codes';
+        value: number | DamageCode;
+      } | null)
+    | ({
+        relationTo: 'detention-control';
+        value: number | DetentionControl;
+      } | null)
+    | ({
+        relationTo: 'vessels';
+        value: number | Vessel;
       } | null);
   globalSlug?: string | null;
   user:
@@ -2572,6 +2989,162 @@ export interface DriversSelect<T extends boolean = true> {
   msicNumber?: T;
   msicExpiry?: T;
   msicPhotoUrl?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "delay-points_select".
+ */
+export interface DelayPointsSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  email?: T;
+  contactName?: T;
+  contactPhoneNumber?: T;
+  address?:
+    | T
+    | {
+        street?: T;
+        city?: T;
+        state?: T;
+        postcode?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "empty-parks_select".
+ */
+export interface EmptyParksSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  email?: T;
+  contactName?: T;
+  contactPhoneNumber?: T;
+  address?:
+    | T
+    | {
+        street?: T;
+        city?: T;
+        state?: T;
+        postcode?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "shipping-lines_select".
+ */
+export interface ShippingLinesSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  email?: T;
+  contactName?: T;
+  contactPhoneNumber?: T;
+  address?:
+    | T
+    | {
+        street?: T;
+        city?: T;
+        state?: T;
+        postcode?: T;
+      };
+  importFreeDays?: T;
+  calculateImportFreeDaysUsing?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "wharves_select".
+ */
+export interface WharvesSelect<T extends boolean = true> {
+  tenantId?: T;
+  name?: T;
+  email?: T;
+  contactName?: T;
+  contactPhoneNumber?: T;
+  address?:
+    | T
+    | {
+        street?: T;
+        city?: T;
+        state?: T;
+        postcode?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-sizes_select".
+ */
+export interface ContainerSizesSelect<T extends boolean = true> {
+  tenantId?: T;
+  size?: T;
+  code?: T;
+  description?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-weights_select".
+ */
+export interface ContainerWeightsSelect<T extends boolean = true> {
+  tenantId?: T;
+  size?: T;
+  attribute?: T;
+  weight?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "damage-codes_select".
+ */
+export interface DamageCodesSelect<T extends boolean = true> {
+  tenantId?: T;
+  freightType?: T;
+  reason?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "detention-control_select".
+ */
+export interface DetentionControlSelect<T extends boolean = true> {
+  tenantId?: T;
+  shippingLineId?: T;
+  containerType?: T;
+  calculateImportFreeDaysUsing?: T;
+  importFreeDays?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "vessels_select".
+ */
+export interface VesselsSelect<T extends boolean = true> {
+  tenantId?: T;
+  vesselName?: T;
+  voyageNumber?: T;
+  lloydsNumber?: T;
+  wharfId?: T;
+  jobType?: T;
+  eta?: T;
+  availability?: T;
+  storageStart?: T;
+  firstFreeImportDate?: T;
+  etd?: T;
+  receivalStart?: T;
+  cutoff?: T;
+  reeferCutoff?: T;
   updatedAt?: T;
   createdAt?: T;
 }

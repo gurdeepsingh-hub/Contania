@@ -1,9 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,17 +9,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Store,
+  ParkingCircle,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -31,14 +25,20 @@ import {
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { StoreForm } from '@/components/entity-forms/store-form'
+import { EmptyParkForm } from '@/components/entity-forms/empty-park-form'
 
-type StoreItem = {
+type EmptyParkItem = {
   id: number
-  warehouseId: number | string | { id: number; name?: string }
-  storeName: string
-  countable?: boolean
-  zoneType: 'Indock' | 'Outdock' | 'Storage'
+  name: string
+  email?: string
+  contactName?: string
+  contactPhoneNumber?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    postcode?: string
+  }
 }
 
 type TenantUser = {
@@ -47,15 +47,15 @@ type TenantUser = {
   [key: string]: unknown
 }
 
-export default function StoresPage() {
+export default function EmptyParksPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
-  const [stores, setStores] = useState<StoreItem[]>([])
-  const [loadingStores, setLoadingStores] = useState(false)
+  const [emptyParks, setEmptyParks] = useState<EmptyParkItem[]>([])
+  const [loadingEmptyParks, setLoadingEmptyParks] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingStore, setEditingStore] = useState<StoreItem | null>(null)
+  const [editingEmptyPark, setEditingEmptyPark] = useState<EmptyParkItem | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -104,25 +104,24 @@ export default function StoresPage() {
 
   useEffect(() => {
     if (authChecked) {
-      loadStores()
+      loadEmptyParks()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
-  const loadStores = async () => {
+  const loadEmptyParks = async () => {
     try {
-      setLoadingStores(true)
+      setLoadingEmptyParks(true)
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        depth: '1', // Include warehouse details
         ...(searchQuery && { search: searchQuery }),
       })
-      const res = await fetch(`/api/stores?${params.toString()}`)
+      const res = await fetch(`/api/empty-parks?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.stores) {
-          setStores(data.stores)
+        if (data.success && data.emptyParks) {
+          setEmptyParks(data.emptyParks)
           setTotalDocs(data.totalDocs || 0)
           setTotalPages(data.totalPages || 0)
           setHasPrevPage(data.hasPrevPage || false)
@@ -130,15 +129,15 @@ export default function StoresPage() {
         }
       }
     } catch (error) {
-      console.error('Error loading stores:', error)
+      console.error('Error loading empty parks:', error)
     } finally {
-      setLoadingStores(false)
+      setLoadingEmptyParks(false)
     }
   }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1) // Reset to first page when searching
+    setPage(1)
   }
 
   const handlePageChange = (newPage: number) => {
@@ -146,50 +145,50 @@ export default function StoresPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleAddStore = () => {
-    setEditingStore(null)
+  const handleAddEmptyPark = () => {
+    setEditingEmptyPark(null)
     setShowAddForm(true)
   }
 
-  const handleEditStore = (store: StoreItem) => {
-    setEditingStore(store)
+  const handleEditEmptyPark = (emptyPark: EmptyParkItem) => {
+    setEditingEmptyPark(emptyPark)
     setShowAddForm(true)
   }
 
   const handleCancel = () => {
     setShowAddForm(false)
-    setEditingStore(null)
+    setEditingEmptyPark(null)
   }
 
   const handleSuccess = async () => {
-    await loadStores()
+    await loadEmptyParks()
     setTimeout(() => {
       handleCancel()
     }, 1500)
   }
 
-  const handleDeleteStore = async (store: StoreItem) => {
+  const handleDeleteEmptyPark = async (emptyPark: EmptyParkItem) => {
     if (
-      !confirm(`Are you sure you want to delete ${store.storeName}? This action cannot be undone.`)
+      !confirm(`Are you sure you want to delete ${emptyPark.name}? This action cannot be undone.`)
     ) {
       return
     }
 
     try {
-      const res = await fetch(`/api/stores/${store.id}`, {
+      const res = await fetch(`/api/empty-parks/${emptyPark.id}`, {
         method: 'DELETE',
       })
 
       if (res.ok) {
-        toast.success('Store deleted successfully')
-        await loadStores()
+        toast.success('Empty park deleted successfully')
+        await loadEmptyParks()
       } else {
         const data = await res.json()
-        toast.error(data.message || 'Failed to delete store')
+        toast.error(data.message || 'Failed to delete empty park')
       }
     } catch (error) {
-      console.error('Error deleting store:', error)
-      toast.error('An error occurred while deleting the store')
+      console.error('Error deleting empty park:', error)
+      toast.error('An error occurred while deleting the empty park')
     }
   }
 
@@ -209,15 +208,6 @@ export default function StoresPage() {
     )
   }
 
-  const getWarehouseName = (
-    warehouseId: number | string | { id: number; name?: string },
-  ): string => {
-    if (typeof warehouseId === 'object' && warehouseId !== null) {
-      return warehouseId.name || `Warehouse ${warehouseId.id}`
-    }
-    return `Warehouse ${warehouseId}`
-  }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -229,10 +219,15 @@ export default function StoresPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Stores</h1>
-          <p className="text-muted-foreground">Manage store information</p>
+          <h1 className="text-3xl font-bold">Empty Parks</h1>
+          <p className="text-muted-foreground">Manage empty park information</p>
         </div>
-        <Button onClick={handleAddStore} className="min-h-[44px]" size="icon" title="Add Store">
+        <Button
+          onClick={handleAddEmptyPark}
+          className="min-h-[44px]"
+          size="icon"
+          title="Add Empty Park"
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -240,16 +235,16 @@ export default function StoresPage() {
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingStore ? 'Edit Store' : 'Add New Store'}</DialogTitle>
+            <DialogTitle>{editingEmptyPark ? 'Edit Empty Park' : 'Add New Empty Park'}</DialogTitle>
             <DialogDescription>
-              {editingStore ? 'Update store information' : 'Create a new store'}
+              {editingEmptyPark ? 'Update empty park information' : 'Create a new empty park'}
             </DialogDescription>
           </DialogHeader>
-          <StoreForm
-            initialData={editingStore || undefined}
+          <EmptyParkForm
+            initialData={editingEmptyPark || undefined}
             onSuccess={handleSuccess}
             onCancel={handleCancel}
-            mode={editingStore ? 'edit' : 'create'}
+            mode={editingEmptyPark ? 'edit' : 'create'}
           />
         </DialogContent>
       </Dialog>
@@ -259,15 +254,15 @@ export default function StoresPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Store className="h-5 w-5" />
-                Stores ({totalDocs})
+                <ParkingCircle className="h-5 w-5" />
+                Empty Parks ({totalDocs})
               </CardTitle>
-              <CardDescription>Manage store information</CardDescription>
+              <CardDescription>Manage empty park information</CardDescription>
             </div>
             <div className="relative max-w-sm w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search stores..."
+                placeholder="Search empty parks..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
@@ -276,38 +271,40 @@ export default function StoresPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loadingStores ? (
-            <div className="text-center py-8 text-muted-foreground">Loading stores...</div>
-          ) : stores.length === 0 ? (
+          {loadingEmptyParks ? (
+            <div className="text-center py-8 text-muted-foreground">Loading empty parks...</div>
+          ) : emptyParks.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchQuery ? 'No stores found matching your search' : 'No stores found'}
+              {searchQuery
+                ? 'No empty parks found matching your search'
+                : 'No empty parks found'}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {stores.map((store) => (
-                  <Card key={store.id} className="hover:shadow-md transition-shadow">
+                {emptyParks.map((emptyPark) => (
+                  <Card key={emptyPark.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
-                          {store.storeName}
+                          {emptyPark.name}
                         </CardTitle>
                         <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEditStore(store)}
+                            onClick={() => handleEditEmptyPark(emptyPark)}
                             className="h-8 w-8"
-                            title="Edit Store"
+                            title="Edit Empty Park"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteStore(store)}
+                            onClick={() => handleDeleteEmptyPark(emptyPark)}
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Delete Store"
+                            title="Delete Empty Park"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -316,20 +313,43 @@ export default function StoresPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Warehouse:</span>
-                          <span className="wrap-break-word">
-                            {getWarehouseName(store.warehouseId)}
-                          </span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Zone Type:</span>
-                          <span>{store.zoneType}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Countable:</span>
-                          <span>{store.countable ? 'Yes' : 'No'}</span>
-                        </div>
+                        {emptyPark.email && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Email:</span>
+                            <span className="wrap-break-word">{emptyPark.email}</span>
+                          </div>
+                        )}
+                        {emptyPark.contactName && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Contact:</span>
+                            <span>{emptyPark.contactName}</span>
+                          </div>
+                        )}
+                        {emptyPark.contactPhoneNumber && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Phone:</span>
+                            <span>{emptyPark.contactPhoneNumber}</span>
+                          </div>
+                        )}
+                        {emptyPark.address &&
+                          (emptyPark.address.street ||
+                            emptyPark.address.city ||
+                            emptyPark.address.state ||
+                            emptyPark.address.postcode) && (
+                            <div className="flex items-start gap-2">
+                              <span className="font-medium min-w-[80px]">Address:</span>
+                              <span className="wrap-break-word">
+                                {[
+                                  emptyPark.address.street,
+                                  emptyPark.address.city,
+                                  emptyPark.address.state,
+                                  emptyPark.address.postcode,
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     </CardContent>
                   </Card>
@@ -340,15 +360,15 @@ export default function StoresPage() {
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {stores.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
-                    {Math.min(page * limit, totalDocs)} of {totalDocs} stores
+                    Showing {emptyParks.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
+                    {Math.min(page * limit, totalDocs)} of {totalDocs} empty parks
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page - 1)}
-                      disabled={!hasPrevPage || loadingStores}
+                      disabled={!hasPrevPage || loadingEmptyParks}
                       className="min-h-[44px] min-w-[44px]"
                       title="Previous Page"
                     >
@@ -372,7 +392,7 @@ export default function StoresPage() {
                             variant={pageNum === page ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
-                            disabled={loadingStores}
+                            disabled={loadingEmptyParks}
                             className="min-w-[44px] min-h-[44px]"
                           >
                             {pageNum}
@@ -384,7 +404,7 @@ export default function StoresPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page + 1)}
-                      disabled={!hasNextPage || loadingStores}
+                      disabled={!hasNextPage || loadingEmptyParks}
                       className="min-h-[44px] min-w-[44px]"
                       title="Next Page"
                     >
@@ -400,3 +420,4 @@ export default function StoresPage() {
     </div>
   )
 }
+

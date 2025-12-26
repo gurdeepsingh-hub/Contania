@@ -390,7 +390,6 @@ export default function TrailerTypesPage() {
         </Button>
       </div>
 
-
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -751,4 +750,3 @@ export default function TrailerTypesPage() {
     </div>
   )
 }
-

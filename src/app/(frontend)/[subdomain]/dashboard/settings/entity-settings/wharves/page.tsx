@@ -1,9 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,17 +9,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Store,
+  Anchor,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -31,14 +25,20 @@ import {
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { StoreForm } from '@/components/entity-forms/store-form'
+import { WharfForm } from '@/components/entity-forms/wharf-form'
 
-type StoreItem = {
+type WharfItem = {
   id: number
-  warehouseId: number | string | { id: number; name?: string }
-  storeName: string
-  countable?: boolean
-  zoneType: 'Indock' | 'Outdock' | 'Storage'
+  name: string
+  email?: string
+  contactName?: string
+  contactPhoneNumber?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    postcode?: string
+  }
 }
 
 type TenantUser = {
@@ -47,15 +47,15 @@ type TenantUser = {
   [key: string]: unknown
 }
 
-export default function StoresPage() {
+export default function WharvesPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
-  const [stores, setStores] = useState<StoreItem[]>([])
-  const [loadingStores, setLoadingStores] = useState(false)
+  const [wharves, setWharves] = useState<WharfItem[]>([])
+  const [loadingWharves, setLoadingWharves] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingStore, setEditingStore] = useState<StoreItem | null>(null)
+  const [editingWharf, setEditingWharf] = useState<WharfItem | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -104,25 +104,24 @@ export default function StoresPage() {
 
   useEffect(() => {
     if (authChecked) {
-      loadStores()
+      loadWharves()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
-  const loadStores = async () => {
+  const loadWharves = async () => {
     try {
-      setLoadingStores(true)
+      setLoadingWharves(true)
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        depth: '1', // Include warehouse details
         ...(searchQuery && { search: searchQuery }),
       })
-      const res = await fetch(`/api/stores?${params.toString()}`)
+      const res = await fetch(`/api/wharves?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.stores) {
-          setStores(data.stores)
+        if (data.success && data.wharves) {
+          setWharves(data.wharves)
           setTotalDocs(data.totalDocs || 0)
           setTotalPages(data.totalPages || 0)
           setHasPrevPage(data.hasPrevPage || false)
@@ -130,15 +129,15 @@ export default function StoresPage() {
         }
       }
     } catch (error) {
-      console.error('Error loading stores:', error)
+      console.error('Error loading wharves:', error)
     } finally {
-      setLoadingStores(false)
+      setLoadingWharves(false)
     }
   }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1) // Reset to first page when searching
+    setPage(1)
   }
 
   const handlePageChange = (newPage: number) => {
@@ -146,50 +145,48 @@ export default function StoresPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleAddStore = () => {
-    setEditingStore(null)
+  const handleAddWharf = () => {
+    setEditingWharf(null)
     setShowAddForm(true)
   }
 
-  const handleEditStore = (store: StoreItem) => {
-    setEditingStore(store)
+  const handleEditWharf = (wharf: WharfItem) => {
+    setEditingWharf(wharf)
     setShowAddForm(true)
   }
 
   const handleCancel = () => {
     setShowAddForm(false)
-    setEditingStore(null)
+    setEditingWharf(null)
   }
 
   const handleSuccess = async () => {
-    await loadStores()
+    await loadWharves()
     setTimeout(() => {
       handleCancel()
     }, 1500)
   }
 
-  const handleDeleteStore = async (store: StoreItem) => {
-    if (
-      !confirm(`Are you sure you want to delete ${store.storeName}? This action cannot be undone.`)
-    ) {
+  const handleDeleteWharf = async (wharf: WharfItem) => {
+    if (!confirm(`Are you sure you want to delete ${wharf.name}? This action cannot be undone.`)) {
       return
     }
 
     try {
-      const res = await fetch(`/api/stores/${store.id}`, {
+      const res = await fetch(`/api/wharves/${wharf.id}`, {
         method: 'DELETE',
       })
 
       if (res.ok) {
-        toast.success('Store deleted successfully')
-        await loadStores()
+        toast.success('Wharf deleted successfully')
+        await loadWharves()
       } else {
         const data = await res.json()
-        toast.error(data.message || 'Failed to delete store')
+        toast.error(data.message || 'Failed to delete wharf')
       }
     } catch (error) {
-      console.error('Error deleting store:', error)
-      toast.error('An error occurred while deleting the store')
+      console.error('Error deleting wharf:', error)
+      toast.error('An error occurred while deleting the wharf')
     }
   }
 
@@ -209,15 +206,6 @@ export default function StoresPage() {
     )
   }
 
-  const getWarehouseName = (
-    warehouseId: number | string | { id: number; name?: string },
-  ): string => {
-    if (typeof warehouseId === 'object' && warehouseId !== null) {
-      return warehouseId.name || `Warehouse ${warehouseId.id}`
-    }
-    return `Warehouse ${warehouseId}`
-  }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -229,10 +217,10 @@ export default function StoresPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Stores</h1>
-          <p className="text-muted-foreground">Manage store information</p>
+          <h1 className="text-3xl font-bold">Wharves</h1>
+          <p className="text-muted-foreground">Manage wharf information</p>
         </div>
-        <Button onClick={handleAddStore} className="min-h-[44px]" size="icon" title="Add Store">
+        <Button onClick={handleAddWharf} className="min-h-[44px]" size="icon" title="Add Wharf">
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -240,16 +228,16 @@ export default function StoresPage() {
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingStore ? 'Edit Store' : 'Add New Store'}</DialogTitle>
+            <DialogTitle>{editingWharf ? 'Edit Wharf' : 'Add New Wharf'}</DialogTitle>
             <DialogDescription>
-              {editingStore ? 'Update store information' : 'Create a new store'}
+              {editingWharf ? 'Update wharf information' : 'Create a new wharf'}
             </DialogDescription>
           </DialogHeader>
-          <StoreForm
-            initialData={editingStore || undefined}
+          <WharfForm
+            initialData={editingWharf || undefined}
             onSuccess={handleSuccess}
             onCancel={handleCancel}
-            mode={editingStore ? 'edit' : 'create'}
+            mode={editingWharf ? 'edit' : 'create'}
           />
         </DialogContent>
       </Dialog>
@@ -259,15 +247,15 @@ export default function StoresPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Store className="h-5 w-5" />
-                Stores ({totalDocs})
+                <Anchor className="h-5 w-5" />
+                Wharves ({totalDocs})
               </CardTitle>
-              <CardDescription>Manage store information</CardDescription>
+              <CardDescription>Manage wharf information</CardDescription>
             </div>
             <div className="relative max-w-sm w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search stores..."
+                placeholder="Search wharves..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
@@ -276,38 +264,38 @@ export default function StoresPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loadingStores ? (
-            <div className="text-center py-8 text-muted-foreground">Loading stores...</div>
-          ) : stores.length === 0 ? (
+          {loadingWharves ? (
+            <div className="text-center py-8 text-muted-foreground">Loading wharves...</div>
+          ) : wharves.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchQuery ? 'No stores found matching your search' : 'No stores found'}
+              {searchQuery ? 'No wharves found matching your search' : 'No wharves found'}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {stores.map((store) => (
-                  <Card key={store.id} className="hover:shadow-md transition-shadow">
+                {wharves.map((wharf) => (
+                  <Card key={wharf.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
-                          {store.storeName}
+                          {wharf.name}
                         </CardTitle>
                         <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEditStore(store)}
+                            onClick={() => handleEditWharf(wharf)}
                             className="h-8 w-8"
-                            title="Edit Store"
+                            title="Edit Wharf"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteStore(store)}
+                            onClick={() => handleDeleteWharf(wharf)}
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Delete Store"
+                            title="Delete Wharf"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -316,20 +304,43 @@ export default function StoresPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Warehouse:</span>
-                          <span className="wrap-break-word">
-                            {getWarehouseName(store.warehouseId)}
-                          </span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Zone Type:</span>
-                          <span>{store.zoneType}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Countable:</span>
-                          <span>{store.countable ? 'Yes' : 'No'}</span>
-                        </div>
+                        {wharf.email && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Email:</span>
+                            <span className="wrap-break-word">{wharf.email}</span>
+                          </div>
+                        )}
+                        {wharf.contactName && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Contact:</span>
+                            <span>{wharf.contactName}</span>
+                          </div>
+                        )}
+                        {wharf.contactPhoneNumber && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Phone:</span>
+                            <span>{wharf.contactPhoneNumber}</span>
+                          </div>
+                        )}
+                        {wharf.address &&
+                          (wharf.address.street ||
+                            wharf.address.city ||
+                            wharf.address.state ||
+                            wharf.address.postcode) && (
+                            <div className="flex items-start gap-2">
+                              <span className="font-medium min-w-[80px]">Address:</span>
+                              <span className="wrap-break-word">
+                                {[
+                                  wharf.address.street,
+                                  wharf.address.city,
+                                  wharf.address.state,
+                                  wharf.address.postcode,
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     </CardContent>
                   </Card>
@@ -340,15 +351,15 @@ export default function StoresPage() {
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {stores.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
-                    {Math.min(page * limit, totalDocs)} of {totalDocs} stores
+                    Showing {wharves.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
+                    {Math.min(page * limit, totalDocs)} of {totalDocs} wharves
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page - 1)}
-                      disabled={!hasPrevPage || loadingStores}
+                      disabled={!hasPrevPage || loadingWharves}
                       className="min-h-[44px] min-w-[44px]"
                       title="Previous Page"
                     >
@@ -372,7 +383,7 @@ export default function StoresPage() {
                             variant={pageNum === page ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
-                            disabled={loadingStores}
+                            disabled={loadingWharves}
                             className="min-w-[44px] min-h-[44px]"
                           >
                             {pageNum}
@@ -384,7 +395,7 @@ export default function StoresPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page + 1)}
-                      disabled={!hasNextPage || loadingStores}
+                      disabled={!hasNextPage || loadingWharves}
                       className="min-h-[44px] min-w-[44px]"
                       title="Next Page"
                     >
@@ -400,3 +411,4 @@ export default function StoresPage() {
     </div>
   )
 }
+

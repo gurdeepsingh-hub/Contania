@@ -30,6 +30,15 @@ import { TrailerTypes } from './collections/TrailerTypes'
 import { Trailers } from './collections/Trailers'
 import { Vehicles } from './collections/Vehicles'
 import { Drivers } from './collections/Drivers'
+import { DelayPoints } from './collections/DelayPoints'
+import { EmptyParks } from './collections/EmptyParks'
+import { ShippingLines } from './collections/ShippingLines'
+import { Wharves } from './collections/Wharves'
+import { ContainerSizes } from './collections/ContainerSizes'
+import { ContainerWeights } from './collections/ContainerWeights'
+import { DamageCodes } from './collections/DamageCodes'
+import { DetentionControl } from './collections/DetentionControl'
+import { Vessels } from './collections/Vessels'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -66,6 +75,15 @@ export default buildConfig({
     Trailers,
     Vehicles,
     Drivers,
+    DelayPoints,
+    EmptyParks,
+    ShippingLines,
+    Wharves,
+    ContainerSizes,
+    ContainerWeights,
+    DamageCodes,
+    DetentionControl,
+    Vessels,
   ],
   email: nodemailerAdapter(),
   // {

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/api-helpers'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
@@ -31,14 +28,15 @@ export async function GET(
     }
 
     // Verify warehouse belongs to this tenant
-    const warehouseTenantId = typeof (warehouse as { tenantId?: number | { id: number } }).tenantId === 'object'
-      ? (warehouse as { tenantId: { id: number } }).tenantId.id
-      : (warehouse as { tenantId?: number }).tenantId
+    const warehouseTenantId =
+      typeof (warehouse as { tenantId?: number | { id: number } }).tenantId === 'object'
+        ? (warehouse as { tenantId: { id: number } }).tenantId.id
+        : (warehouse as { tenantId?: number }).tenantId
 
     if (warehouseTenantId !== tenant.id) {
       return NextResponse.json(
         { message: 'Warehouse does not belong to this tenant' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -48,17 +46,11 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching warehouse:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch warehouse' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch warehouse' }, { status: 500 })
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
@@ -81,14 +73,15 @@ export async function PATCH(
     }
 
     // Verify warehouse belongs to this tenant
-    const warehouseTenantId = typeof (warehouseToUpdate as { tenantId?: number | { id: number } }).tenantId === 'object'
-      ? (warehouseToUpdate as { tenantId: { id: number } }).tenantId.id
-      : (warehouseToUpdate as { tenantId?: number }).tenantId
+    const warehouseTenantId =
+      typeof (warehouseToUpdate as { tenantId?: number | { id: number } }).tenantId === 'object'
+        ? (warehouseToUpdate as { tenantId: { id: number } }).tenantId.id
+        : (warehouseToUpdate as { tenantId?: number }).tenantId
 
     if (warehouseTenantId !== tenant.id) {
       return NextResponse.json(
         { message: 'Warehouse does not belong to this tenant' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -117,16 +110,13 @@ export async function PATCH(
     })
   } catch (error) {
     console.error('Error updating warehouse:', error)
-    return NextResponse.json(
-      { message: 'Failed to update warehouse' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to update warehouse' }, { status: 500 })
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const context = await getTenantContext(request, 'settings_entity_settings')
@@ -149,14 +139,15 @@ export async function DELETE(
     }
 
     // Verify warehouse belongs to this tenant
-    const warehouseTenantId = typeof (warehouseToDelete as { tenantId?: number | { id: number } }).tenantId === 'object'
-      ? (warehouseToDelete as { tenantId: { id: number } }).tenantId.id
-      : (warehouseToDelete as { tenantId?: number }).tenantId
+    const warehouseTenantId =
+      typeof (warehouseToDelete as { tenantId?: number | { id: number } }).tenantId === 'object'
+        ? (warehouseToDelete as { tenantId: { id: number } }).tenantId.id
+        : (warehouseToDelete as { tenantId?: number }).tenantId
 
     if (warehouseTenantId !== tenant.id) {
       return NextResponse.json(
         { message: 'Warehouse does not belong to this tenant' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -172,10 +163,6 @@ export async function DELETE(
     })
   } catch (error) {
     console.error('Error deleting warehouse:', error)
-    return NextResponse.json(
-      { message: 'Failed to delete warehouse' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to delete warehouse' }, { status: 500 })
   }
 }
-

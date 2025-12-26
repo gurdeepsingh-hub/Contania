@@ -1,9 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,17 +9,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Store,
+  MapPin,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -31,14 +25,20 @@ import {
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { StoreForm } from '@/components/entity-forms/store-form'
+import { DelayPointForm } from '@/components/entity-forms/delay-point-form'
 
-type StoreItem = {
+type DelayPointItem = {
   id: number
-  warehouseId: number | string | { id: number; name?: string }
-  storeName: string
-  countable?: boolean
-  zoneType: 'Indock' | 'Outdock' | 'Storage'
+  name: string
+  email?: string
+  contactName?: string
+  contactPhoneNumber?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    postcode?: string
+  }
 }
 
 type TenantUser = {
@@ -47,15 +47,15 @@ type TenantUser = {
   [key: string]: unknown
 }
 
-export default function StoresPage() {
+export default function DelayPointsPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
-  const [stores, setStores] = useState<StoreItem[]>([])
-  const [loadingStores, setLoadingStores] = useState(false)
+  const [delayPoints, setDelayPoints] = useState<DelayPointItem[]>([])
+  const [loadingDelayPoints, setLoadingDelayPoints] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingStore, setEditingStore] = useState<StoreItem | null>(null)
+  const [editingDelayPoint, setEditingDelayPoint] = useState<DelayPointItem | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -104,25 +104,24 @@ export default function StoresPage() {
 
   useEffect(() => {
     if (authChecked) {
-      loadStores()
+      loadDelayPoints()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
-  const loadStores = async () => {
+  const loadDelayPoints = async () => {
     try {
-      setLoadingStores(true)
+      setLoadingDelayPoints(true)
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        depth: '1', // Include warehouse details
         ...(searchQuery && { search: searchQuery }),
       })
-      const res = await fetch(`/api/stores?${params.toString()}`)
+      const res = await fetch(`/api/delay-points?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.stores) {
-          setStores(data.stores)
+        if (data.success && data.delayPoints) {
+          setDelayPoints(data.delayPoints)
           setTotalDocs(data.totalDocs || 0)
           setTotalPages(data.totalPages || 0)
           setHasPrevPage(data.hasPrevPage || false)
@@ -130,15 +129,15 @@ export default function StoresPage() {
         }
       }
     } catch (error) {
-      console.error('Error loading stores:', error)
+      console.error('Error loading delay points:', error)
     } finally {
-      setLoadingStores(false)
+      setLoadingDelayPoints(false)
     }
   }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1) // Reset to first page when searching
+    setPage(1)
   }
 
   const handlePageChange = (newPage: number) => {
@@ -146,50 +145,50 @@ export default function StoresPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleAddStore = () => {
-    setEditingStore(null)
+  const handleAddDelayPoint = () => {
+    setEditingDelayPoint(null)
     setShowAddForm(true)
   }
 
-  const handleEditStore = (store: StoreItem) => {
-    setEditingStore(store)
+  const handleEditDelayPoint = (delayPoint: DelayPointItem) => {
+    setEditingDelayPoint(delayPoint)
     setShowAddForm(true)
   }
 
   const handleCancel = () => {
     setShowAddForm(false)
-    setEditingStore(null)
+    setEditingDelayPoint(null)
   }
 
   const handleSuccess = async () => {
-    await loadStores()
+    await loadDelayPoints()
     setTimeout(() => {
       handleCancel()
     }, 1500)
   }
 
-  const handleDeleteStore = async (store: StoreItem) => {
+  const handleDeleteDelayPoint = async (delayPoint: DelayPointItem) => {
     if (
-      !confirm(`Are you sure you want to delete ${store.storeName}? This action cannot be undone.`)
+      !confirm(`Are you sure you want to delete ${delayPoint.name}? This action cannot be undone.`)
     ) {
       return
     }
 
     try {
-      const res = await fetch(`/api/stores/${store.id}`, {
+      const res = await fetch(`/api/delay-points/${delayPoint.id}`, {
         method: 'DELETE',
       })
 
       if (res.ok) {
-        toast.success('Store deleted successfully')
-        await loadStores()
+        toast.success('Delay point deleted successfully')
+        await loadDelayPoints()
       } else {
         const data = await res.json()
-        toast.error(data.message || 'Failed to delete store')
+        toast.error(data.message || 'Failed to delete delay point')
       }
     } catch (error) {
-      console.error('Error deleting store:', error)
-      toast.error('An error occurred while deleting the store')
+      console.error('Error deleting delay point:', error)
+      toast.error('An error occurred while deleting the delay point')
     }
   }
 
@@ -209,15 +208,6 @@ export default function StoresPage() {
     )
   }
 
-  const getWarehouseName = (
-    warehouseId: number | string | { id: number; name?: string },
-  ): string => {
-    if (typeof warehouseId === 'object' && warehouseId !== null) {
-      return warehouseId.name || `Warehouse ${warehouseId.id}`
-    }
-    return `Warehouse ${warehouseId}`
-  }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -229,10 +219,15 @@ export default function StoresPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Stores</h1>
-          <p className="text-muted-foreground">Manage store information</p>
+          <h1 className="text-3xl font-bold">Delay Points</h1>
+          <p className="text-muted-foreground">Manage delay point information</p>
         </div>
-        <Button onClick={handleAddStore} className="min-h-[44px]" size="icon" title="Add Store">
+        <Button
+          onClick={handleAddDelayPoint}
+          className="min-h-[44px]"
+          size="icon"
+          title="Add Delay Point"
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -240,16 +235,20 @@ export default function StoresPage() {
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingStore ? 'Edit Store' : 'Add New Store'}</DialogTitle>
+            <DialogTitle>
+              {editingDelayPoint ? 'Edit Delay Point' : 'Add New Delay Point'}
+            </DialogTitle>
             <DialogDescription>
-              {editingStore ? 'Update store information' : 'Create a new store'}
+              {editingDelayPoint
+                ? 'Update delay point information'
+                : 'Create a new delay point'}
             </DialogDescription>
           </DialogHeader>
-          <StoreForm
-            initialData={editingStore || undefined}
+          <DelayPointForm
+            initialData={editingDelayPoint || undefined}
             onSuccess={handleSuccess}
             onCancel={handleCancel}
-            mode={editingStore ? 'edit' : 'create'}
+            mode={editingDelayPoint ? 'edit' : 'create'}
           />
         </DialogContent>
       </Dialog>
@@ -259,15 +258,15 @@ export default function StoresPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Store className="h-5 w-5" />
-                Stores ({totalDocs})
+                <MapPin className="h-5 w-5" />
+                Delay Points ({totalDocs})
               </CardTitle>
-              <CardDescription>Manage store information</CardDescription>
+              <CardDescription>Manage delay point information</CardDescription>
             </div>
             <div className="relative max-w-sm w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search stores..."
+                placeholder="Search delay points..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
@@ -276,38 +275,40 @@ export default function StoresPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loadingStores ? (
-            <div className="text-center py-8 text-muted-foreground">Loading stores...</div>
-          ) : stores.length === 0 ? (
+          {loadingDelayPoints ? (
+            <div className="text-center py-8 text-muted-foreground">Loading delay points...</div>
+          ) : delayPoints.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchQuery ? 'No stores found matching your search' : 'No stores found'}
+              {searchQuery
+                ? 'No delay points found matching your search'
+                : 'No delay points found'}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {stores.map((store) => (
-                  <Card key={store.id} className="hover:shadow-md transition-shadow">
+                {delayPoints.map((delayPoint) => (
+                  <Card key={delayPoint.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
-                          {store.storeName}
+                          {delayPoint.name}
                         </CardTitle>
                         <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEditStore(store)}
+                            onClick={() => handleEditDelayPoint(delayPoint)}
                             className="h-8 w-8"
-                            title="Edit Store"
+                            title="Edit Delay Point"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteStore(store)}
+                            onClick={() => handleDeleteDelayPoint(delayPoint)}
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Delete Store"
+                            title="Delete Delay Point"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -316,20 +317,43 @@ export default function StoresPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Warehouse:</span>
-                          <span className="wrap-break-word">
-                            {getWarehouseName(store.warehouseId)}
-                          </span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Zone Type:</span>
-                          <span>{store.zoneType}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Countable:</span>
-                          <span>{store.countable ? 'Yes' : 'No'}</span>
-                        </div>
+                        {delayPoint.email && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Email:</span>
+                            <span className="wrap-break-word">{delayPoint.email}</span>
+                          </div>
+                        )}
+                        {delayPoint.contactName && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Contact:</span>
+                            <span>{delayPoint.contactName}</span>
+                          </div>
+                        )}
+                        {delayPoint.contactPhoneNumber && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Phone:</span>
+                            <span>{delayPoint.contactPhoneNumber}</span>
+                          </div>
+                        )}
+                        {delayPoint.address &&
+                          (delayPoint.address.street ||
+                            delayPoint.address.city ||
+                            delayPoint.address.state ||
+                            delayPoint.address.postcode) && (
+                            <div className="flex items-start gap-2">
+                              <span className="font-medium min-w-[80px]">Address:</span>
+                              <span className="wrap-break-word">
+                                {[
+                                  delayPoint.address.street,
+                                  delayPoint.address.city,
+                                  delayPoint.address.state,
+                                  delayPoint.address.postcode,
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     </CardContent>
                   </Card>
@@ -340,15 +364,15 @@ export default function StoresPage() {
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {stores.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
-                    {Math.min(page * limit, totalDocs)} of {totalDocs} stores
+                    Showing {delayPoints.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
+                    {Math.min(page * limit, totalDocs)} of {totalDocs} delay points
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page - 1)}
-                      disabled={!hasPrevPage || loadingStores}
+                      disabled={!hasPrevPage || loadingDelayPoints}
                       className="min-h-[44px] min-w-[44px]"
                       title="Previous Page"
                     >
@@ -372,7 +396,7 @@ export default function StoresPage() {
                             variant={pageNum === page ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
-                            disabled={loadingStores}
+                            disabled={loadingDelayPoints}
                             className="min-w-[44px] min-h-[44px]"
                           >
                             {pageNum}
@@ -384,7 +408,7 @@ export default function StoresPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page + 1)}
-                      disabled={!hasNextPage || loadingStores}
+                      disabled={!hasNextPage || loadingDelayPoints}
                       className="min-h-[44px] min-w-[44px]"
                       title="Next Page"
                     >
@@ -400,3 +424,4 @@ export default function StoresPage() {
     </div>
   )
 }
+

@@ -78,10 +78,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching stores:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch stores' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch stores' }, { status: 500 })
   }
 }
 
@@ -97,24 +94,15 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!body.storeName) {
-      return NextResponse.json(
-        { message: 'Store name is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Store name is required' }, { status: 400 })
     }
 
     if (!body.warehouseId) {
-      return NextResponse.json(
-        { message: 'Warehouse is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Warehouse is required' }, { status: 400 })
     }
 
     if (!body.zoneType) {
-      return NextResponse.json(
-        { message: 'Zone type is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Zone type is required' }, { status: 400 })
     }
 
     // Verify warehouse belongs to this tenant
@@ -124,20 +112,18 @@ export async function POST(request: NextRequest) {
     })
 
     if (!warehouse) {
-      return NextResponse.json(
-        { message: 'Warehouse not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ message: 'Warehouse not found' }, { status: 404 })
     }
 
-    const warehouseTenantId = typeof (warehouse as { tenantId?: number | { id: number } }).tenantId === 'object'
-      ? (warehouse as { tenantId: { id: number } }).tenantId.id
-      : (warehouse as { tenantId?: number }).tenantId
+    const warehouseTenantId =
+      typeof (warehouse as { tenantId?: number | { id: number } }).tenantId === 'object'
+        ? (warehouse as { tenantId: { id: number } }).tenantId.id
+        : (warehouse as { tenantId?: number }).tenantId
 
     if (warehouseTenantId !== tenant.id) {
       return NextResponse.json(
         { message: 'Warehouse does not belong to this tenant' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -162,7 +148,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating store:', error)
     console.error('Error details:', JSON.stringify(error, null, 2))
-    
+
     // Return more detailed error information
     if (error && typeof error === 'object') {
       // Handle Payload validation errors
@@ -170,48 +156,50 @@ export async function POST(request: NextRequest) {
         const errorData = error.data as { errors?: Array<{ message?: string; field?: string }> }
         if (errorData.errors && errorData.errors.length > 0) {
           return NextResponse.json(
-            { 
+            {
               message: errorData.errors[0].message || 'Validation error',
               field: errorData.errors[0].field,
               errors: errorData.errors,
-              fullError: errorData
+              fullError: errorData,
             },
-            { status: 400 }
+            { status: 400 },
           )
         }
       }
-      
+
       // Handle ValidationError specifically
       if ('message' in error && (error as { name?: string }).name === 'ValidationError') {
-        const validationError = error as { message?: string; data?: { errors?: Array<{ message?: string; field?: string }> } }
+        const validationError = error as {
+          message?: string
+          data?: { errors?: Array<{ message?: string; field?: string }> }
+        }
         if (validationError.data?.errors) {
           return NextResponse.json(
             {
               message: validationError.message || 'Validation error',
               errors: validationError.data.errors,
             },
-            { status: 400 }
+            { status: 400 },
           )
         }
         return NextResponse.json(
           { message: validationError.message || 'Validation error' },
-          { status: 400 }
+          { status: 400 },
         )
       }
-      
+
       // Handle other error types
       if ('message' in error) {
         return NextResponse.json(
           { message: (error as { message: string }).message },
-          { status: 500 }
+          { status: 500 },
         )
       }
     }
-    
+
     return NextResponse.json(
       { message: 'Failed to create store', error: String(error) },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
-

@@ -12,7 +12,11 @@ export const TrailerTypes: CollectionConfig = {
       return !!user?.tenantId
     },
     read: ({ req }) => {
-      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
       if (user?.tenantId) {
         return {
@@ -24,7 +28,11 @@ export const TrailerTypes: CollectionConfig = {
       return false
     },
     update: ({ req }) => {
-      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
       if (user?.tenantId) {
         return {
@@ -36,7 +44,11 @@ export const TrailerTypes: CollectionConfig = {
       return false
     },
     delete: ({ req }) => {
-      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
       if (user?.tenantId) {
         return {
@@ -200,7 +212,11 @@ export const TrailerTypes: CollectionConfig = {
   hooks: {
     beforeChange: [
       ({ req, data }) => {
-        const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+        const user = (
+          req as unknown as {
+            user?: { role?: string; tenantId?: number | string; collection?: string }
+          }
+        ).user
         // If creating/updating and user has tenantId, ensure it matches
         if (user?.tenantId && data.tenantId !== user.tenantId) {
           // Super admins can set any tenantId, but regular users cannot
@@ -208,7 +224,7 @@ export const TrailerTypes: CollectionConfig = {
             data.tenantId = user.tenantId
           }
         }
-        
+
         // Calculate maxTeuCapacity from Trailer A and B TEU capacities
         let maxTeu = 0
         if (data.trailerAEnabled && data.trailerATeuCapacity) {
@@ -220,10 +236,9 @@ export const TrailerTypes: CollectionConfig = {
           maxTeu += trailerBTeu
         }
         data.maxTeuCapacity = maxTeu
-        
+
         return data
       },
     ],
   },
 }
-

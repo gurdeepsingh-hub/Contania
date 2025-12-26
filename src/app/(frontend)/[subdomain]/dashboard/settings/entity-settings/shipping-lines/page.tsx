@@ -1,9 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,17 +9,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Store,
+  Ship,
   Plus,
   Edit,
   Trash2,
-  X,
-  Save,
   ArrowLeft,
   Search,
   ChevronLeft,
@@ -31,14 +25,22 @@ import {
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { StoreForm } from '@/components/entity-forms/store-form'
+import { ShippingLineForm } from '@/components/entity-forms/shipping-line-form'
 
-type StoreItem = {
+type ShippingLineItem = {
   id: number
-  warehouseId: number | string | { id: number; name?: string }
-  storeName: string
-  countable?: boolean
-  zoneType: 'Indock' | 'Outdock' | 'Storage'
+  name: string
+  email?: string
+  contactName?: string
+  contactPhoneNumber?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    postcode?: string
+  }
+  importFreeDays?: number
+  calculateImportFreeDaysUsing?: string
 }
 
 type TenantUser = {
@@ -47,15 +49,15 @@ type TenantUser = {
   [key: string]: unknown
 }
 
-export default function StoresPage() {
+export default function ShippingLinesPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [authChecked, setAuthChecked] = useState(false)
   const [_currentUser, setCurrentUser] = useState<TenantUser | null>(null)
-  const [stores, setStores] = useState<StoreItem[]>([])
-  const [loadingStores, setLoadingStores] = useState(false)
+  const [shippingLines, setShippingLines] = useState<ShippingLineItem[]>([])
+  const [loadingShippingLines, setLoadingShippingLines] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingStore, setEditingStore] = useState<StoreItem | null>(null)
+  const [editingShippingLine, setEditingShippingLine] = useState<ShippingLineItem | null>(null)
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -104,25 +106,24 @@ export default function StoresPage() {
 
   useEffect(() => {
     if (authChecked) {
-      loadStores()
+      loadShippingLines()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
 
-  const loadStores = async () => {
+  const loadShippingLines = async () => {
     try {
-      setLoadingStores(true)
+      setLoadingShippingLines(true)
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
-        depth: '1', // Include warehouse details
         ...(searchQuery && { search: searchQuery }),
       })
-      const res = await fetch(`/api/stores?${params.toString()}`)
+      const res = await fetch(`/api/shipping-lines?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.stores) {
-          setStores(data.stores)
+        if (data.success && data.shippingLines) {
+          setShippingLines(data.shippingLines)
           setTotalDocs(data.totalDocs || 0)
           setTotalPages(data.totalPages || 0)
           setHasPrevPage(data.hasPrevPage || false)
@@ -130,15 +131,15 @@ export default function StoresPage() {
         }
       }
     } catch (error) {
-      console.error('Error loading stores:', error)
+      console.error('Error loading shipping lines:', error)
     } finally {
-      setLoadingStores(false)
+      setLoadingShippingLines(false)
     }
   }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setPage(1) // Reset to first page when searching
+    setPage(1)
   }
 
   const handlePageChange = (newPage: number) => {
@@ -146,50 +147,52 @@ export default function StoresPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleAddStore = () => {
-    setEditingStore(null)
+  const handleAddShippingLine = () => {
+    setEditingShippingLine(null)
     setShowAddForm(true)
   }
 
-  const handleEditStore = (store: StoreItem) => {
-    setEditingStore(store)
+  const handleEditShippingLine = (shippingLine: ShippingLineItem) => {
+    setEditingShippingLine(shippingLine)
     setShowAddForm(true)
   }
 
   const handleCancel = () => {
     setShowAddForm(false)
-    setEditingStore(null)
+    setEditingShippingLine(null)
   }
 
   const handleSuccess = async () => {
-    await loadStores()
+    await loadShippingLines()
     setTimeout(() => {
       handleCancel()
     }, 1500)
   }
 
-  const handleDeleteStore = async (store: StoreItem) => {
+  const handleDeleteShippingLine = async (shippingLine: ShippingLineItem) => {
     if (
-      !confirm(`Are you sure you want to delete ${store.storeName}? This action cannot be undone.`)
+      !confirm(
+        `Are you sure you want to delete ${shippingLine.name}? This action cannot be undone.`,
+      )
     ) {
       return
     }
 
     try {
-      const res = await fetch(`/api/stores/${store.id}`, {
+      const res = await fetch(`/api/shipping-lines/${shippingLine.id}`, {
         method: 'DELETE',
       })
 
       if (res.ok) {
-        toast.success('Store deleted successfully')
-        await loadStores()
+        toast.success('Shipping line deleted successfully')
+        await loadShippingLines()
       } else {
         const data = await res.json()
-        toast.error(data.message || 'Failed to delete store')
+        toast.error(data.message || 'Failed to delete shipping line')
       }
     } catch (error) {
-      console.error('Error deleting store:', error)
-      toast.error('An error occurred while deleting the store')
+      console.error('Error deleting shipping line:', error)
+      toast.error('An error occurred while deleting the shipping line')
     }
   }
 
@@ -209,15 +212,6 @@ export default function StoresPage() {
     )
   }
 
-  const getWarehouseName = (
-    warehouseId: number | string | { id: number; name?: string },
-  ): string => {
-    if (typeof warehouseId === 'object' && warehouseId !== null) {
-      return warehouseId.name || `Warehouse ${warehouseId.id}`
-    }
-    return `Warehouse ${warehouseId}`
-  }
-
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -229,10 +223,15 @@ export default function StoresPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Stores</h1>
-          <p className="text-muted-foreground">Manage store information</p>
+          <h1 className="text-3xl font-bold">Shipping Lines</h1>
+          <p className="text-muted-foreground">Manage shipping line information</p>
         </div>
-        <Button onClick={handleAddStore} className="min-h-[44px]" size="icon" title="Add Store">
+        <Button
+          onClick={handleAddShippingLine}
+          className="min-h-[44px]"
+          size="icon"
+          title="Add Shipping Line"
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -240,16 +239,20 @@ export default function StoresPage() {
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingStore ? 'Edit Store' : 'Add New Store'}</DialogTitle>
+            <DialogTitle>
+              {editingShippingLine ? 'Edit Shipping Line' : 'Add New Shipping Line'}
+            </DialogTitle>
             <DialogDescription>
-              {editingStore ? 'Update store information' : 'Create a new store'}
+              {editingShippingLine
+                ? 'Update shipping line information'
+                : 'Create a new shipping line'}
             </DialogDescription>
           </DialogHeader>
-          <StoreForm
-            initialData={editingStore || undefined}
+          <ShippingLineForm
+            initialData={editingShippingLine || undefined}
             onSuccess={handleSuccess}
             onCancel={handleCancel}
-            mode={editingStore ? 'edit' : 'create'}
+            mode={editingShippingLine ? 'edit' : 'create'}
           />
         </DialogContent>
       </Dialog>
@@ -259,15 +262,15 @@ export default function StoresPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Store className="h-5 w-5" />
-                Stores ({totalDocs})
+                <Ship className="h-5 w-5" />
+                Shipping Lines ({totalDocs})
               </CardTitle>
-              <CardDescription>Manage store information</CardDescription>
+              <CardDescription>Manage shipping line information</CardDescription>
             </div>
             <div className="relative max-w-sm w-full sm:w-auto">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search stores..."
+                placeholder="Search shipping lines..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10"
@@ -276,38 +279,40 @@ export default function StoresPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loadingStores ? (
-            <div className="text-center py-8 text-muted-foreground">Loading stores...</div>
-          ) : stores.length === 0 ? (
+          {loadingShippingLines ? (
+            <div className="text-center py-8 text-muted-foreground">Loading shipping lines...</div>
+          ) : shippingLines.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {searchQuery ? 'No stores found matching your search' : 'No stores found'}
+              {searchQuery
+                ? 'No shipping lines found matching your search'
+                : 'No shipping lines found'}
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {stores.map((store) => (
-                  <Card key={store.id} className="hover:shadow-md transition-shadow">
+                {shippingLines.map((shippingLine) => (
+                  <Card key={shippingLine.id} className="hover:shadow-md transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
-                          {store.storeName}
+                          {shippingLine.name}
                         </CardTitle>
                         <div className="flex gap-1 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleEditStore(store)}
+                            onClick={() => handleEditShippingLine(shippingLine)}
                             className="h-8 w-8"
-                            title="Edit Store"
+                            title="Edit Shipping Line"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteStore(store)}
+                            onClick={() => handleDeleteShippingLine(shippingLine)}
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Delete Store"
+                            title="Delete Shipping Line"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -316,20 +321,55 @@ export default function StoresPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Warehouse:</span>
-                          <span className="wrap-break-word">
-                            {getWarehouseName(store.warehouseId)}
-                          </span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Zone Type:</span>
-                          <span>{store.zoneType}</span>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Countable:</span>
-                          <span>{store.countable ? 'Yes' : 'No'}</span>
-                        </div>
+                        {shippingLine.email && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Email:</span>
+                            <span className="wrap-break-word">{shippingLine.email}</span>
+                          </div>
+                        )}
+                        {shippingLine.contactName && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Contact:</span>
+                            <span>{shippingLine.contactName}</span>
+                          </div>
+                        )}
+                        {shippingLine.contactPhoneNumber && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Phone:</span>
+                            <span>{shippingLine.contactPhoneNumber}</span>
+                          </div>
+                        )}
+                        {shippingLine.importFreeDays !== undefined && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Import Free Days:</span>
+                            <span>{shippingLine.importFreeDays}</span>
+                          </div>
+                        )}
+                        {shippingLine.calculateImportFreeDaysUsing && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Calculate Using:</span>
+                            <span>{shippingLine.calculateImportFreeDaysUsing}</span>
+                          </div>
+                        )}
+                        {shippingLine.address &&
+                          (shippingLine.address.street ||
+                            shippingLine.address.city ||
+                            shippingLine.address.state ||
+                            shippingLine.address.postcode) && (
+                            <div className="flex items-start gap-2">
+                              <span className="font-medium min-w-[80px]">Address:</span>
+                              <span className="wrap-break-word">
+                                {[
+                                  shippingLine.address.street,
+                                  shippingLine.address.city,
+                                  shippingLine.address.state,
+                                  shippingLine.address.postcode,
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     </CardContent>
                   </Card>
@@ -340,15 +380,15 @@ export default function StoresPage() {
               {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Showing {stores.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
-                    {Math.min(page * limit, totalDocs)} of {totalDocs} stores
+                    Showing {shippingLines.length > 0 ? (page - 1) * limit + 1 : 0} to{' '}
+                    {Math.min(page * limit, totalDocs)} of {totalDocs} shipping lines
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page - 1)}
-                      disabled={!hasPrevPage || loadingStores}
+                      disabled={!hasPrevPage || loadingShippingLines}
                       className="min-h-[44px] min-w-[44px]"
                       title="Previous Page"
                     >
@@ -372,7 +412,7 @@ export default function StoresPage() {
                             variant={pageNum === page ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => handlePageChange(pageNum)}
-                            disabled={loadingStores}
+                            disabled={loadingShippingLines}
                             className="min-w-[44px] min-h-[44px]"
                           >
                             {pageNum}
@@ -384,7 +424,7 @@ export default function StoresPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => handlePageChange(page + 1)}
-                      disabled={!hasNextPage || loadingStores}
+                      disabled={!hasNextPage || loadingShippingLines}
                       className="min-h-[44px] min-w-[44px]"
                       title="Next Page"
                     >
@@ -400,3 +440,4 @@ export default function StoresPage() {
     </div>
   )
 }
+

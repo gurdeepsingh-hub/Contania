@@ -17,6 +17,14 @@ import {
   Truck,
   User,
   Store,
+  MapPin,
+  ParkingCircle,
+  Ship,
+  Anchor,
+  Container,
+  Weight,
+  AlertTriangle,
+  Clock,
 } from 'lucide-react'
 import { hasViewPermission, hasPermission, canManageRoles } from '@/lib/permissions'
 
@@ -477,6 +485,276 @@ export default function EntitySettingsPage() {
                 }}
               >
                 Manage Drivers
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Container & Freight Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Container className="h-5 w-5 text-muted-foreground" />
+          <h2 className="text-2xl font-semibold">Container & Freight</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/delay-points')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <MapPin className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Delay Points</CardTitle>
+              <CardDescription>Manage delay point locations and contacts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/delay-points')
+                }}
+              >
+                Manage Delay Points
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/empty-parks')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <ParkingCircle className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Empty Parks</CardTitle>
+              <CardDescription>Manage empty park locations and contacts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/empty-parks')
+                }}
+              >
+                Manage Empty Parks
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/shipping-lines')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Ship className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Shipping Lines</CardTitle>
+              <CardDescription>Manage shipping line information and contacts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/shipping-lines')
+                }}
+              >
+                Manage Shipping Lines
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/wharves')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Anchor className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Wharves</CardTitle>
+              <CardDescription>Manage wharf locations and contacts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/wharves')
+                }}
+              >
+                Manage Wharves
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/vessels')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Ship className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Vessels</CardTitle>
+              <CardDescription>Manage vessel information and voyage details</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/vessels')
+                }}
+              >
+                Manage Vessels
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/container-sizes')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Container className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Container Sizes</CardTitle>
+              <CardDescription>Manage container size configurations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/container-sizes')
+                }}
+              >
+                Manage Container Sizes
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/container-weights')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Weight className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Container Weights</CardTitle>
+              <CardDescription>Manage container weight specifications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/container-weights')
+                }}
+              >
+                Manage Container Weights
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/damage-codes')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <AlertTriangle className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Damage Codes</CardTitle>
+              <CardDescription>Manage damage code classifications</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/damage-codes')
+                }}
+              >
+                Manage Damage Codes
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/settings/entity-settings/detention-control')}
+          >
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Clock className="h-6 w-6 text-primary" />
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <CardTitle className="mt-4">Detention Control</CardTitle>
+              <CardDescription>Manage detention control and free days</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push('/dashboard/settings/entity-settings/detention-control')
+                }}
+              >
+                Manage Detention Control
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>
