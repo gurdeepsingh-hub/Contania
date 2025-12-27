@@ -155,5 +155,3 @@ export const Wharves: CollectionConfig = {
     ],
   },
 }
-
-

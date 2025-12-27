@@ -155,5 +155,3 @@ export const DelayPoints: CollectionConfig = {
     ],
   },
 }
-
-

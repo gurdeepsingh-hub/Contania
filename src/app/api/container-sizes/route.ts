@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    let context = await getTenantContext(request, 'settings_entity_settings')
+    const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -67,10 +67,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching container sizes:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch container sizes' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch container sizes' }, { status: 500 })
   }
 }
 
@@ -85,10 +82,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     if (!body.size) {
-      return NextResponse.json(
-        { message: 'Container size is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Container size is required' }, { status: 400 })
     }
 
     const newContainerSize = await payload.create({
@@ -107,11 +101,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating container size:', error)
-    return NextResponse.json(
-      { message: 'Failed to create container size' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create container size' }, { status: 500 })
   }
 }
-
-

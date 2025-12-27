@@ -128,6 +128,21 @@ export const createTenantNavigationItems = (
     })
   }
 
+  // Container Bookings - show if user has containers_view permission
+  if (!permissions || permissions.includes('containers_view')) {
+    items.push({
+      id: 'container-bookings',
+      label: 'Container Bookings',
+      iconName: 'Container',
+      href: '/dashboard/container-bookings',
+      active:
+        activePage === 'container-bookings' ||
+        activePage === 'container-bookings-import' ||
+        activePage === 'container-bookings-export' ||
+        (activePage?.startsWith('container-bookings-') ?? false),
+    })
+  }
+
   // Settings - show if user has settings_view permission
   if (!permissions || permissions.includes('settings_view')) {
     items.push({
@@ -167,6 +182,19 @@ export const getActiveTenantPageFromPath = (pathname: string): string => {
         return `inventory-${segments[2]}` // e.g., inventory-batch
       }
       return 'inventory'
+    }
+    if (segments[1] === 'container-bookings') {
+      // Handle /dashboard/container-bookings and sub-routes
+      if (segments.length >= 3) {
+        if (segments[2] === 'import-container-bookings' || segments[2] === 'export-container-bookings') {
+          return `container-bookings-${segments[2].replace('container-bookings', '').replace('-', '')}`
+        }
+        return `container-bookings-${segments[2]}`
+      }
+      return 'container-bookings'
+    }
+    if (segments[1] === 'import-container-bookings' || segments[1] === 'export-container-bookings') {
+      return `container-bookings-${segments[1].replace('container-bookings', '').replace('-', '')}`
     }
     return segments[1] || 'dashboard'
   }

@@ -100,6 +100,10 @@ export interface Config {
     'damage-codes': DamageCode;
     'detention-control': DetentionControl;
     vessels: Vessel;
+    'import-container-bookings': ImportContainerBooking;
+    'export-container-bookings': ExportContainerBooking;
+    'container-details': ContainerDetail;
+    'container-stock-allocations': ContainerStockAllocation;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -138,6 +142,10 @@ export interface Config {
     'damage-codes': DamageCodesSelect<false> | DamageCodesSelect<true>;
     'detention-control': DetentionControlSelect<false> | DetentionControlSelect<true>;
     vessels: VesselsSelect<false> | VesselsSelect<true>;
+    'import-container-bookings': ImportContainerBookingsSelect<false> | ImportContainerBookingsSelect<true>;
+    'export-container-bookings': ExportContainerBookingsSelect<false> | ExportContainerBookingsSelect<true>;
+    'container-details': ContainerDetailsSelect<false> | ContainerDetailsSelect<true>;
+    'container-stock-allocations': ContainerStockAllocationsSelect<false> | ContainerStockAllocationsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -2214,6 +2222,975 @@ export interface Vessel {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "import-container-bookings".
+ */
+export interface ImportContainerBooking {
+  id: number;
+  /**
+   * Links container booking to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Auto-generated unique booking code (IMP- prefix)
+   */
+  bookingCode: string;
+  /**
+   * Current status of the container booking
+   */
+  status: 'draft' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  /**
+   * Customer reference number
+   */
+  customerReference: string;
+  /**
+   * Booking reference number
+   */
+  bookingReference: string;
+  /**
+   * Entity responsible for charges (paying customer or delivery customer)
+   */
+  chargeToId?:
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null);
+  /**
+   * Collection type for chargeToId
+   */
+  chargeToCollection?: string | null;
+  /**
+   * Contact name fetched from chargeTo entity
+   */
+  chargeToContactName?: string | null;
+  /**
+   * Contact number fetched from chargeTo entity
+   */
+  chargeToContactNumber?: string | null;
+  /**
+   * Consignee (for import jobs)
+   */
+  consigneeId?: (number | null) | Customer;
+  /**
+   * Vessel associated with this booking
+   */
+  vesselId?: (number | null) | Vessel;
+  /**
+   * Estimated Time of Arrival
+   */
+  eta?: string | null;
+  /**
+   * Availability status
+   */
+  availability?: boolean | null;
+  /**
+   * Storage start date
+   */
+  storageStart?: string | null;
+  /**
+   * First free import date
+   */
+  firstFreeImportDate?: string | null;
+  /**
+   * Origin location (delivery customer, paying customer, empty park, or wharf)
+   */
+  fromId?:
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null)
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'empty-parks';
+        value: number | EmptyPark;
+      } | null)
+    | ({
+        relationTo: 'wharves';
+        value: number | Wharf;
+      } | null);
+  /**
+   * Collection type for fromId
+   */
+  fromCollection?: string | null;
+  /**
+   * Address fetched from fromId entity
+   */
+  fromAddress?: string | null;
+  /**
+   * City fetched from fromId entity
+   */
+  fromCity?: string | null;
+  /**
+   * State fetched from fromId entity
+   */
+  fromState?: string | null;
+  /**
+   * Postcode fetched from fromId entity
+   */
+  fromPostcode?: string | null;
+  /**
+   * Destination location (delivery customer, paying customer, empty park, or wharf)
+   */
+  toId?:
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null)
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'empty-parks';
+        value: number | EmptyPark;
+      } | null)
+    | ({
+        relationTo: 'wharves';
+        value: number | Wharf;
+      } | null);
+  /**
+   * Collection type for toId
+   */
+  toCollection?: string | null;
+  /**
+   * Address fetched from toId entity
+   */
+  toAddress?: string | null;
+  /**
+   * City fetched from toId entity
+   */
+  toCity?: string | null;
+  /**
+   * State fetched from toId entity
+   */
+  toState?: string | null;
+  /**
+   * Postcode fetched from toId entity
+   */
+  toPostcode?: string | null;
+  /**
+   * Container sizes for this booking
+   */
+  containerSizeIds?: (number | ContainerSize)[] | null;
+  /**
+   * Object mapping container size ID to quantity
+   */
+  containerQuantities?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Full container routing details (runs first for import)
+   */
+  fullRouting?: {
+    /**
+     * Full container pickup location (prefilled from Step 3 From)
+     */
+    pickupLocationId?:
+      | ({
+          relationTo: 'customers';
+          value: number | Customer;
+        } | null)
+      | ({
+          relationTo: 'paying-customers';
+          value: number | PayingCustomer;
+        } | null)
+      | ({
+          relationTo: 'empty-parks';
+          value: number | EmptyPark;
+        } | null)
+      | ({
+          relationTo: 'wharves';
+          value: number | Wharf;
+        } | null);
+    /**
+     * Collection type for pickupLocationId
+     */
+    pickupLocationCollection?: string | null;
+    /**
+     * Full container pickup date
+     */
+    pickupDate?: string | null;
+    /**
+     * Via locations (sequence matters)
+     */
+    viaLocations?:
+      | (
+          | {
+              relationTo: 'warehouses';
+              value: number | Warehouse;
+            }
+          | {
+              relationTo: 'wharves';
+              value: number | Wharf;
+            }
+          | {
+              relationTo: 'empty-parks';
+              value: number | EmptyPark;
+            }
+        )[]
+      | null;
+    /**
+     * Collection types for viaLocations (array matching viaLocations order)
+     */
+    viaLocationsCollections?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
+     * Full container dropoff location (prefilled from Step 3 To)
+     */
+    dropoffLocationId?:
+      | ({
+          relationTo: 'customers';
+          value: number | Customer;
+        } | null)
+      | ({
+          relationTo: 'paying-customers';
+          value: number | PayingCustomer;
+        } | null)
+      | ({
+          relationTo: 'empty-parks';
+          value: number | EmptyPark;
+        } | null)
+      | ({
+          relationTo: 'wharves';
+          value: number | Wharf;
+        } | null);
+    /**
+     * Collection type for dropoffLocationId
+     */
+    dropoffLocationCollection?: string | null;
+    /**
+     * Full container dropoff date
+     */
+    dropoffDate?: string | null;
+  };
+  /**
+   * Empty container routing details (runs second for import)
+   */
+  emptyRouting?: {
+    /**
+     * Shipping line for empty containers
+     */
+    shippingLineId?: (number | null) | ShippingLine;
+    /**
+     * Empty container pickup location
+     */
+    pickupLocationId?: (number | null) | EmptyPark;
+    /**
+     * Empty container pickup date
+     */
+    pickupDate?: string | null;
+    /**
+     * Via locations (sequence matters)
+     */
+    viaLocations?:
+      | (
+          | {
+              relationTo: 'warehouses';
+              value: number | Warehouse;
+            }
+          | {
+              relationTo: 'wharves';
+              value: number | Wharf;
+            }
+          | {
+              relationTo: 'empty-parks';
+              value: number | EmptyPark;
+            }
+        )[]
+      | null;
+    /**
+     * Collection types for viaLocations (array matching viaLocations order)
+     */
+    viaLocationsCollections?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
+     * Empty container dropoff location (prefilled from Step 3 From)
+     */
+    dropoffLocationId?:
+      | ({
+          relationTo: 'customers';
+          value: number | Customer;
+        } | null)
+      | ({
+          relationTo: 'paying-customers';
+          value: number | PayingCustomer;
+        } | null)
+      | ({
+          relationTo: 'empty-parks';
+          value: number | EmptyPark;
+        } | null)
+      | ({
+          relationTo: 'wharves';
+          value: number | Wharf;
+        } | null);
+    /**
+     * Collection type for dropoffLocationId
+     */
+    dropoffLocationCollection?: string | null;
+    /**
+     * Empty container dropoff date
+     */
+    dropoffDate?: string | null;
+    /**
+     * Requested delivery date for empty containers
+     */
+    requestedDeliveryDate?: string | null;
+  };
+  /**
+   * General instructions for the booking
+   */
+  instructions?: string | null;
+  /**
+   * Additional notes for the job
+   */
+  jobNotes?: string | null;
+  /**
+   * Driver allocation details for empty and full container movements (Full → Empty for import)
+   */
+  driverAllocation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "export-container-bookings".
+ */
+export interface ExportContainerBooking {
+  id: number;
+  /**
+   * Links container booking to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Auto-generated unique booking code (EXP- prefix)
+   */
+  bookingCode: string;
+  /**
+   * Current status of the container booking
+   */
+  status: 'draft' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  /**
+   * Customer reference number
+   */
+  customerReference: string;
+  /**
+   * Booking reference number
+   */
+  bookingReference: string;
+  /**
+   * Entity responsible for charges (paying customer or delivery customer)
+   */
+  chargeToId?:
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null);
+  /**
+   * Collection type for chargeToId
+   */
+  chargeToCollection?: string | null;
+  /**
+   * Contact name fetched from chargeTo entity
+   */
+  chargeToContactName?: string | null;
+  /**
+   * Contact number fetched from chargeTo entity
+   */
+  chargeToContactNumber?: string | null;
+  /**
+   * Consignor (for export jobs)
+   */
+  consignorId?: (number | null) | Customer;
+  /**
+   * Vessel associated with this booking
+   */
+  vesselId?: (number | null) | Vessel;
+  /**
+   * Estimated Time of Departure
+   */
+  etd?: string | null;
+  /**
+   * Receival start date
+   */
+  receivalStart?: string | null;
+  /**
+   * Cutoff status
+   */
+  cutoff?: boolean | null;
+  /**
+   * Origin location (delivery customer, paying customer, empty park, or wharf)
+   */
+  fromId?:
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null)
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'empty-parks';
+        value: number | EmptyPark;
+      } | null)
+    | ({
+        relationTo: 'wharves';
+        value: number | Wharf;
+      } | null);
+  /**
+   * Collection type for fromId
+   */
+  fromCollection?: string | null;
+  /**
+   * Address fetched from fromId entity
+   */
+  fromAddress?: string | null;
+  /**
+   * City fetched from fromId entity
+   */
+  fromCity?: string | null;
+  /**
+   * State fetched from fromId entity
+   */
+  fromState?: string | null;
+  /**
+   * Postcode fetched from fromId entity
+   */
+  fromPostcode?: string | null;
+  /**
+   * Destination location (delivery customer, paying customer, empty park, or wharf)
+   */
+  toId?:
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null)
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null)
+    | ({
+        relationTo: 'empty-parks';
+        value: number | EmptyPark;
+      } | null)
+    | ({
+        relationTo: 'wharves';
+        value: number | Wharf;
+      } | null);
+  /**
+   * Collection type for toId
+   */
+  toCollection?: string | null;
+  /**
+   * Address fetched from toId entity
+   */
+  toAddress?: string | null;
+  /**
+   * City fetched from toId entity
+   */
+  toCity?: string | null;
+  /**
+   * State fetched from toId entity
+   */
+  toState?: string | null;
+  /**
+   * Postcode fetched from toId entity
+   */
+  toPostcode?: string | null;
+  /**
+   * Container sizes for this booking
+   */
+  containerSizeIds?: (number | ContainerSize)[] | null;
+  /**
+   * Object mapping container size ID to quantity
+   */
+  containerQuantities?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Empty container routing details (runs first for export)
+   */
+  emptyRouting?: {
+    /**
+     * Shipping line for empty containers
+     */
+    shippingLineId?: (number | null) | ShippingLine;
+    /**
+     * Empty container pickup location
+     */
+    pickupLocationId?: (number | null) | EmptyPark;
+    /**
+     * Empty container pickup date
+     */
+    pickupDate?: string | null;
+    /**
+     * Via locations (sequence matters)
+     */
+    viaLocations?:
+      | (
+          | {
+              relationTo: 'warehouses';
+              value: number | Warehouse;
+            }
+          | {
+              relationTo: 'wharves';
+              value: number | Wharf;
+            }
+          | {
+              relationTo: 'empty-parks';
+              value: number | EmptyPark;
+            }
+        )[]
+      | null;
+    /**
+     * Empty container dropoff location (prefilled from Step 3 From)
+     */
+    dropoffLocationId?:
+      | ({
+          relationTo: 'customers';
+          value: number | Customer;
+        } | null)
+      | ({
+          relationTo: 'paying-customers';
+          value: number | PayingCustomer;
+        } | null)
+      | ({
+          relationTo: 'empty-parks';
+          value: number | EmptyPark;
+        } | null)
+      | ({
+          relationTo: 'wharves';
+          value: number | Wharf;
+        } | null);
+    /**
+     * Empty container dropoff date
+     */
+    dropoffDate?: string | null;
+    /**
+     * Requested delivery date for empty containers
+     */
+    requestedDeliveryDate?: string | null;
+  };
+  /**
+   * Full container routing details (runs second for export)
+   */
+  fullRouting?: {
+    /**
+     * Full container pickup location (prefilled from Step 3 From)
+     */
+    pickupLocationId?:
+      | ({
+          relationTo: 'customers';
+          value: number | Customer;
+        } | null)
+      | ({
+          relationTo: 'paying-customers';
+          value: number | PayingCustomer;
+        } | null)
+      | ({
+          relationTo: 'empty-parks';
+          value: number | EmptyPark;
+        } | null)
+      | ({
+          relationTo: 'wharves';
+          value: number | Wharf;
+        } | null);
+    /**
+     * Full container pickup date
+     */
+    pickupDate?: string | null;
+    /**
+     * Via locations (sequence matters)
+     */
+    viaLocations?:
+      | (
+          | {
+              relationTo: 'warehouses';
+              value: number | Warehouse;
+            }
+          | {
+              relationTo: 'wharves';
+              value: number | Wharf;
+            }
+          | {
+              relationTo: 'empty-parks';
+              value: number | EmptyPark;
+            }
+        )[]
+      | null;
+    /**
+     * Full container dropoff location (prefilled from Step 3 To)
+     */
+    dropoffLocationId?:
+      | ({
+          relationTo: 'customers';
+          value: number | Customer;
+        } | null)
+      | ({
+          relationTo: 'paying-customers';
+          value: number | PayingCustomer;
+        } | null)
+      | ({
+          relationTo: 'empty-parks';
+          value: number | EmptyPark;
+        } | null)
+      | ({
+          relationTo: 'wharves';
+          value: number | Wharf;
+        } | null);
+    /**
+     * Full container dropoff date
+     */
+    dropoffDate?: string | null;
+  };
+  /**
+   * General instructions for the booking
+   */
+  instructions?: string | null;
+  /**
+   * Additional notes for the job
+   */
+  jobNotes?: string | null;
+  /**
+   * Release number
+   */
+  releaseNumber?: string | null;
+  /**
+   * Weight information
+   */
+  weight?: string | null;
+  /**
+   * Driver allocation details for empty and full container movements (Empty → Full for export)
+   */
+  driverAllocation?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-details".
+ */
+export interface ContainerDetail {
+  id: number;
+  /**
+   * Links container detail to container booking (import or export)
+   */
+  containerBookingId:
+    | {
+        relationTo: 'import-container-bookings';
+        value: number | ImportContainerBooking;
+      }
+    | {
+        relationTo: 'export-container-bookings';
+        value: number | ExportContainerBooking;
+      };
+  /**
+   * Container number
+   */
+  containerNumber: string;
+  /**
+   * Container size (prefilled from Step 3)
+   */
+  containerSizeId: number | ContainerSize;
+  /**
+   * Gross weight
+   */
+  gross?: string | null;
+  /**
+   * Tare weight
+   */
+  tare?: string | null;
+  /**
+   * Net weight
+   */
+  net?: string | null;
+  /**
+   * PIN number
+   */
+  pin?: string | null;
+  /**
+   * Warehouse manifest number
+   */
+  whManifest?: string | null;
+  /**
+   * ISO container code
+   */
+  isoCode?: string | null;
+  /**
+   * Time slot for container
+   */
+  timeSlot?: string | null;
+  /**
+   * Empty container time slot
+   */
+  emptyTimeSlot?: string | null;
+  /**
+   * Dehire date
+   */
+  dehireDate?: string | null;
+  /**
+   * Shipping line (auto-filled from Step 4 empty routing)
+   */
+  shippingLineId?: (number | null) | ShippingLine;
+  /**
+   * Country of origin
+   */
+  countryOfOrigin?: string | null;
+  /**
+   * Order reference
+   */
+  orderRef?: string | null;
+  /**
+   * Job availability date
+   */
+  jobAvailability?: string | null;
+  /**
+   * Seal number
+   */
+  sealNumber?: string | null;
+  /**
+   * Customer requested date
+   */
+  customerRequestDate?: string | null;
+  /**
+   * Dock location
+   */
+  dock?: string | null;
+  /**
+   * Confirmed unpack date
+   */
+  confirmedUnpackDate?: string | null;
+  /**
+   * Yard location
+   */
+  yardLocation?: string | null;
+  /**
+   * Secure seals intact date
+   */
+  secureSealsIntact?: string | null;
+  /**
+   * Inspect unpack date
+   */
+  inspectUnpack?: string | null;
+  /**
+   * Direction type
+   */
+  directionType?: string | null;
+  /**
+   * House bill of lading number
+   */
+  houseBillNumber?: string | null;
+  /**
+   * Ocean bill of lading number
+   */
+  oceanBillNumber?: string | null;
+  /**
+   * Vent airflow information
+   */
+  ventAirflow?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-stock-allocations".
+ */
+export interface ContainerStockAllocation {
+  id: number;
+  /**
+   * Links stock allocation to container detail
+   */
+  containerDetailId: number | ContainerDetail;
+  /**
+   * Links stock allocation to container booking (import or export)
+   */
+  containerBookingId:
+    | {
+        relationTo: 'import-container-bookings';
+        value: number | ImportContainerBooking;
+      }
+    | {
+        relationTo: 'export-container-bookings';
+        value: number | ExportContainerBooking;
+      };
+  /**
+   * Current stage of stock allocation
+   */
+  stage: 'allocated' | 'picked' | 'dispatched' | 'expected' | 'received' | 'put_away';
+  /**
+   * Product lines for this container allocation
+   */
+  productLines?:
+    | {
+        /**
+         * References SKU (product) record
+         */
+        skuId?: (number | null) | Skus;
+        /**
+         * Fetched from SKU ID
+         */
+        skuDescription?: string | null;
+        /**
+         * Product batch number
+         */
+        batchNumber?: string | null;
+        /**
+         * Fetched from SKU ID huPerSU
+         */
+        lpnQty?: string | null;
+        /**
+         * Square meters per storage unit
+         */
+        sqmPerSU?: number | null;
+        /**
+         * Quantity of product units expected
+         */
+        expectedQty?: number | null;
+        /**
+         * Quantity of product units picked (export only)
+         */
+        pickedQty?: number | null;
+        /**
+         * Weight of product units expected
+         */
+        expectedWeight?: number | null;
+        /**
+         * Weight of product units picked (export only)
+         */
+        pickedWeight?: number | null;
+        /**
+         * Quantity allocated (export only)
+         */
+        allocatedQty?: number | null;
+        /**
+         * Weight allocated (export only)
+         */
+        allocatedWeight?: number | null;
+        /**
+         * Volume per handling unit for allocated stock (m³)
+         */
+        allocatedCubicPerHU?: number | null;
+        /**
+         * Pallet quantity (calculated from allocatedQty / huPerSu)
+         */
+        pltQty?: number | null;
+        /**
+         * List of LPNs (License Plate Numbers) allocated
+         */
+        LPN?:
+          | {
+              lpnNumber: string;
+              id?: string | null;
+            }[]
+          | null;
+        /**
+         * Primary location where allocated stock is stored
+         */
+        location?: string | null;
+        /**
+         * Quantity expected (import only)
+         */
+        expectedQtyImport?: number | null;
+        /**
+         * Quantity received (import only)
+         */
+        recievedQty?: number | null;
+        /**
+         * Weight expected (import only)
+         */
+        expectedWeightImport?: number | null;
+        /**
+         * Weight received (import only)
+         */
+        recievedWeight?: number | null;
+        /**
+         * Weight per handling unit, fetched from SKU / editable
+         */
+        weightPerHU?: number | null;
+        /**
+         * Volume per handling unit (m³)
+         */
+        expectedCubicPerHU?: number | null;
+        /**
+         * Volume per handling unit received (m³)
+         */
+        recievedCubicPerHU?: number | null;
+        /**
+         * Number of pallet spaces occupied (auto-calculated)
+         */
+        palletSpaces?: number | null;
+        /**
+         * Expiry date (auto-fetched from SKU if enabled)
+         */
+        expiryDate?: string | null;
+        /**
+         * Attribute 1 (auto-fetched from SKU if enabled)
+         */
+        attribute1?: string | null;
+        /**
+         * Attribute 2 (auto-fetched from SKU if enabled)
+         */
+        attribute2?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -2346,6 +3323,22 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'vessels';
         value: number | Vessel;
+      } | null)
+    | ({
+        relationTo: 'import-container-bookings';
+        value: number | ImportContainerBooking;
+      } | null)
+    | ({
+        relationTo: 'export-container-bookings';
+        value: number | ExportContainerBooking;
+      } | null)
+    | ({
+        relationTo: 'container-details';
+        value: number | ContainerDetail;
+      } | null)
+    | ({
+        relationTo: 'container-stock-allocations';
+        value: number | ContainerStockAllocation;
       } | null);
   globalSlug?: string | null;
   user:
@@ -3145,6 +4138,214 @@ export interface VesselsSelect<T extends boolean = true> {
   receivalStart?: T;
   cutoff?: T;
   reeferCutoff?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "import-container-bookings_select".
+ */
+export interface ImportContainerBookingsSelect<T extends boolean = true> {
+  tenantId?: T;
+  bookingCode?: T;
+  status?: T;
+  customerReference?: T;
+  bookingReference?: T;
+  chargeToId?: T;
+  chargeToCollection?: T;
+  chargeToContactName?: T;
+  chargeToContactNumber?: T;
+  consigneeId?: T;
+  vesselId?: T;
+  eta?: T;
+  availability?: T;
+  storageStart?: T;
+  firstFreeImportDate?: T;
+  fromId?: T;
+  fromCollection?: T;
+  fromAddress?: T;
+  fromCity?: T;
+  fromState?: T;
+  fromPostcode?: T;
+  toId?: T;
+  toCollection?: T;
+  toAddress?: T;
+  toCity?: T;
+  toState?: T;
+  toPostcode?: T;
+  containerSizeIds?: T;
+  containerQuantities?: T;
+  fullRouting?:
+    | T
+    | {
+        pickupLocationId?: T;
+        pickupLocationCollection?: T;
+        pickupDate?: T;
+        viaLocations?: T;
+        viaLocationsCollections?: T;
+        dropoffLocationId?: T;
+        dropoffLocationCollection?: T;
+        dropoffDate?: T;
+      };
+  emptyRouting?:
+    | T
+    | {
+        shippingLineId?: T;
+        pickupLocationId?: T;
+        pickupDate?: T;
+        viaLocations?: T;
+        viaLocationsCollections?: T;
+        dropoffLocationId?: T;
+        dropoffLocationCollection?: T;
+        dropoffDate?: T;
+        requestedDeliveryDate?: T;
+      };
+  instructions?: T;
+  jobNotes?: T;
+  driverAllocation?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "export-container-bookings_select".
+ */
+export interface ExportContainerBookingsSelect<T extends boolean = true> {
+  tenantId?: T;
+  bookingCode?: T;
+  status?: T;
+  customerReference?: T;
+  bookingReference?: T;
+  chargeToId?: T;
+  chargeToCollection?: T;
+  chargeToContactName?: T;
+  chargeToContactNumber?: T;
+  consignorId?: T;
+  vesselId?: T;
+  etd?: T;
+  receivalStart?: T;
+  cutoff?: T;
+  fromId?: T;
+  fromCollection?: T;
+  fromAddress?: T;
+  fromCity?: T;
+  fromState?: T;
+  fromPostcode?: T;
+  toId?: T;
+  toCollection?: T;
+  toAddress?: T;
+  toCity?: T;
+  toState?: T;
+  toPostcode?: T;
+  containerSizeIds?: T;
+  containerQuantities?: T;
+  emptyRouting?:
+    | T
+    | {
+        shippingLineId?: T;
+        pickupLocationId?: T;
+        pickupDate?: T;
+        viaLocations?: T;
+        dropoffLocationId?: T;
+        dropoffDate?: T;
+        requestedDeliveryDate?: T;
+      };
+  fullRouting?:
+    | T
+    | {
+        pickupLocationId?: T;
+        pickupDate?: T;
+        viaLocations?: T;
+        dropoffLocationId?: T;
+        dropoffDate?: T;
+      };
+  instructions?: T;
+  jobNotes?: T;
+  releaseNumber?: T;
+  weight?: T;
+  driverAllocation?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-details_select".
+ */
+export interface ContainerDetailsSelect<T extends boolean = true> {
+  containerBookingId?: T;
+  containerNumber?: T;
+  containerSizeId?: T;
+  gross?: T;
+  tare?: T;
+  net?: T;
+  pin?: T;
+  whManifest?: T;
+  isoCode?: T;
+  timeSlot?: T;
+  emptyTimeSlot?: T;
+  dehireDate?: T;
+  shippingLineId?: T;
+  countryOfOrigin?: T;
+  orderRef?: T;
+  jobAvailability?: T;
+  sealNumber?: T;
+  customerRequestDate?: T;
+  dock?: T;
+  confirmedUnpackDate?: T;
+  yardLocation?: T;
+  secureSealsIntact?: T;
+  inspectUnpack?: T;
+  directionType?: T;
+  houseBillNumber?: T;
+  oceanBillNumber?: T;
+  ventAirflow?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "container-stock-allocations_select".
+ */
+export interface ContainerStockAllocationsSelect<T extends boolean = true> {
+  containerDetailId?: T;
+  containerBookingId?: T;
+  stage?: T;
+  productLines?:
+    | T
+    | {
+        skuId?: T;
+        skuDescription?: T;
+        batchNumber?: T;
+        lpnQty?: T;
+        sqmPerSU?: T;
+        expectedQty?: T;
+        pickedQty?: T;
+        expectedWeight?: T;
+        pickedWeight?: T;
+        allocatedQty?: T;
+        allocatedWeight?: T;
+        allocatedCubicPerHU?: T;
+        pltQty?: T;
+        LPN?:
+          | T
+          | {
+              lpnNumber?: T;
+              id?: T;
+            };
+        location?: T;
+        expectedQtyImport?: T;
+        recievedQty?: T;
+        expectedWeightImport?: T;
+        recievedWeight?: T;
+        weightPerHU?: T;
+        expectedCubicPerHU?: T;
+        recievedCubicPerHU?: T;
+        palletSpaces?: T;
+        expiryDate?: T;
+        attribute1?: T;
+        attribute2?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }

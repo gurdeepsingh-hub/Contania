@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    let context = await getTenantContext(request, 'settings_entity_settings')
+    const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -67,10 +67,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching damage codes:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch damage codes' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch damage codes' }, { status: 500 })
   }
 }
 
@@ -85,10 +82,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     if (!body.freightType || !body.reason) {
-      return NextResponse.json(
-        { message: 'Freight type and reason are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Freight type and reason are required' }, { status: 400 })
     }
 
     const newDamageCode = await payload.create({
@@ -106,11 +100,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating damage code:', error)
-    return NextResponse.json(
-      { message: 'Failed to create damage code' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create damage code' }, { status: 500 })
   }
 }
-
-

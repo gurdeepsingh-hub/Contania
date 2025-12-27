@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    let context = await getTenantContext(request, 'settings_entity_settings')
+    const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -62,10 +62,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching detention controls:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch detention controls' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch detention controls' }, { status: 500 })
   }
 }
 
@@ -82,7 +79,7 @@ export async function POST(request: NextRequest) {
     if (!body.shippingLineId || !body.containerType) {
       return NextResponse.json(
         { message: 'Shipping line and container type are required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -102,11 +99,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating detention control:', error)
-    return NextResponse.json(
-      { message: 'Failed to create detention control' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create detention control' }, { status: 500 })
   }
 }
-
-

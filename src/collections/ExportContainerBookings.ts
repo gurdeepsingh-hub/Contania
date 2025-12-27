@@ -1,0 +1,834 @@
+import type { CollectionConfig } from 'payload'
+
+export const ExportContainerBookings: CollectionConfig = {
+  slug: 'export-container-bookings',
+  admin: {
+    useAsTitle: 'bookingCode',
+  },
+  access: {
+    create: ({ req }) => {
+      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string } }).user
+      if (user?.role === 'superadmin') return true
+      return !!user?.tenantId
+    },
+    read: ({ req }) => {
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
+      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.tenantId) {
+        return {
+          tenantId: {
+            equals: user.tenantId,
+          },
+        }
+      }
+      return false
+    },
+    update: ({ req }) => {
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
+      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.tenantId) {
+        return {
+          tenantId: {
+            equals: user.tenantId,
+          },
+        }
+      }
+      return false
+    },
+    delete: ({ req }) => {
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
+      if (user?.role === 'superadmin' || user?.collection === 'users') return true
+      if (user?.tenantId) {
+        return {
+          tenantId: {
+            equals: user.tenantId,
+          },
+        }
+      }
+      return false
+    },
+  },
+  fields: [
+    {
+      name: 'tenantId',
+      type: 'relationship',
+      relationTo: 'tenants',
+      required: true,
+      admin: {
+        description: 'Links container booking to their company (tenant)',
+      },
+    },
+    {
+      name: 'bookingCode',
+      type: 'text',
+      required: true,
+      unique: true,
+      admin: {
+        description: 'Auto-generated unique booking code (EXP- prefix)',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'status',
+      type: 'select',
+      required: true,
+      defaultValue: 'draft',
+      options: [
+        { label: 'Draft', value: 'draft' },
+        { label: 'Confirmed', value: 'confirmed' },
+        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Cancelled', value: 'cancelled' },
+      ],
+      admin: {
+        description: 'Current status of the container booking',
+      },
+    },
+    // Step 1: Basic Info
+    {
+      name: 'customerReference',
+      type: 'text',
+      required: true,
+      admin: {
+        description: 'Customer reference number',
+      },
+    },
+    {
+      name: 'bookingReference',
+      type: 'text',
+      required: true,
+      admin: {
+        description: 'Booking reference number',
+      },
+    },
+    {
+      name: 'chargeToId',
+      type: 'relationship',
+      relationTo: ['paying-customers', 'customers'],
+      required: ({ data, operation }) => {
+        // Only required when status is not 'draft' and it's a create/update operation
+        if (operation === 'create' || operation === 'update') {
+          return data?.status !== 'draft'
+        }
+        return false
+      },
+      validate: (value, { data }) => {
+        // Allow empty value when status is 'draft'
+        if (
+          data?.status === 'draft' &&
+          (!value || value === '' || value === null || value === undefined)
+        ) {
+          return true
+        }
+        // For non-draft status, value is required (handled by required function)
+        return true
+      },
+      admin: {
+        description: 'Entity responsible for charges (paying customer or delivery customer)',
+      },
+    },
+    {
+      name: 'chargeToCollection',
+      type: 'text',
+      admin: {
+        description: 'Collection type for chargeToId',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'chargeToContactName',
+      type: 'text',
+      admin: {
+        description: 'Contact name fetched from chargeTo entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'chargeToContactNumber',
+      type: 'text',
+      admin: {
+        description: 'Contact number fetched from chargeTo entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'consignorId',
+      type: 'relationship',
+      relationTo: 'customers',
+      required: ({ data, operation }) => {
+        // Only required when status is not 'draft' and it's a create/update operation
+        if (operation === 'create' || operation === 'update') {
+          return data?.status !== 'draft'
+        }
+        return false
+      },
+      validate: (value, { data }) => {
+        // Allow empty value when status is 'draft'
+        if (
+          data?.status === 'draft' &&
+          (!value || value === '' || value === null || value === undefined)
+        ) {
+          return true
+        }
+        return true
+      },
+      admin: {
+        description: 'Consignor (for export jobs)',
+      },
+    },
+    // Step 2: Vessel Info (Export-specific)
+    {
+      name: 'vesselId',
+      type: 'relationship',
+      relationTo: 'vessels',
+      admin: {
+        description: 'Vessel associated with this booking',
+      },
+    },
+    {
+      name: 'etd',
+      type: 'date',
+      admin: {
+        description: 'Estimated Time of Departure',
+      },
+    },
+    {
+      name: 'receivalStart',
+      type: 'date',
+      admin: {
+        description: 'Receival start date',
+      },
+    },
+    {
+      name: 'cutoff',
+      type: 'checkbox',
+      admin: {
+        description: 'Cutoff status',
+      },
+    },
+    // Step 3: Locations
+    {
+      name: 'fromId',
+      type: 'relationship',
+      relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+      required: ({ data, operation }) => {
+        // Only required when status is not 'draft' and it's a create/update operation
+        if (operation === 'create' || operation === 'update') {
+          return data?.status !== 'draft'
+        }
+        return false
+      },
+      validate: (value, { data }) => {
+        // Allow empty value when status is 'draft'
+        if (
+          data?.status === 'draft' &&
+          (!value || value === '' || value === null || value === undefined)
+        ) {
+          return true
+        }
+        return true
+      },
+      admin: {
+        description: 'Origin location (delivery customer, paying customer, empty park, or wharf)',
+      },
+    },
+    {
+      name: 'fromCollection',
+      type: 'text',
+      admin: {
+        description: 'Collection type for fromId',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'fromAddress',
+      type: 'text',
+      admin: {
+        description: 'Address fetched from fromId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'fromCity',
+      type: 'text',
+      admin: {
+        description: 'City fetched from fromId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'fromState',
+      type: 'text',
+      admin: {
+        description: 'State fetched from fromId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'fromPostcode',
+      type: 'text',
+      admin: {
+        description: 'Postcode fetched from fromId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'toId',
+      type: 'relationship',
+      relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+      required: ({ data, operation }) => {
+        // Only required when status is not 'draft' and it's a create/update operation
+        if (operation === 'create' || operation === 'update') {
+          return data?.status !== 'draft'
+        }
+        return false
+      },
+      validate: (value, { data }) => {
+        // Allow empty value when status is 'draft'
+        if (
+          data?.status === 'draft' &&
+          (!value || value === '' || value === null || value === undefined)
+        ) {
+          return true
+        }
+        return true
+      },
+      admin: {
+        description:
+          'Destination location (delivery customer, paying customer, empty park, or wharf)',
+      },
+    },
+    {
+      name: 'toCollection',
+      type: 'text',
+      admin: {
+        description: 'Collection type for toId',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'toAddress',
+      type: 'text',
+      admin: {
+        description: 'Address fetched from toId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'toCity',
+      type: 'text',
+      admin: {
+        description: 'City fetched from toId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'toState',
+      type: 'text',
+      admin: {
+        description: 'State fetched from toId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'toPostcode',
+      type: 'text',
+      admin: {
+        description: 'Postcode fetched from toId entity',
+        readOnly: true,
+      },
+    },
+    {
+      name: 'containerSizeIds',
+      type: 'relationship',
+      relationTo: 'container-sizes',
+      hasMany: true,
+      required: ({ data, operation }) => {
+        // Only required when status is not 'draft' and it's a create/update operation
+        if (operation === 'create' || operation === 'update') {
+          return data?.status !== 'draft'
+        }
+        return false
+      },
+      validate: (value, { data }) => {
+        // Allow empty array when status is 'draft'
+        if (data?.status === 'draft' && (!value || (Array.isArray(value) && value.length === 0))) {
+          return true
+        }
+        return true
+      },
+      admin: {
+        description: 'Container sizes for this booking',
+      },
+    },
+    {
+      name: 'containerQuantities',
+      type: 'json',
+      admin: {
+        description: 'Object mapping container size ID to quantity',
+      },
+    },
+    // Step 4: Routing (Export: Empty → Full)
+    {
+      name: 'emptyRouting',
+      type: 'group',
+      admin: {
+        description: 'Empty container routing details (runs first for export)',
+      },
+      fields: [
+        {
+          name: 'shippingLineId',
+          type: 'relationship',
+          relationTo: 'shipping-lines',
+          admin: {
+            description: 'Shipping line for empty containers',
+          },
+        },
+        {
+          name: 'pickupLocationId',
+          type: 'relationship',
+          relationTo: 'empty-parks',
+          admin: {
+            description: 'Empty container pickup location',
+          },
+        },
+        {
+          name: 'pickupDate',
+          type: 'date',
+          admin: {
+            description: 'Empty container pickup date',
+          },
+        },
+        {
+          name: 'viaLocations',
+          type: 'relationship',
+          relationTo: ['warehouses', 'wharves', 'empty-parks'],
+          hasMany: true,
+          admin: {
+            description: 'Via locations (sequence matters)',
+          },
+        },
+        {
+          name: 'dropoffLocationId',
+          type: 'relationship',
+          relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+          admin: {
+            description: 'Empty container dropoff location (prefilled from Step 3 From)',
+          },
+        },
+        {
+          name: 'dropoffDate',
+          type: 'date',
+          admin: {
+            description: 'Empty container dropoff date',
+          },
+        },
+        {
+          name: 'requestedDeliveryDate',
+          type: 'date',
+          admin: {
+            description: 'Requested delivery date for empty containers',
+          },
+        },
+      ],
+    },
+    {
+      name: 'fullRouting',
+      type: 'group',
+      admin: {
+        description: 'Full container routing details (runs second for export)',
+      },
+      fields: [
+        {
+          name: 'pickupLocationId',
+          type: 'relationship',
+          relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+          admin: {
+            description: 'Full container pickup location (prefilled from Step 3 From)',
+          },
+        },
+        {
+          name: 'pickupDate',
+          type: 'date',
+          admin: {
+            description: 'Full container pickup date',
+          },
+        },
+        {
+          name: 'viaLocations',
+          type: 'relationship',
+          relationTo: ['warehouses', 'wharves', 'empty-parks'],
+          hasMany: true,
+          admin: {
+            description: 'Via locations (sequence matters)',
+          },
+        },
+        {
+          name: 'dropoffLocationId',
+          type: 'relationship',
+          relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+          admin: {
+            description: 'Full container dropoff location (prefilled from Step 3 To)',
+          },
+        },
+        {
+          name: 'dropoffDate',
+          type: 'date',
+          admin: {
+            description: 'Full container dropoff date',
+          },
+        },
+      ],
+    },
+    // Additional fields
+    {
+      name: 'instructions',
+      type: 'textarea',
+      admin: {
+        description: 'General instructions for the booking',
+      },
+    },
+    {
+      name: 'jobNotes',
+      type: 'textarea',
+      admin: {
+        description: 'Additional notes for the job',
+      },
+    },
+    {
+      name: 'releaseNumber',
+      type: 'textarea',
+      admin: {
+        description: 'Release number',
+      },
+    },
+    {
+      name: 'weight',
+      type: 'textarea',
+      admin: {
+        description: 'Weight information',
+      },
+    },
+    // Step 7: Driver Allocation (stored as JSON for flexibility)
+    {
+      name: 'driverAllocation',
+      type: 'json',
+      admin: {
+        description:
+          'Driver allocation details for empty and full container movements (Empty → Full for export)',
+      },
+    },
+  ],
+  timestamps: true,
+  hooks: {
+    beforeChange: [
+      async ({ data, req, operation }) => {
+        const user = (
+          req as unknown as {
+            user?: { role?: string; tenantId?: number | string; collection?: string }
+          }
+        ).user
+
+        // Auto-set tenantId
+        if (user?.tenantId && data.tenantId !== user.tenantId) {
+          if (user.role !== 'superadmin' && user.collection !== 'users') {
+            data.tenantId = user.tenantId
+          }
+        }
+
+        // Auto-generate booking code with EXP- prefix
+        if (operation === 'create' && !data.bookingCode) {
+          const prefix = 'EXP'
+          const timestamp = Date.now().toString().slice(-8)
+          const random = Math.floor(Math.random() * 1000)
+            .toString()
+            .padStart(3, '0')
+          data.bookingCode = `${prefix}-${timestamp}-${random}`
+        }
+
+        // Auto-fetch chargeTo entity details
+        if (data.chargeToId && req?.payload) {
+          try {
+            let chargeToId: number | undefined
+            let collection: string | undefined
+
+            // Handle different chargeToId formats
+            if (typeof data.chargeToId === 'object' && data.chargeToId !== null) {
+              // Object format: { id: number, relationTo?: string }
+              chargeToId = (data.chargeToId as { id: number; relationTo?: string }).id
+              collection = (data.chargeToId as { relationTo?: string })?.relationTo
+            } else if (typeof data.chargeToId === 'string' && data.chargeToId.includes(':')) {
+              // String format: "customers:6" or "paying-customers:6"
+              const [collectionPart, idStr] = data.chargeToId.split(':')
+              const parsedId = parseInt(idStr, 10)
+              if (
+                !isNaN(parsedId) &&
+                (collectionPart === 'customers' || collectionPart === 'paying-customers')
+              ) {
+                chargeToId = parsedId
+                collection = collectionPart
+              }
+            } else if (typeof data.chargeToId === 'number') {
+              // Number format: just the ID
+              chargeToId = data.chargeToId
+            }
+
+            // Use chargeToCollection if collection is not determined yet
+            if (!collection) {
+              collection = data.chargeToCollection || 'paying-customers'
+            }
+
+            if (chargeToId && (collection === 'paying-customers' || collection === 'customers')) {
+              const entity = await req.payload.findByID({
+                collection: collection as 'paying-customers' | 'customers',
+                id: chargeToId,
+              })
+
+              if (entity) {
+                const entityData = entity as {
+                  contact_name?: string
+                  contact_phone?: string
+                  contactName?: string
+                  contactPhoneNumber?: string
+                }
+                data.chargeToContactName = entityData.contact_name || entityData.contactName || ''
+                data.chargeToContactNumber =
+                  entityData.contact_phone || entityData.contactPhoneNumber || ''
+                data.chargeToCollection = collection
+                // Ensure chargeToId is set as number for storage
+                data.chargeToId = chargeToId as any
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching chargeTo entity:', error)
+          }
+        }
+
+        // Auto-fetch fromId entity details
+        if (data.fromId && req?.payload) {
+          try {
+            let fromId: number | undefined
+            let collection: string | undefined
+
+            // Handle different fromId formats
+            if (typeof data.fromId === 'object' && data.fromId !== null) {
+              // Object format: { id: number, relationTo?: string }
+              fromId = (data.fromId as { id: number; relationTo?: string }).id
+              collection = (data.fromId as { relationTo?: string })?.relationTo
+            } else if (typeof data.fromId === 'string' && data.fromId.includes(':')) {
+              // String format: "customers:6" or "empty-parks:1" or "wharves:2"
+              const [collectionPart, idStr] = data.fromId.split(':')
+              const parsedId = parseInt(idStr, 10)
+              if (
+                !isNaN(parsedId) &&
+                (collectionPart === 'customers' ||
+                  collectionPart === 'paying-customers' ||
+                  collectionPart === 'empty-parks' ||
+                  collectionPart === 'wharves')
+              ) {
+                fromId = parsedId
+                collection = collectionPart
+              }
+            } else if (typeof data.fromId === 'number') {
+              // Number format: just the ID
+              fromId = data.fromId
+            }
+
+            // Use fromCollection if collection is not determined yet
+            if (!collection) {
+              collection = data.fromCollection || 'customers'
+            }
+
+            const validCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
+            if (fromId && validCollections.includes(collection)) {
+              const entity = await req.payload.findByID({
+                collection: collection as
+                  | 'customers'
+                  | 'paying-customers'
+                  | 'empty-parks'
+                  | 'wharves',
+                id: fromId,
+              })
+
+              if (entity) {
+                const entityData = entity as {
+                  street?: string
+                  city?: string
+                  state?: string
+                  postcode?: string
+                  address?: {
+                    street?: string
+                    city?: string
+                    state?: string
+                    postcode?: string
+                  }
+                  delivery_street?: string
+                  delivery_city?: string
+                  delivery_state?: string
+                  delivery_postcode?: string
+                }
+
+                const street =
+                  entityData.street ||
+                  entityData.address?.street ||
+                  entityData.delivery_street ||
+                  ''
+                const city =
+                  entityData.city || entityData.address?.city || entityData.delivery_city || ''
+                const state =
+                  entityData.state || entityData.address?.state || entityData.delivery_state || ''
+                const postcode =
+                  entityData.postcode ||
+                  entityData.address?.postcode ||
+                  entityData.delivery_postcode ||
+                  ''
+
+                data.fromAddress = street
+                data.fromCity = city
+                data.fromState = state
+                data.fromPostcode = postcode
+                data.fromCollection = collection
+                // CRITICAL: Ensure fromCollection is always set
+                console.log(
+                  '[ExportCollection Hook] Set fromCollection:',
+                  collection,
+                  'for fromId:',
+                  fromId,
+                )
+              } else {
+                // Entity not found, but still set the collection to allow save
+                data.fromCollection = collection
+                data.fromId = fromId as any
+                console.warn(
+                  `[ExportCollection Hook] fromId entity ${fromId} not found in ${collection}, but setting collection anyway`,
+                )
+              }
+            } else {
+              // No entity lookup attempted, but ensure collection is set if we have it
+              if (collection && !data.fromCollection) {
+                data.fromCollection = collection
+                console.log('[ExportCollection Hook] Set fromCollection from fallback:', collection)
+              }
+            }
+          } catch (error) {
+            console.error('[ExportCollection Hook] Error fetching fromId entity:', error)
+            // Even on error, try to preserve the collection if we have it
+            if (collection && fromId) {
+              data.fromCollection = collection
+              data.fromId = fromId as any
+              console.log(
+                '[ExportCollection Hook] Error occurred, but preserved fromCollection:',
+                collection,
+              )
+            }
+          }
+        }
+
+        // Auto-fetch toId entity details
+        if (data.toId && req?.payload) {
+          try {
+            let toId: number | undefined
+            let collection: string | undefined
+
+            // Handle different toId formats
+            if (typeof data.toId === 'object' && data.toId !== null) {
+              // Object format: { id: number, relationTo?: string }
+              toId = (data.toId as { id: number; relationTo?: string }).id
+              collection = (data.toId as { relationTo?: string })?.relationTo
+            } else if (typeof data.toId === 'string' && data.toId.includes(':')) {
+              // String format: "customers:6" or "empty-parks:1" or "wharves:2"
+              const [collectionPart, idStr] = data.toId.split(':')
+              const parsedId = parseInt(idStr, 10)
+              if (
+                !isNaN(parsedId) &&
+                (collectionPart === 'customers' ||
+                  collectionPart === 'paying-customers' ||
+                  collectionPart === 'empty-parks' ||
+                  collectionPart === 'wharves')
+              ) {
+                toId = parsedId
+                collection = collectionPart
+              }
+            } else if (typeof data.toId === 'number') {
+              // Number format: just the ID
+              toId = data.toId
+            }
+
+            // Use toCollection if collection is not determined yet
+            if (!collection) {
+              collection = data.toCollection || 'customers'
+            }
+
+            const validCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
+            if (toId && validCollections.includes(collection)) {
+              const entity = await req.payload.findByID({
+                collection: collection as
+                  | 'customers'
+                  | 'paying-customers'
+                  | 'empty-parks'
+                  | 'wharves',
+                id: toId,
+              })
+
+              if (entity) {
+                const entityData = entity as {
+                  street?: string
+                  city?: string
+                  state?: string
+                  postcode?: string
+                  address?: {
+                    street?: string
+                    city?: string
+                    state?: string
+                    postcode?: string
+                  }
+                  delivery_street?: string
+                  delivery_city?: string
+                  delivery_state?: string
+                  delivery_postcode?: string
+                }
+
+                const street =
+                  entityData.street ||
+                  entityData.address?.street ||
+                  entityData.delivery_street ||
+                  ''
+                const city =
+                  entityData.city || entityData.address?.city || entityData.delivery_city || ''
+                const state =
+                  entityData.state || entityData.address?.state || entityData.delivery_state || ''
+                const postcode =
+                  entityData.postcode ||
+                  entityData.address?.postcode ||
+                  entityData.delivery_postcode ||
+                  ''
+
+                data.toAddress = street
+                data.toCity = city
+                data.toState = state
+                data.toPostcode = postcode
+                data.toCollection = collection
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching toId entity:', error)
+          }
+        }
+
+        return data
+      },
+    ],
+  },
+}

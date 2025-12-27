@@ -39,6 +39,10 @@ import { ContainerWeights } from './collections/ContainerWeights'
 import { DamageCodes } from './collections/DamageCodes'
 import { DetentionControl } from './collections/DetentionControl'
 import { Vessels } from './collections/Vessels'
+import { ImportContainerBookings } from './collections/ImportContainerBookings'
+import { ExportContainerBookings } from './collections/ExportContainerBookings'
+import { ContainerDetails } from './collections/ContainerDetails'
+import { ContainerStockAllocations } from './collections/ContainerStockAllocations'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -84,6 +88,10 @@ export default buildConfig({
     DamageCodes,
     DetentionControl,
     Vessels,
+    ImportContainerBookings,
+    ExportContainerBookings,
+    ContainerDetails,
+    ContainerStockAllocations,
   ],
   email: nodemailerAdapter(),
   // {

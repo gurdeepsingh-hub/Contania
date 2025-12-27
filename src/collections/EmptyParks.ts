@@ -155,5 +155,3 @@ export const EmptyParks: CollectionConfig = {
     ],
   },
 }
-
-

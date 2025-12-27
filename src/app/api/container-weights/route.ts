@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    let context = await getTenantContext(request, 'settings_entity_settings')
+    const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -67,10 +67,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching container weights:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch container weights' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch container weights' }, { status: 500 })
   }
 }
 
@@ -87,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (!body.size || !body.attribute || body.weight === undefined) {
       return NextResponse.json(
         { message: 'Container size, attribute, and weight are required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -107,11 +104,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating container weight:', error)
-    return NextResponse.json(
-      { message: 'Failed to create container weight' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create container weight' }, { status: 500 })
   }
 }
-
-

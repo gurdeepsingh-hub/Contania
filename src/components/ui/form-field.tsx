@@ -186,7 +186,7 @@ export interface FormComboboxProps {
 }
 
 export const FormCombobox = React.forwardRef<HTMLButtonElement, FormComboboxProps>(
-  ({ label, error, required, containerClassName, className, id, ...props }, ref) => {
+  ({ label, error, required, containerClassName, className, id, value, options, ...props }, ref) => {
     const comboboxId = id || `combobox-${Math.random().toString(36).substr(2, 9)}`
 
     return (
@@ -199,7 +199,8 @@ export const FormCombobox = React.forwardRef<HTMLButtonElement, FormComboboxProp
       >
         <Combobox
           {...props}
-          options={props.options || []}
+          value={value}
+          options={options || []}
           className={cn(error && 'border-destructive focus-visible:ring-destructive', className)}
         />
       </FormField>

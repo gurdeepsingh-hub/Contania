@@ -47,7 +47,13 @@ export function Combobox({
   const listRef = React.useRef<HTMLUListElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
 
-  const selectedOption = options.find((option) => String(option.value) === String(value))
+  const selectedOption = React.useMemo(
+    () => {
+      if (!value) return undefined
+      return options.find((option) => String(option.value) === String(value))
+    },
+    [options, value]
+  )
 
   // Filter options based on input value
   const filteredOptions = React.useMemo(() => {
@@ -56,14 +62,27 @@ export function Combobox({
     return options.filter((option) => option.label.toLowerCase().includes(searchLower))
   }, [options, inputValue])
 
-  // Update input value when selection changes externally
+  // Update input value when selection changes externally or when options load with a value
   React.useEffect(() => {
+    // When selectedOption is found, always update the input value
     if (selectedOption) {
       setInputValue(selectedOption.label)
-    } else if (!open) {
-      setInputValue('')
+      return
     }
-  }, [selectedOption, open])
+
+    // If dropdown is closed, handle clearing logic
+    if (!open) {
+      if (!value) {
+        // No value - clear input
+        setInputValue('')
+      } else if (options.length > 0) {
+        // We have a value but no selectedOption found after options loaded
+        // This means the value doesn't match any option - clear input
+        setInputValue('')
+      }
+      // If options.length === 0, we're still loading - don't clear yet
+    }
+  }, [selectedOption, open, value, options])
 
   // Reset highlighted index when options change
   React.useEffect(() => {
