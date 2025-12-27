@@ -165,6 +165,7 @@ export const step5Schema = z.object({
 })
 
 // Step 6: Stock Allocation (Import)
+// Stock allocations are optional - can be added later, so validation is lenient
 export const step6Schema = z.object({
   stockAllocations: z
     .array(
@@ -174,7 +175,7 @@ export const step6Schema = z.object({
           .array(
             z.object({
               skuId: z.number().min(1, 'SKU is required'),
-              batchNumber: z.string().min(1, 'Batch number is required'),
+              batchNumber: z.string().optional(), // Made optional since it might not be set initially
               expectedQtyImport: numberOrUndefined,
               recievedQty: numberOrUndefined,
               expectedWeightImport: numberOrUndefined,
@@ -200,30 +201,36 @@ export const step7Schema = z.object({
   driverAllocation: z
     .object({
       emptyContainer: z
-        .array(
-          z.object({
-            from: z.string().optional(),
-            to: z.string().optional(),
-            via: z.array(z.string()).optional(),
-            date: dateStringOrUndefined,
-            time: z.string().optional(),
-            vehicleId: numberOrUndefined,
-            driverId: numberOrUndefined,
-          }),
-        )
+        .object({
+          date: dateStringOrUndefined,
+          time: z.string().optional(),
+          vehicleId: numberOrUndefined,
+          driverId: numberOrUndefined,
+          legs: z
+            .array(
+              z.object({
+                from: z.union([z.string(), z.number()]),
+                to: z.union([z.string(), z.number()]),
+              }),
+            )
+            .optional(),
+        })
         .optional(),
       fullContainer: z
-        .array(
-          z.object({
-            from: z.string().optional(),
-            to: z.string().optional(),
-            via: z.array(z.string()).optional(),
-            date: dateStringOrUndefined,
-            time: z.string().optional(),
-            vehicleId: numberOrUndefined,
-            driverId: numberOrUndefined,
-          }),
-        )
+        .object({
+          date: dateStringOrUndefined,
+          time: z.string().optional(),
+          vehicleId: numberOrUndefined,
+          driverId: numberOrUndefined,
+          legs: z
+            .array(
+              z.object({
+                from: z.union([z.string(), z.number()]),
+                to: z.union([z.string(), z.number()]),
+              }),
+            )
+            .optional(),
+        })
         .optional(),
     })
     .optional(),

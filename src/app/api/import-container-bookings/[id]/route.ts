@@ -1672,28 +1672,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ensureValidIds(updateData.emptyRouting, 'emptyRouting')
     }
 
-    // Log the data being sent for debugging
-    console.log(
-      '[PATCH /api/import-container-bookings/[id]] Request body:',
-      JSON.stringify(body, null, 2),
-    )
-    console.log(
-      '[PATCH /api/import-container-bookings/[id]] Update data (after all processing):',
-      JSON.stringify(updateData, null, 2),
-    )
-    if (updateData.fullRouting) {
-      console.log(
-        '[PATCH /api/import-container-bookings/[id]] Full Routing (final):',
-        JSON.stringify(updateData.fullRouting, null, 2),
-      )
-    }
-    if (updateData.emptyRouting) {
-      console.log(
-        '[PATCH /api/import-container-bookings/[id]] Empty Routing (final):',
-        JSON.stringify(updateData.emptyRouting, null, 2),
-      )
-    }
-
     // Update import container booking
     try {
       const updatedBooking = await payload.update({

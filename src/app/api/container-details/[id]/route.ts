@@ -32,10 +32,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       containerBookingId?: number | { id: number; relationTo?: string }
     }
     const bookingRef = detailData.containerBookingId
-    const bookingId =
-      typeof bookingRef === 'object' ? bookingRef.id : bookingRef
-    const collection =
-      typeof bookingRef === 'object' ? bookingRef.relationTo : null
+    const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+    const collection = typeof bookingRef === 'object' ? bookingRef.relationTo : null
 
     if (bookingId && collection) {
       try {
@@ -83,10 +81,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             }
           }
         } catch (e) {
-          return NextResponse.json(
-            { message: 'Container booking not found' },
-            { status: 404 },
-          )
+          return NextResponse.json({ message: 'Container booking not found' }, { status: 404 })
         }
       }
     }
@@ -128,10 +123,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       containerBookingId?: number | { id: number; relationTo?: string }
     }
     const bookingRef = detailData.containerBookingId
-    const bookingId =
-      typeof bookingRef === 'object' ? bookingRef.id : bookingRef
-    const collection =
-      typeof bookingRef === 'object' ? bookingRef.relationTo : null
+    const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+    const collection = typeof bookingRef === 'object' ? bookingRef.relationTo : null
 
     if (bookingId && collection) {
       try {
@@ -179,10 +172,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             }
           }
         } catch (e) {
-          return NextResponse.json(
-            { message: 'Container booking not found' },
-            { status: 404 },
-          )
+          return NextResponse.json({ message: 'Container booking not found' }, { status: 404 })
         }
       }
     }
@@ -192,6 +182,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const allowedFields = [
       'containerNumber',
       'containerSizeId',
+      'warehouseId',
       'gross',
       'tare',
       'net',
@@ -215,11 +206,27 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       'directionType',
       'houseBillNumber',
       'oceanBillNumber',
+      'ventAirflow',
+    ]
+
+    // Date fields that should be null if empty string
+    const dateFields = [
+      'dehireDate',
+      'jobAvailability',
+      'customerRequestDate',
+      'confirmedUnpackDate',
+      'secureSealsIntact',
+      'inspectUnpack',
     ]
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        updateData[field] = body[field]
+        // Convert empty strings to null for date fields
+        if (dateFields.includes(field) && body[field] === '') {
+          updateData[field] = null
+        } else {
+          updateData[field] = body[field]
+        }
       }
     }
 
@@ -269,10 +276,8 @@ export async function DELETE(
       containerBookingId?: number | { id: number; relationTo?: string }
     }
     const bookingRef = detailData.containerBookingId
-    const bookingId =
-      typeof bookingRef === 'object' ? bookingRef.id : bookingRef
-    const collection =
-      typeof bookingRef === 'object' ? bookingRef.relationTo : null
+    const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+    const collection = typeof bookingRef === 'object' ? bookingRef.relationTo : null
 
     if (bookingId && collection) {
       try {
@@ -320,10 +325,7 @@ export async function DELETE(
             }
           }
         } catch (e) {
-          return NextResponse.json(
-            { message: 'Container booking not found' },
-            { status: 404 },
-          )
+          return NextResponse.json({ message: 'Container booking not found' }, { status: 404 })
         }
       }
     }
@@ -343,4 +345,3 @@ export async function DELETE(
     return NextResponse.json({ message: 'Failed to delete container detail' }, { status: 500 })
   }
 }
-

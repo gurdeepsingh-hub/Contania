@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const page = url.searchParams.get('page') ? Number(url.searchParams.get('page')) : 1
     const limit = url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : 20
-    const depth = url.searchParams.get('depth') ? Number(url.searchParams.get('depth')) : 1
+    // Default depth to 2 to properly fetch product lines and their relationships (SKU, LPNs, etc.)
+    const depth = url.searchParams.get('depth') ? Number(url.searchParams.get('depth')) : 2
     const bookingId = url.searchParams.get('bookingId') || ''
     const containerDetailId = url.searchParams.get('containerDetailId') || ''
 
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       stockAllocations: filteredAllocations,
-      totalDocs: resolvedAllocations.length,
+      totalDocs: filteredAllocations.length,
       limit: allocationsResult.limit,
       totalPages: allocationsResult.totalPages,
       page: allocationsResult.page,

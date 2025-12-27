@@ -88,12 +88,17 @@ export const ExportContainerBookings: CollectionConfig = {
       options: [
         { label: 'Draft', value: 'draft' },
         { label: 'Confirmed', value: 'confirmed' },
-        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Allocated', value: 'allocated' },
+        { label: 'Partially Picked', value: 'partially_picked' },
+        { label: 'Picked', value: 'picked' },
+        { label: 'Ready to Dispatch', value: 'ready_to_dispatch' },
+        { label: 'Dispatched', value: 'dispatched' },
         { label: 'Completed', value: 'completed' },
         { label: 'Cancelled', value: 'cancelled' },
       ],
       admin: {
-        description: 'Current status of the container booking',
+        description:
+          'Current status of the container booking (auto-calculated from container statuses)',
       },
     },
     // Step 1: Basic Info
@@ -828,6 +833,78 @@ export const ExportContainerBookings: CollectionConfig = {
         }
 
         return data
+      },
+    ],
+    afterChange: [
+      async ({ doc, req, operation }) => {
+        // Auto-calculate job status from container statuses
+        if (doc && doc.id && req?.payload && operation !== 'delete') {
+          try {
+            // Get all container details for this booking
+            const containerDetails = await req.payload.find({
+              collection: 'container-details',
+              where: {
+                containerBookingId: {
+                  equals: doc.id,
+                },
+              },
+            })
+
+            if (containerDetails.docs.length === 0) {
+              // No containers yet, keep current status or set to draft/confirmed
+              return
+            }
+
+            const containerStatuses = containerDetails.docs.map(
+              (container: any) => container.status,
+            )
+
+            // Calculate job status based on container statuses
+            let newStatus = doc.status
+
+            // Check if all containers are in the same status
+            const allAllocated = containerStatuses.every((s) => s === 'allocated')
+            const allPickedUp = containerStatuses.every((s) => s === 'picked_up')
+            const allDispatched = containerStatuses.every((s) => s === 'dispatched')
+
+            // Check for partial states
+            const somePickedUp =
+              containerStatuses.some((s) => s === 'picked_up' || s === 'dispatched') &&
+              containerStatuses.some((s) => s === 'allocated')
+            const someDispatched =
+              containerStatuses.some((s) => s === 'dispatched') &&
+              containerStatuses.some((s) => s === 'picked_up')
+
+            if (allDispatched) {
+              newStatus = 'dispatched'
+            } else if (someDispatched) {
+              newStatus = 'ready_to_dispatch'
+            } else if (allPickedUp) {
+              newStatus = 'picked'
+            } else if (somePickedUp) {
+              newStatus = 'partially_picked'
+            } else if (allAllocated) {
+              newStatus = 'allocated'
+            }
+
+            // Only update if status changed and not cancelled/completed
+            if (
+              newStatus !== doc.status &&
+              doc.status !== 'cancelled' &&
+              doc.status !== 'completed'
+            ) {
+              await req.payload.update({
+                collection: 'export-container-bookings',
+                id: doc.id,
+                data: {
+                  status: newStatus,
+                },
+              })
+            }
+          } catch (error) {
+            console.error('Error calculating export booking status:', error)
+          }
+        }
       },
     ],
   },

@@ -152,26 +152,42 @@ export function VehicleFormDialog({
 
   const loadTrailerTypes = async () => {
     try {
-      const res = await fetch('/api/trailer-types?limit=1000')
+      const res = await fetch('/api/trailer-types?limit=1000', {
+        credentials: 'include',
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.trailerTypes) {
           setTrailerTypes(data.trailerTypes)
+        } else {
+          console.error('Error loading trailer types: Invalid response structure', data)
         }
+      } else {
+        const errorData = await res.json().catch(() => ({ message: 'Unknown error' }))
+        console.error('Error loading trailer types:', res.status, errorData)
+        toast.error(`Failed to load trailer types: ${errorData.message || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error loading trailer types:', error)
+      toast.error('Failed to load trailer types. Please refresh the page.')
     }
   }
 
   const loadWarehouses = async () => {
     try {
-      const res = await fetch('/api/warehouses?limit=1000')
+      const res = await fetch('/api/warehouses?limit=1000', {
+        credentials: 'include',
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.warehouses) {
           setWarehouses(data.warehouses)
+        } else {
+          console.error('Error loading warehouses: Invalid response structure', data)
         }
+      } else {
+        const errorData = await res.json().catch(() => ({ message: 'Unknown error' }))
+        console.error('Error loading warehouses:', res.status, errorData)
       }
     } catch (error) {
       console.error('Error loading warehouses:', error)
@@ -306,11 +322,11 @@ export function VehicleFormDialog({
               placeholder="Select trailer type"
               options={[
                 { value: '', label: 'None' },
-                ...trailerTypes
-                  .filter((trailerType) => trailerType.trailerA === true)
+                ...(trailerTypes || [])
+                  .filter((trailerType) => trailerType?.trailerA === true)
                   .map((trailerType) => ({
                     value: trailerType.id.toString(),
-                    label: trailerType.name,
+                    label: trailerType.name || 'Unnamed',
                   })),
               ]}
               error={errors.aTrailerId?.message}
@@ -321,11 +337,11 @@ export function VehicleFormDialog({
               placeholder="Select trailer type"
               options={[
                 { value: '', label: 'None' },
-                ...trailerTypes
-                  .filter((trailerType) => trailerType.trailerB === true)
+                ...(trailerTypes || [])
+                  .filter((trailerType) => trailerType?.trailerB === true)
                   .map((trailerType) => ({
                     value: trailerType.id.toString(),
-                    label: trailerType.name,
+                    label: trailerType.name || 'Unnamed',
                   })),
               ]}
               error={errors.bTrailerId?.message}
@@ -336,11 +352,11 @@ export function VehicleFormDialog({
               placeholder="Select trailer type"
               options={[
                 { value: '', label: 'None' },
-                ...trailerTypes
-                  .filter((trailerType) => trailerType.trailerC === true)
+                ...(trailerTypes || [])
+                  .filter((trailerType) => trailerType?.trailerC === true)
                   .map((trailerType) => ({
                     value: trailerType.id.toString(),
-                    label: trailerType.name,
+                    label: trailerType.name || 'Unnamed',
                   })),
               ]}
               error={errors.cTrailerId?.message}

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Eye } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { ContainerStatusBadge } from './container-status-badge'
 
 type BookingType = 'import' | 'export'
 
@@ -18,6 +19,7 @@ interface ContainerDetail {
   tare?: string
   net?: string
   isoCode?: string
+  status?: 'expecting' | 'received' | 'put_away' | 'allocated' | 'picked_up' | 'dispatched'
 }
 
 interface ContainerDetailsTableProps {
@@ -71,6 +73,7 @@ export function ContainerDetailsTable({
               <tr className="border-b">
                 <th className="text-left p-2 font-medium">Container Number</th>
                 <th className="text-left p-2 font-medium">Size</th>
+                <th className="text-left p-2 font-medium">Status</th>
                 <th className="text-left p-2 font-medium">Shipping Line</th>
                 <th className="text-left p-2 font-medium">ISO Code</th>
                 <th className="text-left p-2 font-medium">Actions</th>
@@ -89,6 +92,16 @@ export function ContainerDetailsTable({
                   <tr key={container.id} className="border-b hover:bg-muted/50">
                     <td className="p-2">{container.containerNumber}</td>
                     <td className="p-2">{size || '-'}</td>
+                    <td className="p-2">
+                      {container.status ? (
+                        <ContainerStatusBadge
+                          status={container.status}
+                          type={bookingType}
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="p-2">{shippingLine || '-'}</td>
                     <td className="p-2">{container.isoCode || '-'}</td>
                     <td className="p-2">

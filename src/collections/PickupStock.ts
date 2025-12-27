@@ -62,18 +62,32 @@ export const PickupStock: CollectionConfig = {
       name: 'outboundInventoryId',
       type: 'relationship',
       relationTo: 'outbound-inventory',
-      required: true,
       admin: {
-        description: 'Outbound job this pickup belongs to',
+        description: 'Outbound job this pickup belongs to (for outbound jobs)',
       },
     },
     {
       name: 'outboundProductLineId',
       type: 'relationship',
       relationTo: 'outbound-product-line',
-      required: true,
       admin: {
-        description: 'Product line this pickup is for',
+        description: 'Product line this pickup is for (for outbound jobs)',
+      },
+    },
+    {
+      name: 'containerDetailId',
+      type: 'relationship',
+      relationTo: 'container-details',
+      admin: {
+        description: 'Links to container detail (for container bookings)',
+      },
+    },
+    {
+      name: 'containerStockAllocationId',
+      type: 'relationship',
+      relationTo: 'container-stock-allocations',
+      admin: {
+        description: 'Links to container stock allocation product line (for container bookings)',
       },
     },
     {
@@ -186,23 +200,60 @@ export const PickupStock: CollectionConfig = {
           }
         ).user
 
-        // Auto-populate tenantId from outboundInventoryId
-        if (data.outboundInventoryId && req?.payload && !data.tenantId) {
-          try {
-            const jobId =
-              typeof data.outboundInventoryId === 'object'
-                ? (data.outboundInventoryId as { id: number }).id
-                : data.outboundInventoryId
-            const job = await req.payload.findByID({
-              collection: 'outbound-inventory',
-              id: jobId,
-            })
-            if (job && job.tenantId) {
-              data.tenantId =
-                typeof job.tenantId === 'object' ? (job.tenantId as { id: number }).id : job.tenantId
+        // Auto-populate tenantId from outboundInventoryId or containerDetailId
+        if (!data.tenantId && req?.payload) {
+          if (data.outboundInventoryId) {
+            try {
+              const jobId =
+                typeof data.outboundInventoryId === 'object'
+                  ? (data.outboundInventoryId as { id: number }).id
+                  : data.outboundInventoryId
+              const job = await req.payload.findByID({
+                collection: 'outbound-inventory',
+                id: jobId,
+              })
+              if (job && job.tenantId) {
+                data.tenantId =
+                  typeof job.tenantId === 'object' ? (job.tenantId as { id: number }).id : job.tenantId
+              }
+            } catch (error) {
+              console.error('Error fetching tenant from job:', error)
             }
-          } catch (error) {
-            console.error('Error fetching tenant from job:', error)
+          } else if (data.containerDetailId) {
+            try {
+              const containerId =
+                typeof data.containerDetailId === 'object'
+                  ? (data.containerDetailId as { id: number }).id
+                  : data.containerDetailId
+              const container = await req.payload.findByID({
+                collection: 'container-details',
+                id: containerId,
+              })
+              if (container) {
+                // Get tenant from container booking
+                const bookingRef =
+                  typeof container.containerBookingId === 'object'
+                    ? container.containerBookingId
+                    : null
+                if (bookingRef) {
+                  const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+                  const collection =
+                    typeof bookingRef === 'object' ? bookingRef.relationTo : 'import-container-bookings'
+                  const booking = await req.payload.findByID({
+                    collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                    id: bookingId,
+                  })
+                  if (booking && booking.tenantId) {
+                    data.tenantId =
+                      typeof booking.tenantId === 'object'
+                        ? (booking.tenantId as { id: number }).id
+                        : booking.tenantId
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching tenant from container:', error)
+            }
           }
         }
 

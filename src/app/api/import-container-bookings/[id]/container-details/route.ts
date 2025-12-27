@@ -210,9 +210,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Validate required fields
-    if (!body.containerNumber || !body.containerSizeId) {
+    if (!body.containerNumber || !body.containerSizeId || !body.warehouseId) {
       return NextResponse.json(
-        { message: 'Container number and container size are required' },
+        { message: 'Container number, container size, and warehouse are required' },
         { status: 400 },
       )
     }
@@ -227,6 +227,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
         containerNumber: body.containerNumber,
         containerSizeId: body.containerSizeId,
+        warehouseId: body.warehouseId,
         gross: body.gross,
         tare: body.tare,
         net: body.net,

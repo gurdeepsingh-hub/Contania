@@ -5,10 +5,18 @@ import { toast } from 'sonner'
 
 type DriverAllocationData = {
   emptyContainer?: {
-    legs?: any[]
+    date?: string
+    time?: string
+    vehicleId?: number
+    driverId?: number
+    legs?: Array<{ from: string | number; to: string | number }>
   }
   fullContainer?: {
-    legs?: any[]
+    date?: string
+    time?: string
+    vehicleId?: number
+    driverId?: number
+    legs?: Array<{ from: string | number; to: string | number }>
   }
 }
 

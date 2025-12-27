@@ -10,7 +10,8 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Save, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 type ContainerSize = {
   id: number
@@ -23,10 +24,16 @@ type ShippingLine = {
   name: string
 }
 
+type Warehouse = {
+  id: number
+  name: string
+}
+
 type ContainerDetail = {
   id?: number
   containerNumber: string
   containerSizeId: number
+  warehouseId?: number
   gross?: string
   tare?: string
   net?: string
@@ -82,14 +89,14 @@ export function Step5ContainerDetailsImport({
   const [_loading, setLoading] = useState(false)
   const [containerSizes, setContainerSizes] = useState<ContainerSize[]>([])
   const [shippingLines, setShippingLines] = useState<ShippingLine[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [containers, setContainers] = useState<ContainerDetail[]>(formData.containerDetails || [])
   const [weightErrors, setWeightErrors] = useState<
     Record<number, { gross?: string; tare?: string }>
   >({})
   const [expandedContainer, setExpandedContainer] = useState<string | undefined>(undefined)
   const [hasCheckedExistingContainers, setHasCheckedExistingContainers] = useState(false)
-
-  console.log('containers', containers)
+  const [savingContainerIndex, setSavingContainerIndex] = useState<number | null>(null)
 
   // Group containers by size
   const containersBySize = useMemo(() => {
@@ -118,9 +125,10 @@ export function Step5ContainerDetailsImport({
   const loadOptions = useCallback(async () => {
     setLoading(true)
     try {
-      const [sizesRes, shippingLinesRes] = await Promise.all([
+      const [sizesRes, shippingLinesRes, warehousesRes] = await Promise.all([
         fetch('/api/container-sizes?limit=100'),
         fetch('/api/shipping-lines?limit=100'),
+        fetch('/api/warehouses?limit=100'),
       ])
 
       if (sizesRes.ok) {
@@ -130,6 +138,10 @@ export function Step5ContainerDetailsImport({
       if (shippingLinesRes.ok) {
         const data = await shippingLinesRes.json()
         setShippingLines(data.shippingLines || [])
+      }
+      if (warehousesRes.ok) {
+        const data = await warehousesRes.json()
+        setWarehouses(data.warehouses || [])
       }
     } catch (error) {
       console.error('Error loading options:', error)
@@ -174,6 +186,10 @@ export function Step5ContainerDetailsImport({
                     typeof detail.containerSizeId === 'object' && detail.containerSizeId?.id
                       ? detail.containerSizeId.id
                       : detail.containerSizeId,
+                  warehouseId:
+                    typeof detail.warehouseId === 'object' && detail.warehouseId?.id
+                      ? detail.warehouseId.id
+                      : detail.warehouseId,
                   gross: detail.gross || '',
                   tare: detail.tare || '',
                   net: detail.net || '',
@@ -345,8 +361,8 @@ export function Step5ContainerDetailsImport({
     }
 
     const container = containers[index]
-    if (!container.containerNumber || !container.containerSizeId) {
-      toast.error('Container number and size are required')
+    if (!container.containerNumber || !container.containerSizeId || !container.warehouseId) {
+      toast.error('Container number, size, and warehouse are required')
       return
     }
 
@@ -361,9 +377,15 @@ export function Step5ContainerDetailsImport({
       return
     }
 
+    setSavingContainerIndex(index)
     try {
-      const res = await fetch(`/api/import-container-bookings/${bookingId}/container-details`, {
-        method: 'POST',
+      const method = container.id ? 'PATCH' : 'POST'
+      const url = container.id
+        ? `/api/container-details/${container.id}`
+        : `/api/import-container-bookings/${bookingId}/container-details`
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(container),
       })
@@ -375,7 +397,7 @@ export function Step5ContainerDetailsImport({
           updated[index] = { ...updated[index], id: data.containerDetail.id }
           setContainers(updated)
           onUpdate({ containerDetails: updated })
-          toast.success('Container detail saved')
+          toast.success(container.id ? 'Container detail updated' : 'Container detail saved')
         }
       } else {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -385,7 +407,25 @@ export function Step5ContainerDetailsImport({
     } catch (error) {
       console.error('Error saving container:', error)
       toast.error('Failed to save container detail')
+    } finally {
+      setSavingContainerIndex(null)
     }
+  }
+
+  const getContainerStatus = (container: ContainerDetail) => {
+    if (!container.containerNumber || !container.containerSizeId || !container.warehouseId) {
+      return { status: 'incomplete', label: 'Incomplete', icon: AlertCircle }
+    }
+    if (container.id) {
+      return { status: 'saved', label: 'Saved', icon: CheckCircle2 }
+    }
+    return { status: 'unsaved', label: 'Not Saved', icon: AlertCircle }
+  }
+
+  const hasUnsavedChanges = (container: ContainerDetail) => {
+    // If container has an ID, it's been saved at least once
+    // We could track original values to detect changes, but for now, just check if it's saved
+    return !container.id
   }
 
   const getContainerDisplayName = (container: ContainerDetail, index: number) => {
@@ -433,14 +473,54 @@ export function Step5ContainerDetailsImport({
             >
               {sizeContainers.map(({ container, index }) => {
                 const containerId = `container-${index}`
+                const containerStatus = getContainerStatus(container)
+                const StatusIcon = containerStatus.icon
+                const isSaving = savingContainerIndex === index
+                const canSave =
+                  container.containerNumber &&
+                  container.containerSizeId &&
+                  container.warehouseId &&
+                  !weightErrors[index]?.gross &&
+                  !weightErrors[index]?.tare
+
                 return (
                   <AccordionItem key={index} value={containerId} className="border rounded-lg px-4">
                     <div className="flex items-center gap-2">
                       <AccordionTrigger className="hover:no-underline flex-1">
-                        <span className="font-medium">
-                          {getContainerDisplayName(container, index + 1)}
-                        </span>
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="font-medium">
+                            {getContainerDisplayName(container, index + 1)}
+                          </span>
+                          <Badge
+                            variant={
+                              containerStatus.status === 'saved'
+                                ? 'default'
+                                : containerStatus.status === 'incomplete'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                            className="flex items-center gap-1"
+                          >
+                            <StatusIcon className="w-3 h-3" />
+                            {containerStatus.label}
+                          </Badge>
+                        </div>
                       </AccordionTrigger>
+                      {bookingId && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            saveContainer(index)
+                          }}
+                          disabled={!canSave || isSaving}
+                          className="shrink-0"
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          {isSaving ? 'Saving...' : container.id ? 'Update' : 'Save'}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"
@@ -484,6 +564,25 @@ export function Step5ContainerDetailsImport({
                               )
                             }
                             error={errors?.[`containerDetails.${index}.containerSizeId`]}
+                          />
+
+                          <FormCombobox
+                            label="Warehouse"
+                            required
+                            placeholder="Select warehouse..."
+                            options={warehouses.map((wh) => ({
+                              value: wh.id,
+                              label: wh.name,
+                            }))}
+                            value={container.warehouseId}
+                            onValueChange={(value) =>
+                              updateContainer(
+                                index,
+                                'warehouseId',
+                                typeof value === 'number' ? value : undefined,
+                              )
+                            }
+                            error={errors?.[`containerDetails.${index}.warehouseId`]}
                           />
 
                           <FormCombobox
@@ -729,18 +828,6 @@ export function Step5ContainerDetailsImport({
                             onChange={(e) => updateContainer(index, 'ventAirflow', e.target.value)}
                           />
                         </div>
-
-                        {bookingId && (
-                          <div className="flex justify-end pt-4 border-t">
-                            <Button
-                              type="button"
-                              onClick={() => saveContainer(index)}
-                              disabled={!container.containerNumber || !container.containerSizeId}
-                            >
-                              Save Container
-                            </Button>
-                          </div>
-                        )}
                       </div>
                     </AccordionContent>
                   </AccordionItem>

@@ -60,6 +60,35 @@ export const ContainerDetails: CollectionConfig = {
       },
     },
     {
+      name: 'status',
+      type: 'select',
+      required: true,
+      defaultValue: 'expecting',
+      options: [
+        // Import statuses
+        { label: 'Expecting', value: 'expecting' },
+        { label: 'Received', value: 'received' },
+        { label: 'Put Away', value: 'put_away' },
+        // Export statuses
+        { label: 'Allocated', value: 'allocated' },
+        { label: 'Picked Up', value: 'picked_up' },
+        { label: 'Dispatched', value: 'dispatched' },
+      ],
+      admin: {
+        description:
+          'Current status of the container (auto-updated based on product line completion)',
+      },
+    },
+    {
+      name: 'warehouseId',
+      type: 'relationship',
+      relationTo: 'warehouses',
+      required: true,
+      admin: {
+        description: 'Warehouse for put-away operations',
+      },
+    },
+    {
       name: 'containerNumber',
       type: 'text',
       required: true,
@@ -249,7 +278,33 @@ export const ContainerDetails: CollectionConfig = {
   timestamps: true,
   hooks: {
     beforeChange: [
-      async ({ data, req }) => {
+      async ({ data, req, operation }) => {
+        // Set default status based on booking type
+        if (operation === 'create' && data.containerBookingId && !data.status && req?.payload) {
+          try {
+            const bookingRef =
+              typeof data.containerBookingId === 'object'
+                ? (data.containerBookingId as { id: number; relationTo?: string })
+                : null
+
+            if (bookingRef) {
+              const bookingId = bookingRef.id
+              const collection = bookingRef.relationTo
+
+              if (bookingId && collection) {
+                // Determine booking type and set default status
+                if (collection === 'import-container-bookings') {
+                  data.status = 'expecting'
+                } else if (collection === 'export-container-bookings') {
+                  data.status = 'allocated'
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error setting default container status:', error)
+          }
+        }
+
         // Auto-fill shipping line from container booking's empty routing
         if (data.containerBookingId && !data.shippingLineId && req?.payload) {
           try {
@@ -267,7 +322,9 @@ export const ContainerDetails: CollectionConfig = {
                 let booking = null
                 try {
                   booking = await req.payload.findByID({
-                    collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                    collection: collection as
+                      | 'import-container-bookings'
+                      | 'export-container-bookings',
                     id: bookingId,
                   })
                 } catch (error) {
@@ -314,4 +371,3 @@ export const ContainerDetails: CollectionConfig = {
     ],
   },
 }
-

@@ -4,9 +4,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { FormInput, FormCombobox } from '@/components/ui/form-field'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { toast } from 'sonner'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Save, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 type ContainerSize = {
   id: number
@@ -19,10 +25,16 @@ type ShippingLine = {
   name: string
 }
 
+type Warehouse = {
+  id: number
+  name: string
+}
+
 type ContainerDetail = {
   id?: number
   containerNumber: string
   containerSizeId: number
+  warehouseId?: number
   gross?: string
   tare?: string
   net?: string
@@ -78,36 +90,45 @@ export function Step5ContainerDetailsExport({
   const [loading, setLoading] = useState(false)
   const [containerSizes, setContainerSizes] = useState<ContainerSize[]>([])
   const [shippingLines, setShippingLines] = useState<ShippingLine[]>([])
-  const [containers, setContainers] = useState<ContainerDetail[]>(
-    formData.containerDetails || [],
-  )
-  const [weightErrors, setWeightErrors] = useState<Record<number, { gross?: string; tare?: string }>>({})
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [containers, setContainers] = useState<ContainerDetail[]>(formData.containerDetails || [])
+  const [weightErrors, setWeightErrors] = useState<
+    Record<number, { gross?: string; tare?: string }>
+  >({})
   const [expandedContainer, setExpandedContainer] = useState<string | undefined>(undefined)
+  const [savingContainerIndex, setSavingContainerIndex] = useState<number | null>(null)
 
   // Group containers by size
   const containersBySize = useMemo(() => {
-    const grouped: Record<number, { size: ContainerSize | undefined; containers: Array<{ container: ContainerDetail; index: number }> }> = {}
-    
+    const grouped: Record<
+      number,
+      {
+        size: ContainerSize | undefined
+        containers: Array<{ container: ContainerDetail; index: number }>
+      }
+    > = {}
+
     containers.forEach((container, index) => {
       const sizeId = container.containerSizeId
       if (!grouped[sizeId]) {
         grouped[sizeId] = {
-          size: containerSizes.find(s => s.id === sizeId),
+          size: containerSizes.find((s) => s.id === sizeId),
           containers: [],
         }
       }
       grouped[sizeId].containers.push({ container, index })
     })
-    
+
     return grouped
   }, [containers, containerSizes])
 
   const loadOptions = useCallback(async () => {
     setLoading(true)
     try {
-      const [sizesRes, shippingLinesRes] = await Promise.all([
+      const [sizesRes, shippingLinesRes, warehousesRes] = await Promise.all([
         fetch('/api/container-sizes?limit=100'),
         fetch('/api/shipping-lines?limit=100'),
+        fetch('/api/warehouses?limit=100'),
       ])
 
       if (sizesRes.ok) {
@@ -117,6 +138,10 @@ export function Step5ContainerDetailsExport({
       if (shippingLinesRes.ok) {
         const data = await shippingLinesRes.json()
         setShippingLines(data.shippingLines || [])
+      }
+      if (warehousesRes.ok) {
+        const data = await warehousesRes.json()
+        setWarehouses(data.warehouses || [])
       }
     } catch (error) {
       console.error('Error loading options:', error)
@@ -159,13 +184,16 @@ export function Step5ContainerDetailsExport({
   }
 
   // Validate that tare is less than gross
-  const validateWeights = (gross: string | undefined, tare: string | undefined): { gross?: string; tare?: string } => {
+  const validateWeights = (
+    gross: string | undefined,
+    tare: string | undefined,
+  ): { gross?: string; tare?: string } => {
     const errors: { gross?: string; tare?: string } = {}
-    
+
     if (gross && tare) {
       const grossNum = parseFloat(gross)
       const tareNum = parseFloat(tare)
-      
+
       if (!isNaN(grossNum) && !isNaN(tareNum)) {
         if (tareNum >= grossNum) {
           errors.tare = 'Tare weight must be less than gross weight'
@@ -173,26 +201,26 @@ export function Step5ContainerDetailsExport({
         }
       }
     }
-    
+
     return errors
   }
 
   const updateContainer = (index: number, field: keyof ContainerDetail, value: any) => {
     const updated = [...containers]
     updated[index] = { ...updated[index], [field]: value }
-    
+
     // Auto-calculate net weight when gross or tare changes
     if (field === 'gross' || field === 'tare') {
       const gross = field === 'gross' ? value : updated[index].gross
       const tare = field === 'tare' ? value : updated[index].tare
-      
+
       // Validate weights
       const weightValidationErrors = validateWeights(gross, tare)
       setWeightErrors((prev) => ({
         ...prev,
         [index]: weightValidationErrors,
       }))
-      
+
       // Only calculate net if validation passes
       if (!weightValidationErrors.gross && !weightValidationErrors.tare) {
         updated[index].net = calculateNetWeight(gross, tare)
@@ -201,7 +229,7 @@ export function Step5ContainerDetailsExport({
         updated[index].net = ''
       }
     }
-    
+
     setContainers(updated)
     onUpdate({ containerDetails: updated })
   }
@@ -230,8 +258,8 @@ export function Step5ContainerDetailsExport({
     }
 
     const container = containers[index]
-    if (!container.containerNumber || !container.containerSizeId) {
-      toast.error('Container number and size are required')
+    if (!container.containerNumber || !container.containerSizeId || !container.warehouseId) {
+      toast.error('Container number, size, and warehouse are required')
       return
     }
 
@@ -246,9 +274,15 @@ export function Step5ContainerDetailsExport({
       return
     }
 
+    setSavingContainerIndex(index)
     try {
-      const res = await fetch(`/api/export-container-bookings/${bookingId}/container-details`, {
-        method: 'POST',
+      const method = container.id ? 'PATCH' : 'POST'
+      const url = container.id
+        ? `/api/container-details/${container.id}`
+        : `/api/export-container-bookings/${bookingId}/container-details`
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(container),
       })
@@ -260,7 +294,7 @@ export function Step5ContainerDetailsExport({
           updated[index] = { ...updated[index], id: data.containerDetail.id }
           setContainers(updated)
           onUpdate({ containerDetails: updated })
-          toast.success('Container detail saved')
+          toast.success(container.id ? 'Container detail updated' : 'Container detail saved')
         }
       } else {
         const error = await res.json()
@@ -269,7 +303,19 @@ export function Step5ContainerDetailsExport({
     } catch (error) {
       console.error('Error saving container:', error)
       toast.error('Failed to save container detail')
+    } finally {
+      setSavingContainerIndex(null)
     }
+  }
+
+  const getContainerStatus = (container: ContainerDetail) => {
+    if (!container.containerNumber || !container.containerSizeId || !container.warehouseId) {
+      return { status: 'incomplete', label: 'Incomplete', icon: AlertCircle }
+    }
+    if (container.id) {
+      return { status: 'saved', label: 'Saved', icon: CheckCircle2 }
+    }
+    return { status: 'unsaved', label: 'Not Saved', icon: AlertCircle }
   }
 
   const getContainerDisplayName = (container: ContainerDetail, index: number) => {
@@ -302,11 +348,12 @@ export function Step5ContainerDetailsExport({
               <h4 className="text-base font-semibold text-foreground">
                 {size ? `${size.size} ${size.code ? `(${size.code})` : ''}` : `Size ID: ${sizeId}`}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({sizeContainers.length} {sizeContainers.length === 1 ? 'container' : 'containers'})
+                  ({sizeContainers.length}{' '}
+                  {sizeContainers.length === 1 ? 'container' : 'containers'})
                 </span>
               </h4>
             </div>
-            
+
             <Accordion
               type="single"
               collapsible
@@ -344,7 +391,9 @@ export function Step5ContainerDetailsExport({
                             label="Container Number"
                             required
                             value={container.containerNumber || ''}
-                            onChange={(e) => updateContainer(index, 'containerNumber', e.target.value)}
+                            onChange={(e) =>
+                              updateContainer(index, 'containerNumber', e.target.value)
+                            }
                             error={errors?.[`containerDetails.${index}.containerNumber`]}
                           />
 
@@ -358,9 +407,32 @@ export function Step5ContainerDetailsExport({
                             }))}
                             value={container.containerSizeId}
                             onValueChange={(value) =>
-                              updateContainer(index, 'containerSizeId', typeof value === 'number' ? value : 0)
+                              updateContainer(
+                                index,
+                                'containerSizeId',
+                                typeof value === 'number' ? value : 0,
+                              )
                             }
                             error={errors?.[`containerDetails.${index}.containerSizeId`]}
+                          />
+
+                          <FormCombobox
+                            label="Warehouse"
+                            required
+                            placeholder="Select warehouse..."
+                            options={warehouses.map((wh) => ({
+                              value: wh.id,
+                              label: wh.name,
+                            }))}
+                            value={container.warehouseId}
+                            onValueChange={(value) =>
+                              updateContainer(
+                                index,
+                                'warehouseId',
+                                typeof value === 'number' ? value : undefined,
+                              )
+                            }
+                            error={errors?.[`containerDetails.${index}.warehouseId`]}
                           />
 
                           <FormCombobox
@@ -372,7 +444,11 @@ export function Step5ContainerDetailsExport({
                             }))}
                             value={container.shippingLineId}
                             onValueChange={(value) =>
-                              updateContainer(index, 'shippingLineId', typeof value === 'number' ? value : undefined)
+                              updateContainer(
+                                index,
+                                'shippingLineId',
+                                typeof value === 'number' ? value : undefined,
+                              )
                             }
                           />
 
@@ -392,7 +468,11 @@ export function Step5ContainerDetailsExport({
 
                           <FormInput
                             label="Net Weight"
-                            value={container.net || calculateNetWeight(container.gross, container.tare) || ''}
+                            value={
+                              container.net ||
+                              calculateNetWeight(container.gross, container.tare) ||
+                              ''
+                            }
                             readOnly
                             className="bg-muted"
                             placeholder="Auto-calculated (Gross - Tare)"
@@ -425,7 +505,9 @@ export function Step5ContainerDetailsExport({
                           <FormInput
                             label="Empty Time Slot"
                             value={container.emptyTimeSlot || ''}
-                            onChange={(e) => updateContainer(index, 'emptyTimeSlot', e.target.value)}
+                            onChange={(e) =>
+                              updateContainer(index, 'emptyTimeSlot', e.target.value)
+                            }
                           />
 
                           <FormInput
@@ -448,7 +530,9 @@ export function Step5ContainerDetailsExport({
                           <FormInput
                             label="Country of Origin"
                             value={container.countryOfOrigin || ''}
-                            onChange={(e) => updateContainer(index, 'countryOfOrigin', e.target.value)}
+                            onChange={(e) =>
+                              updateContainer(index, 'countryOfOrigin', e.target.value)
+                            }
                           />
 
                           <FormInput
@@ -485,7 +569,9 @@ export function Step5ContainerDetailsExport({
                             type="date"
                             value={
                               container.customerRequestDate
-                                ? new Date(container.customerRequestDate).toISOString().split('T')[0]
+                                ? new Date(container.customerRequestDate)
+                                    .toISOString()
+                                    .split('T')[0]
                                 : ''
                             }
                             onChange={(e) =>
@@ -508,7 +594,9 @@ export function Step5ContainerDetailsExport({
                             type="date"
                             value={
                               container.confirmedUnpackDate
-                                ? new Date(container.confirmedUnpackDate).toISOString().split('T')[0]
+                                ? new Date(container.confirmedUnpackDate)
+                                    .toISOString()
+                                    .split('T')[0]
                                 : ''
                             }
                             onChange={(e) =>
@@ -563,19 +651,25 @@ export function Step5ContainerDetailsExport({
                           <FormInput
                             label="Direction Type"
                             value={container.directionType || ''}
-                            onChange={(e) => updateContainer(index, 'directionType', e.target.value)}
+                            onChange={(e) =>
+                              updateContainer(index, 'directionType', e.target.value)
+                            }
                           />
 
                           <FormInput
                             label="House Bill Number"
                             value={container.houseBillNumber || ''}
-                            onChange={(e) => updateContainer(index, 'houseBillNumber', e.target.value)}
+                            onChange={(e) =>
+                              updateContainer(index, 'houseBillNumber', e.target.value)
+                            }
                           />
 
                           <FormInput
                             label="Ocean Bill Number"
                             value={container.oceanBillNumber || ''}
-                            onChange={(e) => updateContainer(index, 'oceanBillNumber', e.target.value)}
+                            onChange={(e) =>
+                              updateContainer(index, 'oceanBillNumber', e.target.value)
+                            }
                           />
 
                           <FormInput
@@ -584,18 +678,6 @@ export function Step5ContainerDetailsExport({
                             onChange={(e) => updateContainer(index, 'ventAirflow', e.target.value)}
                           />
                         </div>
-
-                        {bookingId && (
-                          <div className="flex justify-end pt-4 border-t">
-                            <Button
-                              type="button"
-                              onClick={() => saveContainer(index)}
-                              disabled={!container.containerNumber || !container.containerSizeId}
-                            >
-                              Save Container
-                            </Button>
-                          </div>
-                        )}
                       </div>
                     </AccordionContent>
                   </AccordionItem>
@@ -608,4 +690,3 @@ export function Step5ContainerDetailsExport({
     </div>
   )
 }
-

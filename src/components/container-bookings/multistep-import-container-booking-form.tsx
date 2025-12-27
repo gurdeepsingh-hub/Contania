@@ -218,8 +218,76 @@ export function MultistepImportContainerBookingForm({
           break
         case 5:
           schema = step6Schema
-          stepData = {
-            stockAllocations: formData.stockAllocations,
+          // Normalize stockAllocations to match schema expectations
+          // Step 6 is optional - stock allocations can be added later, so allow empty/undefined
+          const stockAllocations = formData.stockAllocations
+          if (!stockAllocations || stockAllocations.length === 0) {
+            // Empty or undefined is valid for step 6
+            stepData = {
+              stockAllocations: undefined,
+            }
+          } else {
+            const normalizedStockAllocations = stockAllocations
+              .map((allocation: any) => {
+                // Extract containerDetailId (handle both object and number)
+                const containerDetailId =
+                  typeof allocation.containerDetailId === 'object' &&
+                  allocation.containerDetailId !== null
+                    ? allocation.containerDetailId.id || allocation.containerDetailId
+                    : allocation.containerDetailId
+
+                const containerDetailIdNum = Number(containerDetailId)
+                // Skip allocations without valid containerDetailId
+                if (!containerDetailIdNum || containerDetailIdNum <= 0) {
+                  return null
+                }
+
+                // Normalize product lines if they exist
+                // Filter out product lines that don't have required fields (skuId)
+                const normalizedProductLines = (allocation.productLines || [])
+                  .map((line: any) => {
+                    // Extract skuId (handle both object and number)
+                    const skuId =
+                      typeof line.skuId === 'object' && line.skuId !== null
+                        ? line.skuId.id || line.skuId
+                        : line.skuId
+
+                    const skuIdNum = Number(skuId)
+                    // Skip product lines without valid skuId
+                    if (!skuIdNum || skuIdNum <= 0) {
+                      return null
+                    }
+
+                    return {
+                      skuId: skuIdNum,
+                      batchNumber: line.batchNumber || undefined, // Use undefined instead of empty string
+                      expectedQtyImport: line.expectedQtyImport || line.expectedQty,
+                      recievedQty: line.recievedQty,
+                      expectedWeightImport: line.expectedWeightImport || line.expectedWeight,
+                      recievedWeight: line.recievedWeight,
+                      weightPerHU: line.weightPerHU,
+                      expectedCubicPerHU: line.expectedCubicPerHU,
+                      recievedCubicPerHU: line.recievedCubicPerHU,
+                      palletSpaces: line.palletSpaces,
+                      // Convert null to undefined for optional string fields
+                      expiryDate: line.expiryDate === null ? undefined : line.expiryDate,
+                      attribute1: line.attribute1 === null ? undefined : line.attribute1,
+                      attribute2: line.attribute2 === null ? undefined : line.attribute2,
+                    }
+                  })
+                  .filter((line: any) => line !== null) // Remove invalid product lines
+
+                return {
+                  containerDetailId: containerDetailIdNum,
+                  productLines:
+                    normalizedProductLines.length > 0 ? normalizedProductLines : undefined,
+                  stage: allocation.stage || 'expected',
+                }
+              })
+              .filter((allocation: any) => allocation !== null) // Remove invalid allocations
+            stepData = {
+              stockAllocations: normalizedStockAllocations,
+            }
           }
           break
         case 6:
@@ -238,7 +306,15 @@ export function MultistepImportContainerBookingForm({
         result.error.issues.forEach((err) => {
           if (err.path.length > 0) {
             errors[err.path.join('.')] = err.message
+          } else {
+            // Handle root-level errors
+            errors['_root'] = err.message
           }
+        })
+        console.log(`[validateStep] Step ${stepNumber} validation failed:`, {
+          stepData,
+          errors,
+          zodErrors: result.error.issues,
         })
         setValidationErrors((prev) => ({ ...prev, [stepNumber]: errors }))
         return false
@@ -967,6 +1043,7 @@ export function MultistepImportContainerBookingForm({
             {step === 5 && (
               <Step6StockAllocationImport
                 bookingId={formData.id || 0}
+                bookingStatus={formData.status}
                 formData={{
                   containerDetails: formData.containerDetails,
                   stockAllocations: formData.stockAllocations,

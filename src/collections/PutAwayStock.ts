@@ -149,18 +149,32 @@ export const PutAwayStock: CollectionConfig = {
       name: 'inboundInventoryId',
       type: 'relationship',
       relationTo: 'inbound-inventory',
-      required: true,
       admin: {
-        description: 'Links to the inbound inventory job',
+        description: 'Links to the inbound inventory job (for inbound jobs)',
       },
     },
     {
       name: 'inboundProductLineId',
       type: 'relationship',
       relationTo: 'inbound-product-line',
-      required: true,
       admin: {
-        description: 'Links to the specific product line',
+        description: 'Links to the specific product line (for inbound jobs)',
+      },
+    },
+    {
+      name: 'containerDetailId',
+      type: 'relationship',
+      relationTo: 'container-details',
+      admin: {
+        description: 'Links to container detail (for container bookings)',
+      },
+    },
+    {
+      name: 'containerStockAllocationId',
+      type: 'relationship',
+      relationTo: 'container-stock-allocations',
+      admin: {
+        description: 'Links to container stock allocation product line (for container bookings)',
       },
     },
     {

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Package, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
+import { ContainerStatusBadge } from './container-status-badge'
 
 type BookingType = 'import' | 'export'
 
@@ -26,14 +27,22 @@ interface StockAllocation {
   }>
 }
 
+interface ContainerDetail {
+  id: number
+  containerNumber: string
+  status?: 'expecting' | 'received' | 'put_away' | 'allocated' | 'picked_up' | 'dispatched'
+}
+
 interface StockAllocationSummaryProps {
   allocations: StockAllocation[]
+  containers?: ContainerDetail[]
   bookingId: number
   bookingType: BookingType
 }
 
 export function StockAllocationSummary({
   allocations,
+  containers = [],
   bookingId,
   bookingType,
 }: StockAllocationSummaryProps) {
@@ -95,9 +104,12 @@ export function StockAllocationSummary({
     return acc
   }, {} as Record<string, number>)
 
-  const totalContainers = allocations.length
-  const completedContainers = allocations.filter(
-    (a) => (bookingType === 'import' ? a.stage === 'put_away' : a.stage === 'dispatched')
+  const totalContainers = containers.length || allocations.length
+  const completedContainers = containers.filter(
+    (c) =>
+      bookingType === 'import'
+        ? c.status === 'put_away'
+        : c.status === 'dispatched',
   ).length
 
   return (
@@ -127,17 +139,37 @@ export function StockAllocationSummary({
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {Object.entries(stageCounts).map(([stage, count]) => (
-            <div key={stage} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{getStageLabel(stage)}</span>
-              </div>
-              <Badge variant="outline" className={getStageColor(stage)}>
-                {count}
-              </Badge>
-            </div>
-          ))}
+          {containers.length > 0 ? (
+            // Show container-level status summary
+            <>
+              {containers.map((container) => (
+                <div key={container.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{container.containerNumber}</span>
+                  </div>
+                  {container.status && (
+                    <ContainerStatusBadge status={container.status} type={bookingType} />
+                  )}
+                </div>
+              ))}
+            </>
+          ) : (
+            // Fallback to stage counts if containers not provided
+            <>
+              {Object.entries(stageCounts).map(([stage, count]) => (
+                <div key={stage} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{getStageLabel(stage)}</span>
+                  </div>
+                  <Badge variant="outline" className={getStageColor(stage)}>
+                    {count}
+                  </Badge>
+                </div>
+              ))}
+            </>
+          )}
           {totalContainers === 0 && (
             <p className="text-muted-foreground text-center py-2">No stock allocations yet</p>
           )}

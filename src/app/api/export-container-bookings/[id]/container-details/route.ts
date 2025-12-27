@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/api-helpers'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'containers_view')
     if ('error' in context) {
@@ -57,7 +54,8 @@ export async function GET(
       const detailBookingId =
         typeof (detail as { containerBookingId?: number | { id: number; relationTo?: string } })
           .containerBookingId === 'object'
-          ? (detail as { containerBookingId: { id: number; relationTo?: string } }).containerBookingId
+          ? (detail as { containerBookingId: { id: number; relationTo?: string } })
+              .containerBookingId
           : null
 
       if (detailBookingId && typeof detailBookingId === 'object') {
@@ -76,17 +74,11 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching container details:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch container details' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch container details' }, { status: 500 })
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'containers_create')
     if ('error' in context) {
@@ -121,10 +113,10 @@ export async function POST(
     }
 
     // Validate required fields
-    if (!body.containerNumber || !body.containerSizeId) {
+    if (!body.containerNumber || !body.containerSizeId || !body.warehouseId) {
       return NextResponse.json(
-        { message: 'Container number and container size are required' },
-        { status: 400 }
+        { message: 'Container number, container size, and warehouse are required' },
+        { status: 400 },
       )
     }
 
@@ -138,6 +130,7 @@ export async function POST(
         },
         containerNumber: body.containerNumber,
         containerSizeId: body.containerSizeId,
+        warehouseId: body.warehouseId,
         gross: body.gross,
         tare: body.tare,
         net: body.net,
@@ -171,10 +164,6 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error creating container detail:', error)
-    return NextResponse.json(
-      { message: 'Failed to create container detail' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create container detail' }, { status: 500 })
   }
 }
-

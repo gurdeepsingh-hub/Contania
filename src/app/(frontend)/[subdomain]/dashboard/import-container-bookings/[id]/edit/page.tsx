@@ -97,6 +97,10 @@ export default function EditImportContainerBookingPage() {
                     typeof detail.containerSizeId === 'object' && detail.containerSizeId?.id
                       ? detail.containerSizeId.id
                       : detail.containerSizeId,
+                  warehouseId:
+                    typeof detail.warehouseId === 'object' && detail.warehouseId?.id
+                      ? detail.warehouseId.id
+                      : detail.warehouseId,
                   gross: detail.gross || '',
                   tare: detail.tare || '',
                   net: detail.net || '',

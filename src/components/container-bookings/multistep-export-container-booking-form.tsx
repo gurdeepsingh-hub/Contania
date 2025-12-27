@@ -180,8 +180,78 @@ export function MultistepExportContainerBookingForm({
           break
         case 5:
           schema = step6Schema
-          stepData = {
-            stockAllocations: formData.stockAllocations,
+          // Normalize stockAllocations to match schema expectations
+          // Step 6 is optional - stock allocations can be added later, so allow empty/undefined
+          const stockAllocations = formData.stockAllocations
+          if (!stockAllocations || stockAllocations.length === 0) {
+            // Empty or undefined is valid for step 6
+            stepData = {
+              stockAllocations: undefined,
+            }
+          } else {
+            const normalizedStockAllocations = stockAllocations
+              .map((allocation: any) => {
+                // Extract containerDetailId (handle both object and number)
+                const containerDetailId =
+                  typeof allocation.containerDetailId === 'object' &&
+                  allocation.containerDetailId !== null
+                    ? allocation.containerDetailId.id || allocation.containerDetailId
+                    : allocation.containerDetailId
+
+                const containerDetailIdNum = Number(containerDetailId)
+                // Skip allocations without valid containerDetailId
+                if (!containerDetailIdNum || containerDetailIdNum <= 0) {
+                  return null
+                }
+
+                // Normalize product lines if they exist
+                // Filter out product lines that don't have required fields (skuId)
+                const normalizedProductLines = (allocation.productLines || [])
+                  .map((line: any) => {
+                    // Extract skuId (handle both object and number)
+                    const skuId =
+                      typeof line.skuId === 'object' && line.skuId !== null
+                        ? line.skuId.id || line.skuId
+                        : line.skuId
+
+                    const skuIdNum = Number(skuId)
+                    // Skip product lines without valid skuId
+                    if (!skuIdNum || skuIdNum <= 0) {
+                      return null
+                    }
+
+                    return {
+                      skuId: skuIdNum,
+                      batchNumber: line.batchNumber || undefined,
+                      expectedQty: line.expectedQty,
+                      pickedQty: line.pickedQty,
+                      expectedWeight: line.expectedWeight,
+                      pickedWeight: line.pickedWeight,
+                      allocatedQty: line.allocatedQty,
+                      allocatedWeight: line.allocatedWeight,
+                      allocatedCubicPerHU: line.allocatedCubicPerHU,
+                      pltQty: line.pltQty,
+                      LPN: line.LPN,
+                      location: line.location === null ? undefined : line.location,
+                      // Convert null to undefined for optional string fields
+                      expiryDate: line.expiryDate === null ? undefined : line.expiryDate,
+                      attribute1: line.attribute1 === null ? undefined : line.attribute1,
+                      attribute2: line.attribute2 === null ? undefined : line.attribute2,
+                    }
+                  })
+                  .filter((line: any) => line !== null) // Remove invalid product lines
+
+                return {
+                  containerDetailId: containerDetailIdNum,
+                  productLines:
+                    normalizedProductLines.length > 0 ? normalizedProductLines : undefined,
+                  stage: allocation.stage || 'allocated',
+                }
+              })
+              .filter((allocation: any) => allocation !== null) // Remove invalid allocations
+            stepData = {
+              stockAllocations: normalizedStockAllocations,
+            }
           }
           break
         case 6:
@@ -635,6 +705,7 @@ export function MultistepExportContainerBookingForm({
             {step === 5 && (
               <Step6StockAllocationExport
                 bookingId={formData.id || 0}
+                bookingStatus={formData.status}
                 formData={{
                   containerDetails: formData.containerDetails,
                   stockAllocations: formData.stockAllocations,

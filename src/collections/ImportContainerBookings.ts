@@ -88,12 +88,16 @@ export const ImportContainerBookings: CollectionConfig = {
       options: [
         { label: 'Draft', value: 'draft' },
         { label: 'Confirmed', value: 'confirmed' },
-        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Expecting', value: 'expecting' },
+        { label: 'Partially Received', value: 'partially_received' },
+        { label: 'Received', value: 'received' },
+        { label: 'Partially Put Away', value: 'partially_put_away' },
+        { label: 'Put Away', value: 'put_away' },
         { label: 'Completed', value: 'completed' },
         { label: 'Cancelled', value: 'cancelled' },
       ],
       admin: {
-        description: 'Current status of the container booking',
+        description: 'Current status of the container booking (auto-calculated from container statuses)',
       },
     },
     // Step 1: Basic Info
@@ -1108,6 +1112,78 @@ export const ImportContainerBookings: CollectionConfig = {
         }
 
         return data
+      },
+    ],
+    afterChange: [
+      async ({ doc, req, operation }) => {
+        // Auto-calculate job status from container statuses
+        if (doc && doc.id && req?.payload && operation !== 'delete') {
+          try {
+            // Get all container details for this booking
+            const containerDetails = await req.payload.find({
+              collection: 'container-details',
+              where: {
+                containerBookingId: {
+                  equals: doc.id,
+                },
+              },
+            })
+
+            if (containerDetails.docs.length === 0) {
+              // No containers yet, keep current status or set to draft/confirmed
+              return
+            }
+
+            const containerStatuses = containerDetails.docs.map(
+              (container: any) => container.status,
+            )
+
+            // Calculate job status based on container statuses
+            let newStatus = doc.status
+
+            // Check if all containers are in the same status
+            const allExpecting = containerStatuses.every((s) => s === 'expecting')
+            const allReceived = containerStatuses.every((s) => s === 'received')
+            const allPutAway = containerStatuses.every((s) => s === 'put_away')
+
+            // Check for partial states
+            const someReceived =
+              containerStatuses.some((s) => s === 'received' || s === 'put_away') &&
+              containerStatuses.some((s) => s === 'expecting')
+            const somePutAway =
+              containerStatuses.some((s) => s === 'put_away') &&
+              containerStatuses.some((s) => s === 'received')
+
+            if (allPutAway) {
+              newStatus = 'put_away'
+            } else if (somePutAway) {
+              newStatus = 'partially_put_away'
+            } else if (allReceived) {
+              newStatus = 'received'
+            } else if (someReceived) {
+              newStatus = 'partially_received'
+            } else if (allExpecting) {
+              newStatus = 'expecting'
+            }
+
+            // Only update if status changed and not cancelled/completed
+            if (
+              newStatus !== doc.status &&
+              doc.status !== 'cancelled' &&
+              doc.status !== 'completed'
+            ) {
+              await req.payload.update({
+                collection: 'import-container-bookings',
+                id: doc.id,
+                data: {
+                  status: newStatus,
+                },
+              })
+            }
+          } catch (error) {
+            console.error('Error calculating import booking status:', error)
+          }
+        }
       },
     ],
   },
