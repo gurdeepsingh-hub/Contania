@@ -12,7 +12,9 @@ type AvailableLPN = {
   lpnNumber: string
   location: string
   huQty: number
-  inboundProductLineId: number
+  inboundProductLineId: number | null
+  containerStockAllocationId?: number | null
+  isAllocatedToThisProductLine?: boolean
   isAllocatedToOtherJob?: boolean
   allocatedToJobId?: number | null
   allocatedToJobCode?: string | null
@@ -98,9 +100,10 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete, pro
           }
 
           if (allocationMode[item.productLineId] === 'manual') {
-            // Manual allocation - use selected LPNs (filter out disabled ones)
+            // Manual allocation - use selected LPNs (filter out disabled ones - only exclude those allocated to other jobs)
             const lpnIds = (selectedLPNs[item.productLineId] || []).filter((lpnNumber) => {
               const lpn = item.availableLPNs.find((l) => l.lpnNumber === lpnNumber)
+              // Allow LPNs that are available OR already allocated to this product line, but exclude those allocated to other jobs
               return lpn && !lpn.isAllocatedToOtherJob
             })
             if (lpnIds.length === 0) {
@@ -265,13 +268,17 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete, pro
                       <div className="space-y-2">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto">
                           {item.availableLPNs.map((lpn) => {
+                            // Disable if allocated to another job, but allow if allocated to this product line
                             const isDisabled = lpn.isAllocatedToOtherJob === true
+                            const isAlreadyAllocatedToThisLine = lpn.isAllocatedToThisProductLine === true
                             return (
                               <div
                                 key={lpn.id}
                                 className={`flex items-center space-x-2 p-2 border rounded ${
                                   isDisabled
                                     ? 'bg-gray-100 opacity-60 cursor-not-allowed'
+                                    : isAlreadyAllocatedToThisLine
+                                    ? 'bg-blue-50 border-blue-200 hover:bg-blue-100 cursor-pointer'
                                     : 'hover:bg-muted cursor-pointer'
                                 }`}
                                 onClick={() =>
@@ -280,6 +287,8 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete, pro
                                 title={
                                   isDisabled
                                     ? `This LPN is allocated to job ${lpn.allocatedToJobCode || lpn.allocatedToJobId || 'another job'}`
+                                    : isAlreadyAllocatedToThisLine
+                                    ? 'This LPN is already allocated to this product line'
                                     : undefined
                                 }
                               >
@@ -296,8 +305,11 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete, pro
                                 <div className="flex-1">
                                   <p className="text-sm font-medium">
                                     {lpn.lpnNumber}
+                                    {isAlreadyAllocatedToThisLine && (
+                                      <span className="ml-2 text-xs text-blue-600">(Already Allocated)</span>
+                                    )}
                                     {isDisabled && (
-                                      <span className="ml-2 text-xs text-red-600">(Allocated)</span>
+                                      <span className="ml-2 text-xs text-red-600">(Allocated to Other Job)</span>
                                     )}
                                   </p>
                                   <p className="text-xs text-muted-foreground">

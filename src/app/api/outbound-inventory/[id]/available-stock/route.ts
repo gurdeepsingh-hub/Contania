@@ -26,7 +26,8 @@ export async function GET(
       depth: 1,
     })
 
-    const jobTenantId = typeof job.tenantId === 'object' ? job.tenantId.id : job.tenantId
+    const jobTenantId =
+      job.tenantId && typeof job.tenantId === 'object' ? job.tenantId.id : job.tenantId
     if (jobTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Job not found' }, { status: 404 })
     }
@@ -43,7 +44,9 @@ export async function GET(
     })
 
     const warehouseId =
-      typeof job.warehouseId === 'object' ? job.warehouseId.id : job.warehouseId
+      job.warehouseId && typeof job.warehouseId === 'object'
+        ? job.warehouseId.id
+        : job.warehouseId || null
 
     // For each product line, find available stock
     const availabilityData = []
@@ -51,7 +54,9 @@ export async function GET(
     for (const productLine of productLines.docs) {
       const batchNumber = productLine.batchNumber
       const skuId =
-        typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
+        productLine.skuId && typeof productLine.skuId === 'object'
+          ? productLine.skuId.id
+          : productLine.skuId
       const allocatedQty = productLine.allocatedQty || 0
       const expectedQty = productLine.expectedQty || 0
 
@@ -65,7 +70,7 @@ export async function GET(
         continue
       }
 
-      // Find inbound product lines with matching batch number
+      // Find inbound product lines with matching batch number and SKU
       const inboundProductLines = await payload.find({
         collection: 'inbound-product-line',
         where: {
@@ -85,10 +90,86 @@ export async function GET(
         depth: 1,
       })
 
-      // Get inbound product line IDs
       const inboundProductLineIds = inboundProductLines.docs.map((line: { id: number }) => line.id)
 
-      if (inboundProductLineIds.length === 0) {
+      // Find container stock allocations with matching batch number and SKU in product lines
+      // Get container detail IDs for this warehouse to scope the allocation query
+      // If warehouseId is null, we'll query all container stock allocations (tenant filtering happens at LPN level)
+      let containerDetailIds: number[] = []
+      
+      if (warehouseId) {
+        const warehouseContainers = await payload.find({
+          collection: 'container-details',
+          where: {
+            and: [
+              {
+                warehouseId: {
+                  equals: warehouseId,
+                },
+              },
+            ],
+          },
+          limit: 1000,
+          depth: 0,
+        })
+        
+        containerDetailIds = warehouseContainers.docs
+          .filter((c: any) => c && c.id)
+          .map((c: { id: number }) => c.id)
+      }
+      
+      // Query allocations for containers in this warehouse (or all if no warehouseId)
+      // Note: When warehouseId is null, we query all allocations - tenant filtering happens at LPN level via tenantId
+      const containerStockAllocations = await payload.find({
+        collection: 'container-stock-allocations',
+        where: containerDetailIds.length > 0
+          ? {
+              containerDetailId: {
+                in: containerDetailIds,
+              },
+            }
+          : {}, // Query all allocations when no warehouseId - tenant filtering at LPN level
+        depth: 2,
+        limit: 1000,
+      })
+
+      // Filter allocations that have product lines with matching batch number and SKU
+      const matchingAllocationIds: number[] = []
+      for (const alloc of containerStockAllocations.docs) {
+        const productLines = (alloc as any).productLines || []
+        const hasMatchingLine = productLines.some((line: any) => {
+          if (!line.batchNumber || !line.skuId) {
+            return false
+          }
+          const lineSkuId =
+            typeof line.skuId === 'object' && line.skuId !== null ? line.skuId.id : line.skuId
+          return line.batchNumber === batchNumber && lineSkuId === skuId
+        })
+        if (hasMatchingLine) {
+          matchingAllocationIds.push(alloc.id)
+        }
+      }
+
+      // Build OR conditions for matching LPNs
+      const orConditions: any[] = []
+      
+      if (inboundProductLineIds.length > 0) {
+        orConditions.push({
+          inboundProductLineId: {
+            in: inboundProductLineIds,
+          },
+        })
+      }
+      
+      if (matchingAllocationIds.length > 0) {
+        orConditions.push({
+          containerStockAllocationId: {
+            in: matchingAllocationIds,
+          },
+        })
+      }
+
+      if (orConditions.length === 0) {
         availabilityData.push({
           productLineId: productLine.id,
           batchNumber,
@@ -100,6 +181,7 @@ export async function GET(
       }
 
       // Find available LPNs from PutAwayStock - fetch all pages
+      // Query LPNs that match batch/SKU through either inbound-product-line OR container-stock-allocation
       const allAvailableLPNs = []
       let page = 1
       let hasMore = true
@@ -120,9 +202,7 @@ export async function GET(
                 },
               },
               {
-                inboundProductLineId: {
-                  in: inboundProductLineIds,
-                },
+                or: orConditions,
               },
               {
                 allocationStatus: {
@@ -150,6 +230,7 @@ export async function GET(
       }
 
       // Find all LPNs (including allocated ones) for this batch/SKU to show in UI - fetch all pages
+      // Query LPNs that match batch/SKU through either inbound-product-line OR container-stock-allocation
       const allLPNsList = []
       page = 1
       hasMore = true
@@ -170,9 +251,7 @@ export async function GET(
                 },
               },
               {
-                inboundProductLineId: {
-                  in: inboundProductLineIds,
-                },
+                or: orConditions,
               },
               ...(warehouseId
                 ? [
@@ -202,17 +281,30 @@ export async function GET(
         const isAllocated = lpn.allocationStatus === 'allocated'
         const allocatedToJobId =
           isAllocated && lpn.outboundInventoryId
-            ? typeof lpn.outboundInventoryId === 'object'
+            ? typeof lpn.outboundInventoryId === 'object' && lpn.outboundInventoryId !== null
               ? lpn.outboundInventoryId.id
               : lpn.outboundInventoryId
             : null
 
-        // Get job code if allocated
+        // Check if LPN is allocated to this product line (should be shown but marked as already allocated)
+        const allocatedToProductLineId =
+          isAllocated && lpn.outboundProductLineId
+            ? typeof lpn.outboundProductLineId === 'object' && lpn.outboundProductLineId !== null
+              ? lpn.outboundProductLineId.id
+              : lpn.outboundProductLineId
+            : null
+        const isAllocatedToThisProductLine =
+          isAllocated && allocatedToProductLineId === productLine.id
+
+        // Check if LPN is allocated to another job (should be disabled)
+        const isAllocatedToOtherJob = isAllocated && allocatedToJobId !== jobId
+
+        // Get job code if allocated to another job
         let allocatedToJobCode = null
-        if (allocatedToJobId && allocatedToJobId !== jobId) {
+        if (isAllocatedToOtherJob && allocatedToJobId) {
           try {
             const allocatedJob = lpn.outboundInventoryId
-            if (typeof allocatedJob === 'object' && allocatedJob.jobCode) {
+            if (typeof allocatedJob === 'object' && allocatedJob !== null && allocatedJob.jobCode) {
               allocatedToJobCode = allocatedJob.jobCode
             }
           } catch (error) {
@@ -221,17 +313,28 @@ export async function GET(
           }
         }
 
+        // Handle inboundProductLineId - can be null for container stock allocations
+        const inboundProductLineIdValue =
+          lpn.inboundProductLineId && typeof lpn.inboundProductLineId === 'object'
+            ? lpn.inboundProductLineId.id
+            : lpn.inboundProductLineId || null
+
+        // Handle containerStockAllocationId - can be null for inbound product lines
+        const containerStockAllocationIdValue =
+          lpn.containerStockAllocationId && typeof lpn.containerStockAllocationId === 'object'
+            ? lpn.containerStockAllocationId.id
+            : lpn.containerStockAllocationId || null
+
         return {
           id: lpn.id,
           lpnNumber: lpn.lpnNumber,
           location: lpn.location,
           huQty: lpn.huQty,
-          inboundProductLineId:
-            typeof lpn.inboundProductLineId === 'object'
-              ? lpn.inboundProductLineId.id
-              : lpn.inboundProductLineId,
-          isAllocatedToOtherJob: isAllocated && allocatedToJobId !== jobId,
-          allocatedToJobId: allocatedToJobId !== jobId ? allocatedToJobId : null,
+          inboundProductLineId: inboundProductLineIdValue,
+          containerStockAllocationId: containerStockAllocationIdValue,
+          isAllocatedToThisProductLine: isAllocatedToThisProductLine,
+          isAllocatedToOtherJob: isAllocatedToOtherJob,
+          allocatedToJobId: isAllocatedToOtherJob ? allocatedToJobId : null,
           allocatedToJobCode: allocatedToJobCode,
         }
       })
