@@ -236,9 +236,25 @@ export const PickupStock: CollectionConfig = {
                     ? container.containerBookingId
                     : null
                 if (bookingRef) {
-                  const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
-                  const collection =
-                    typeof bookingRef === 'object' ? bookingRef.relationTo : 'import-container-bookings'
+                  let bookingId: number
+                  let collection: 'import-container-bookings' | 'export-container-bookings'
+                  
+                  if (typeof bookingRef === 'object') {
+                    // Polymorphic relationship: { relationTo: string, value: number | object }
+                    if ('value' in bookingRef) {
+                      bookingId = typeof bookingRef.value === 'object' && bookingRef.value !== null && 'id' in bookingRef.value
+                        ? (bookingRef.value as { id: number }).id
+                        : (bookingRef.value as number)
+                      collection = bookingRef.relationTo as 'import-container-bookings' | 'export-container-bookings'
+                    } else {
+                      // Direct object with id
+                      bookingId = (bookingRef as { id: number }).id
+                      collection = 'import-container-bookings'
+                    }
+                  } else {
+                    bookingId = bookingRef
+                    collection = 'import-container-bookings'
+                  }
                   const booking = await req.payload.findByID({
                     collection: collection as 'import-container-bookings' | 'export-container-bookings',
                     id: bookingId,

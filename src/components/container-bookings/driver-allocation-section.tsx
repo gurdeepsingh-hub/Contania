@@ -267,17 +267,21 @@ export function DriverAllocationSection({
               // If no pickup location, skip empty legs
             } else {
               via.forEach((viaLoc) => {
-                emptyLegs.push({
-                  from: currentFrom,
-                  to: viaLoc,
-                })
-                currentFrom = viaLoc
+                if (viaLoc && currentFrom) {
+                  emptyLegs.push({
+                    from: currentFrom,
+                    to: viaLoc,
+                  })
+                  currentFrom = viaLoc
+                }
               })
               // Final leg to dropoff
-              emptyLegs.push({
-                from: currentFrom,
-                to: dropoffLocationId,
-              })
+              if (dropoffLocationId) {
+                emptyLegs.push({
+                  from: currentFrom,
+                  to: dropoffLocationId,
+                })
+              }
             }
           }
         }

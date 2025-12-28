@@ -12,13 +12,10 @@ export async function POST(
     }
 
     const { payload, tenant, currentUser: user } = context
-    
+
     // Validate user exists (required for pickedUpBy field)
     if (!user || !user.id) {
-      return NextResponse.json(
-        { message: 'User authentication required' },
-        { status: 401 },
-      )
+      return NextResponse.json({ message: 'User authentication required' }, { status: 401 })
     }
 
     const resolvedParams = await params
@@ -61,9 +58,13 @@ export async function POST(
 
     // Handle polymorphic relationship: number | { id: number } | { relationTo: string, value: {id: number} }
     let containerBookingId: number | undefined
-    const containerBookingRef = (container as {
-      containerBookingId?: number | { id?: number | { id: number }; value?: number | { id: number }; relationTo?: string }
-    }).containerBookingId
+    const containerBookingRef = (
+      container as {
+        containerBookingId?:
+          | number
+          | { id?: number | { id: number }; value?: number | { id: number }; relationTo?: string }
+      }
+    ).containerBookingId
 
     if (typeof containerBookingRef === 'object' && containerBookingRef !== null) {
       // When loaded with depth, Payload returns {relationTo: "...", value: {id: 1, ...}}
@@ -95,11 +96,11 @@ export async function POST(
 
     // Support both single pickup (backward compatibility) and multiple pickups
     const pickups = body.pickups || (body.productLineIndex !== undefined ? [body] : [])
-    
+
     if (!Array.isArray(pickups) || pickups.length === 0) {
       return NextResponse.json(
         { message: 'Pickups array or single pickup data is required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -120,7 +121,7 @@ export async function POST(
     if (allocations.docs.length === 0) {
       return NextResponse.json(
         { message: 'No allocated stock found for this container' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -132,9 +133,9 @@ export async function POST(
       const { allocationId, productLineIndex, lpnIds, bufferQty, notes } = pickupData
 
       // Find the allocation (use provided allocationId or first allocation)
-      let allocation = allocations.docs.find(
-        (a) => a.id === (allocationId || allocations.docs[0].id)
-      ) || allocations.docs[0]
+      let allocation =
+        allocations.docs.find((a: any) => a.id === (allocationId || allocations.docs[0].id)) ||
+        allocations.docs[0]
 
       if (!allocation) {
         errors.push({
@@ -384,10 +385,7 @@ export async function POST(
     })
   } catch (error) {
     console.error('Error creating container pickup:', error)
-    return NextResponse.json(
-      { message: 'Failed to create pickup' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create pickup' }, { status: 500 })
   }
 }
 
@@ -431,10 +429,6 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching container pickup records:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch pickup records' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch pickup records' }, { status: 500 })
   }
 }
-

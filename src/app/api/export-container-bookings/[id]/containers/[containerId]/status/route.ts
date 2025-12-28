@@ -6,7 +6,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; containerId: string }> },
 ) {
   try {
-    const context = await getTenantContext(request, 'containers_update')
+    const context = await getTenantContext(request, 'containers_edit')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -69,7 +69,7 @@ export async function PATCH(
         {
           message: `Invalid status transition from ${currentStatus} to ${status}`,
         },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -86,7 +86,7 @@ export async function PATCH(
       })
 
       const allProductLines = allocations.docs.flatMap((a: any) => a.productLines || [])
-      
+
       // Check if pickup records exist for all product lines
       const pickupRecords = await payload.find({
         collection: 'pickup-stock',
@@ -101,14 +101,12 @@ export async function PATCH(
       })
 
       // Simple check: if we have pickup records and all product lines have pickedQty
-      const allPicked = allProductLines.every(
-        (line: any) => line.pickedQty && line.pickedQty > 0,
-      )
+      const allPicked = allProductLines.every((line: any) => line.pickedQty && line.pickedQty > 0)
 
       if (!allPicked || pickupRecords.docs.length === 0) {
         return NextResponse.json(
           { message: 'All product lines must be picked before changing status to picked_up' },
-          { status: 400 }
+          { status: 400 },
         )
       }
     }
@@ -121,7 +119,7 @@ export async function PATCH(
       if (!containerDispatch || !containerDispatch.driverId || !containerDispatch.vehicleId) {
         return NextResponse.json(
           { message: 'Driver and vehicle must be assigned before dispatching' },
-          { status: 400 }
+          { status: 400 },
         )
       }
     }
@@ -141,10 +139,6 @@ export async function PATCH(
     })
   } catch (error) {
     console.error('Error updating container status:', error)
-    return NextResponse.json(
-      { message: 'Failed to update container status' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to update container status' }, { status: 500 })
   }
 }
-

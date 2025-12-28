@@ -21,7 +21,7 @@ type ImportBooking = {
   bookingReference?: string
   status: BookingStatus
   eta?: string
-  availability?: boolean
+  availability?: string
   storageStart?: string
   createdAt: string
   consigneeId?: number | { id: number; name?: string }
@@ -90,7 +90,7 @@ export default function ImportContainerBookingsPage() {
   const loadBookings = async () => {
     try {
       setLoadingBookings(true)
-      
+
       const params = new URLSearchParams()
       params.set('limit', limit.toString())
       params.set('page', page.toString())
@@ -238,9 +238,7 @@ export default function ImportContainerBookingsPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <CardTitle>
-                          {booking.bookingCode || `IMP-${booking.id}`}
-                        </CardTitle>
+                        <CardTitle>{booking.bookingCode || `IMP-${booking.id}`}</CardTitle>
                         <StatusBadge status={booking.status} type="import" />
                       </div>
                       <CardDescription className="space-y-1">
@@ -257,10 +255,14 @@ export default function ImportContainerBookingsPage() {
                           <div>ETA: {new Date(booking.eta).toLocaleDateString()}</div>
                         )}
                         {booking.availability && (
-                          <div>Availability: {new Date(booking.availability).toLocaleDateString()}</div>
+                          <div>
+                            Availability: {new Date(booking.availability).toLocaleDateString()}
+                          </div>
                         )}
                         {booking.storageStart && (
-                          <div>Storage Start: {new Date(booking.storageStart).toLocaleDateString()}</div>
+                          <div>
+                            Storage Start: {new Date(booking.storageStart).toLocaleDateString()}
+                          </div>
                         )}
                       </CardDescription>
                     </div>
@@ -300,4 +302,3 @@ export default function ImportContainerBookingsPage() {
     </div>
   )
 }
-

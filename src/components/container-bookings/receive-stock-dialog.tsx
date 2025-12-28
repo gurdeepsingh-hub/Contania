@@ -177,7 +177,7 @@ export function ReceiveStockDialog({
           ) : (
             <>
               <ReceiveStockForm
-                productLines={productLines}
+                productLines={productLines.filter((line): line is ProductLine & { id: number } => line.id !== undefined)}
                 onProductLineChange={updateProductLine}
               />
               <div className="flex justify-end gap-2 mt-6 pt-4 border-t">

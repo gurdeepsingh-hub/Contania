@@ -97,7 +97,8 @@ export const ImportContainerBookings: CollectionConfig = {
         { label: 'Cancelled', value: 'cancelled' },
       ],
       admin: {
-        description: 'Current status of the container booking (auto-calculated from container statuses)',
+        description:
+          'Current status of the container booking (auto-calculated from container statuses)',
       },
     },
     // Step 1: Basic Info
@@ -121,24 +122,24 @@ export const ImportContainerBookings: CollectionConfig = {
       name: 'chargeToId',
       type: 'relationship',
       relationTo: ['paying-customers', 'customers'],
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
         // For non-draft status, value is required (handled by required function)
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Entity responsible for charges (paying customer or delivery customer)',
       },
@@ -171,23 +172,23 @@ export const ImportContainerBookings: CollectionConfig = {
       name: 'consigneeId',
       type: 'relationship',
       relationTo: 'customers',
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Consignee (for import jobs)',
       },
@@ -234,23 +235,23 @@ export const ImportContainerBookings: CollectionConfig = {
       name: 'fromId',
       type: 'relationship',
       relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Origin location (delivery customer, paying customer, empty park, or wharf)',
       },
@@ -299,23 +300,23 @@ export const ImportContainerBookings: CollectionConfig = {
       name: 'toId',
       type: 'relationship',
       relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description:
           'Destination location (delivery customer, paying customer, empty park, or wharf)',
@@ -366,20 +367,20 @@ export const ImportContainerBookings: CollectionConfig = {
       type: 'relationship',
       relationTo: 'container-sizes',
       hasMany: true,
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty array when status is 'draft'
         if (data?.status === 'draft' && (!value || (Array.isArray(value) && value.length === 0))) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Container sizes for this booking',
       },
@@ -744,7 +745,7 @@ export const ImportContainerBookings: CollectionConfig = {
             }
 
             const validCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
-            if (fromId && validCollections.includes(fromCollection)) {
+            if (fromId && fromCollection && validCollections.includes(fromCollection)) {
               try {
                 const entity = await req.payload.findByID({
                   collection: fromCollection as
@@ -867,7 +868,7 @@ export const ImportContainerBookings: CollectionConfig = {
 
             const validCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
 
-            if (toId && validCollections.includes(toCollection)) {
+            if (toId && toCollection && validCollections.includes(toCollection)) {
               try {
                 const entity = await req.payload.findByID({
                   collection: toCollection as
@@ -1037,7 +1038,11 @@ export const ImportContainerBookings: CollectionConfig = {
           if (Array.isArray(fullRouting.viaLocations)) {
             const cleanedVia = fullRouting.viaLocations
               .map((via: unknown) => ensurePlainNumberId(via))
-              .filter((id): id is number | { relationTo: string; value: number } => id !== null)
+              .filter(
+                (
+                  id: number | { relationTo: string; value: number } | null,
+                ): id is number | { relationTo: string; value: number } => id !== null,
+              ) as (number | { relationTo: string; value: number })[]
 
             if (cleanedVia.length > 0) {
               fullRouting.viaLocations = cleanedVia
@@ -1096,7 +1101,11 @@ export const ImportContainerBookings: CollectionConfig = {
           if (Array.isArray(emptyRouting.viaLocations)) {
             const cleanedVia = emptyRouting.viaLocations
               .map((via: unknown) => ensurePlainNumberId(via))
-              .filter((id): id is number | { relationTo: string; value: number } => id !== null)
+              .filter(
+                (
+                  id: number | { relationTo: string; value: number } | null,
+                ): id is number | { relationTo: string; value: number } => id !== null,
+              ) as (number | { relationTo: string; value: number })[]
 
             if (cleanedVia.length > 0) {
               emptyRouting.viaLocations = cleanedVia
@@ -1115,7 +1124,7 @@ export const ImportContainerBookings: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, req, operation }) => {
+      async ({ doc, req, operation }: { doc: any; req: any; operation: any }) => {
         // Auto-calculate job status from container statuses
         if (doc && doc.id && req?.payload && operation !== 'delete') {
           try {
@@ -1142,17 +1151,17 @@ export const ImportContainerBookings: CollectionConfig = {
             let newStatus = doc.status
 
             // Check if all containers are in the same status
-            const allExpecting = containerStatuses.every((s) => s === 'expecting')
-            const allReceived = containerStatuses.every((s) => s === 'received')
-            const allPutAway = containerStatuses.every((s) => s === 'put_away')
+            const allExpecting = containerStatuses.every((s: string) => s === 'expecting')
+            const allReceived = containerStatuses.every((s: string) => s === 'received')
+            const allPutAway = containerStatuses.every((s: string) => s === 'put_away')
 
             // Check for partial states
             const someReceived =
-              containerStatuses.some((s) => s === 'received' || s === 'put_away') &&
-              containerStatuses.some((s) => s === 'expecting')
+              containerStatuses.some((s: string) => s === 'received' || s === 'put_away') &&
+              containerStatuses.some((s: string) => s === 'expecting')
             const somePutAway =
-              containerStatuses.some((s) => s === 'put_away') &&
-              containerStatuses.some((s) => s === 'received')
+              containerStatuses.some((s: string) => s === 'put_away') &&
+              containerStatuses.some((s: string) => s === 'received')
 
             if (allPutAway) {
               newStatus = 'put_away'

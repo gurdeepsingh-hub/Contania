@@ -11,7 +11,7 @@ export async function POST(
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
 
-    const { payload, tenant, user } = context
+    const { payload, tenant, currentUser: user } = context
     const resolvedParams = await params
     const bookingId = Number(resolvedParams.id)
     const containerId = Number(resolvedParams.containerId)

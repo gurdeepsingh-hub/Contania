@@ -390,7 +390,7 @@ export async function POST(request: NextRequest) {
       // Find allocations for these bookings
       // Note: Payload doesn't support 'in' operator on polymorphic relationships
       // So we need to query allocations and filter in memory
-      let matchingAllocationIds = new Set<number>()
+      const matchingAllocationIds = new Set<number>()
       if (matchingBookingIds.size > 0) {
         // Query all allocations and filter by booking ID in memory
         const allAllocations = await payload.find({
@@ -608,7 +608,7 @@ export async function POST(request: NextRequest) {
       exportBookingsWithJobCode.docs.forEach((b: any) => matchingJobCodeBookingIds.add(b.id))
 
       // Find allocations for these bookings
-      let matchingJobCodeAllocationIds = new Set<number>()
+      const matchingJobCodeAllocationIds = new Set<number>()
       if (matchingJobCodeBookingIds.size > 0) {
         const allAllocations = await payload.find({
           collection: 'container-stock-allocations',

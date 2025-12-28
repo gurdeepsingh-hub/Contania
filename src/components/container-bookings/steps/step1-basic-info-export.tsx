@@ -423,8 +423,8 @@ export function Step1BasicInfoExport({
             <DialogTitle>Create Customer</DialogTitle>
           </DialogHeader>
           <CustomerForm
-            onSave={async (customer) => {
-              handleCustomerCreated(customer, 'customers')
+            onSuccess={async (customer) => {
+              handleCustomerCreated(customer as Customer | PayingCustomer, 'customers')
             }}
             onCancel={() => setShowCustomerModal(false)}
           />
@@ -438,8 +438,8 @@ export function Step1BasicInfoExport({
             <DialogTitle>Create Paying Customer</DialogTitle>
           </DialogHeader>
           <PayingCustomerForm
-            onSave={async (customer) => {
-              handleCustomerCreated(customer, 'paying-customers')
+            onSuccess={async (customer) => {
+              handleCustomerCreated(customer as Customer | PayingCustomer, 'paying-customers')
             }}
             onCancel={() => setShowPayingCustomerModal(false)}
           />

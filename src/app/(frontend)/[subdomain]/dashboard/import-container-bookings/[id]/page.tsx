@@ -64,27 +64,6 @@ export default function ImportContainerBookingViewPage() {
     }
   }, [loading, tenant, router])
 
-  useEffect(() => {
-    if (authChecked && bookingId) {
-      loadData()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authChecked, bookingId])
-
-  // Refresh data when page becomes visible (user navigates back from other pages)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && authChecked && bookingId) {
-        loadData()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [authChecked, bookingId, loadData])
-
   // Helper to fetch entity name from API
   const fetchEntityName = async (collection: string, id: number): Promise<string | null> => {
     try {
@@ -395,7 +374,29 @@ export default function ImportContainerBookingViewPage() {
     } finally {
       setLoadingData(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId])
+
+  useEffect(() => {
+    if (authChecked && bookingId) {
+      loadData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, bookingId])
+
+  // Refresh data when page becomes visible (user navigates back from other pages)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && authChecked && bookingId) {
+        loadData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [authChecked, bookingId, loadData])
 
   const handleCancel = async () => {
     if (!confirm(`Are you sure you want to cancel booking ${booking?.bookingCode || bookingId}?`)) {
@@ -612,12 +613,7 @@ export default function ImportContainerBookingViewPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => loadData()}
-            disabled={loadingData}
-          >
+          <Button variant="outline" size="sm" onClick={() => loadData()} disabled={loadingData}>
             <RefreshCw className={`h-4 w-4 mr-1 ${loadingData ? 'animate-spin' : ''}`} />
             Refresh
           </Button>

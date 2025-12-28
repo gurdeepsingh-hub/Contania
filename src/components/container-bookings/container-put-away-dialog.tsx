@@ -30,6 +30,7 @@ type ContainerDetail = {
 
 type StockAllocation = {
   id: number
+  containerDetailId?: number | { id: number }
   productLines?: ProductLine[]
 }
 

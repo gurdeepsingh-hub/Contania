@@ -152,12 +152,14 @@ export function Step6StockAllocationImport({
 
       <div className="space-y-4">
         {containers.map((container) => {
+          if (!container.id) return null
+          const containerId = container.id
           const containerAllocations = allocations.filter((a) => {
             const aContainerId =
               typeof a.containerDetailId === 'object'
-                ? a.containerDetailId?.id || a.containerDetailId
+                ? (a.containerDetailId as { id?: number })?.id || (a.containerDetailId as number)
                 : a.containerDetailId
-            return aContainerId === container.id
+            return aContainerId === containerId
           })
 
           return (

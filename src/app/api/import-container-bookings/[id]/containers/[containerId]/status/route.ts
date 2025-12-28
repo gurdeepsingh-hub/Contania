@@ -6,7 +6,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; containerId: string }> },
 ) {
   try {
-    const context = await getTenantContext(request, 'containers_update')
+    const context = await getTenantContext(request, 'containers_edit')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -69,7 +69,7 @@ export async function PATCH(
         {
           message: `Invalid status transition from ${currentStatus} to ${status}`,
         },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -92,8 +92,11 @@ export async function PATCH(
 
       if (!allReceived) {
         return NextResponse.json(
-          { message: 'All product lines must have received values before changing status to received' },
-          { status: 400 }
+          {
+            message:
+              'All product lines must have received values before changing status to received',
+          },
+          { status: 400 },
         )
       }
     }
@@ -112,7 +115,7 @@ export async function PATCH(
       if (putAwayRecords.docs.length === 0) {
         return NextResponse.json(
           { message: 'Put-away records must exist before changing status to put_away' },
-          { status: 400 }
+          { status: 400 },
         )
       }
     }
@@ -132,10 +135,6 @@ export async function PATCH(
     })
   } catch (error) {
     console.error('Error updating container status:', error)
-    return NextResponse.json(
-      { message: 'Failed to update container status' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to update container status' }, { status: 500 })
   }
 }
-

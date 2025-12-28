@@ -159,7 +159,7 @@ export function Step5ContainerDetailsExport({
     if (step3Data?.containerSizeIds && step3Data?.containerQuantities && containers.length === 0) {
       const newContainers: ContainerDetail[] = []
       step3Data.containerSizeIds.forEach((sizeId) => {
-        const quantity = step3Data.containerQuantities[String(sizeId)] || 0
+        const quantity = step3Data.containerQuantities?.[String(sizeId)] || 0
         for (let i = 0; i < quantity; i++) {
           newContainers.push({
             containerSizeId: sizeId,

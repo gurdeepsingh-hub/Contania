@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; allocationId: string }> }
+  { params }: { params: Promise<{ id: string; allocationId: string }> },
 ) {
   try {
     const context = await getTenantContext(request, 'containers_create')
@@ -11,7 +11,7 @@ export async function POST(
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
 
-    const { payload, tenant, user: currentUser } = context
+    const { payload, tenant, currentUser } = context
     const resolvedParams = await params
     const bookingId = Number(resolvedParams.id)
     const allocationId = Number(resolvedParams.allocationId)
@@ -40,7 +40,7 @@ export async function POST(
     if (bookingTenantId !== tenant.id) {
       return NextResponse.json(
         { message: 'Export container booking does not belong to this tenant' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
@@ -67,22 +67,16 @@ export async function POST(
         ? allocationBookingRef.relationTo
         : null
 
-    if (
-      allocationBookingId !== bookingId ||
-      allocationRelationTo !== 'export-container-bookings'
-    ) {
+    if (allocationBookingId !== bookingId || allocationRelationTo !== 'export-container-bookings') {
       return NextResponse.json(
         { message: 'Stock allocation does not belong to this booking' },
-        { status: 403 }
+        { status: 403 },
       )
     }
 
     const allocations = body.allocations || []
     if (!Array.isArray(allocations) || allocations.length === 0) {
-      return NextResponse.json(
-        { message: 'Allocations array is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Allocations array is required' }, { status: 400 })
     }
 
     const allocationResults = []
@@ -139,8 +133,7 @@ export async function POST(
         continue
       }
 
-      const skuId =
-        typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
+      const skuId = typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
 
       if (!skuId) {
         errors.push({
@@ -176,7 +169,7 @@ export async function POST(
       // Get container detail IDs for this warehouse to scope the allocation query
       // If warehouseId is null, we'll query by containerDetailId directly (just for this container)
       let containerDetailIds: number[] = []
-      
+
       if (warehouseId) {
         const warehouseContainers = await payload.find({
           collection: 'container-details',
@@ -192,7 +185,7 @@ export async function POST(
           limit: 1000,
           depth: 0,
         })
-        
+
         containerDetailIds = warehouseContainers.docs
           .filter((c: any) => c && c.id)
           .map((c: { id: number }) => c.id)
@@ -200,7 +193,7 @@ export async function POST(
         // If no warehouseId, just use the current container's detail ID
         containerDetailIds = [containerDetailId]
       }
-      
+
       // Query allocations for containers in this warehouse
       const containerStockAllocations = await payload.find({
         collection: 'container-stock-allocations',
@@ -228,7 +221,7 @@ export async function POST(
 
       // Build OR conditions for matching LPNs
       const orConditions: any[] = []
-      
+
       if (inboundProductLineIds.length > 0) {
         orConditions.push({
           inboundProductLineId: {
@@ -236,7 +229,7 @@ export async function POST(
           },
         })
       }
-      
+
       if (matchingAllocationIds.length > 0) {
         orConditions.push({
           containerStockAllocationId: {
@@ -318,14 +311,14 @@ export async function POST(
 
         // Separate available and already-allocated LPNs
         const availableLPNs = lpnRecords.docs.filter(
-          (lpn: any) => lpn.allocationStatus === 'available'
+          (lpn: any) => lpn.allocationStatus === 'available',
         )
         const alreadyAllocatedLPNs = lpnRecords.docs.filter(
           (lpn: any) =>
             lpn.allocationStatus === 'allocated' &&
             (typeof lpn.containerStockAllocationId === 'object'
               ? lpn.containerStockAllocationId.id
-              : lpn.containerStockAllocationId) === allocationId
+              : lpn.containerStockAllocationId) === allocationId,
         )
 
         // Verify all requested LPNs were found
@@ -346,7 +339,7 @@ export async function POST(
             lpn.allocationStatus === 'allocated' &&
             (typeof lpn.containerStockAllocationId === 'object'
               ? lpn.containerStockAllocationId.id
-              : lpn.containerStockAllocationId) !== allocationId
+              : lpn.containerStockAllocationId) !== allocationId,
         )
 
         if (allocatedToOther.length > 0) {
@@ -516,8 +509,7 @@ export async function POST(
         totalAllocatedQty > 0
       ) {
         allocatedCubicPerHU =
-          (skuData.lengthPerHU_mm * skuData.widthPerHU_mm * skuData.heightPerHU_mm) /
-          1_000_000_000
+          (skuData.lengthPerHU_mm * skuData.widthPerHU_mm * skuData.heightPerHU_mm) / 1_000_000_000
       }
 
       // Calculate pltQty
@@ -538,7 +530,9 @@ export async function POST(
       // Get existing LPNs and merge with new ones
       const existingLPNs = productLine.LPN || []
       const existingLPNNumbers = Array.isArray(existingLPNs)
-        ? existingLPNs.map((lpn: any) => (typeof lpn === 'string' ? lpn : lpn.lpnNumber)).filter(Boolean)
+        ? existingLPNs
+            .map((lpn: any) => (typeof lpn === 'string' ? lpn : lpn.lpnNumber))
+            .filter(Boolean)
         : []
       const mergedLPNNumbers = [...new Set([...existingLPNNumbers, ...allocatedLPNNumbers])]
 
@@ -582,4 +576,3 @@ export async function POST(
     return NextResponse.json({ message: 'Failed to allocate stock' }, { status: 500 })
   }
 }
-

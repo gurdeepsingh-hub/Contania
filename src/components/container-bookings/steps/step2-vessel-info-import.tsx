@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { FormInput, FormCombobox, FormCheckbox } from '@/components/ui/form-field'
+import { FormInput, FormCombobox } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import {

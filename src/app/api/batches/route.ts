@@ -53,9 +53,11 @@ export async function GET(request: NextRequest) {
     // Get unique product line IDs from put-away records
     const productLineIds = new Set<number>()
     for (const record of putAwayRecords.docs) {
-      const inboundProductLineIdRef = (record as { inboundProductLineId?: number | { id: number } | null }).inboundProductLineId
+      const inboundProductLineIdRef = (
+        record as { inboundProductLineId?: number | { id: number } | null }
+      ).inboundProductLineId
       if (!inboundProductLineIdRef) continue
-      
+
       const productLineId =
         typeof inboundProductLineIdRef === 'object' && inboundProductLineIdRef !== null
           ? inboundProductLineIdRef.id
@@ -66,7 +68,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all product lines that have put-away records
-    let inboundProductLines: any[] = []
+    let inboundProductLines: Array<{
+      id: number
+      recievedQty?: number
+      batchNumber?: string
+      skuId?: number | { id: number; skuCode?: string; description?: string }
+      skuDescription?: string
+    }> = []
     if (productLineIds.size > 0) {
       const productLinesResult = await payload.find({
         collection: 'inbound-product-line',
@@ -80,13 +88,15 @@ export async function GET(request: NextRequest) {
       })
 
       // Filter product lines to only those that have batch numbers and received quantity
-      inboundProductLines = productLinesResult.docs.filter((line: { id: number; recievedQty?: number; batchNumber?: string }) => {
-        // Check if line has received quantity
-        const hasReceived = line.recievedQty && line.recievedQty > 0
-        // Check if line has batch number
-        const hasBatch = line.batchNumber && line.batchNumber.trim() !== ''
-        return hasReceived && hasBatch
-      })
+      inboundProductLines = productLinesResult.docs.filter(
+        (line: { id: number; recievedQty?: number; batchNumber?: string }) => {
+          // Check if line has received quantity
+          const hasReceived = line.recievedQty && line.recievedQty > 0
+          // Check if line has batch number
+          const hasBatch = line.batchNumber && line.batchNumber.trim() !== ''
+          return hasReceived && hasBatch
+        },
+      )
     }
 
     // Also get batches from import container booking product lines
@@ -110,7 +120,12 @@ export async function GET(request: NextRequest) {
 
     // Get all container stock allocations for import bookings with these containers
     // Note: We need to query all and filter by polymorphic relationship since Payload doesn't support direct polymorphic queries
-    let importContainerProductLines: any[] = []
+    const importContainerProductLines: Array<{
+      batchNumber?: string
+      recievedQty?: number
+      skuId?: number | { id: number; skuCode?: string; description?: string }
+      skuDescription?: string
+    }> = []
     if (containerDetailIds.length > 0) {
       // Query allocations for these containers
       const allocations = await payload.find({
@@ -170,15 +185,21 @@ export async function GET(request: NextRequest) {
       }
     >()
 
-    validProductLines.forEach((line: { batchNumber?: string; skuId?: number | { id: number; skuCode?: string; description?: string }; skuDescription?: string }) => {
-      if (line.batchNumber && !batchMap.has(line.batchNumber)) {
-        batchMap.set(line.batchNumber, {
-          batchNumber: line.batchNumber,
-          skuId: line.skuId as number | { id: number; skuCode?: string; description?: string },
-          skuDescription: line.skuDescription,
-        })
-      }
-    })
+    validProductLines.forEach(
+      (line: {
+        batchNumber?: string
+        skuId?: number | { id: number; skuCode?: string; description?: string }
+        skuDescription?: string
+      }) => {
+        if (line.batchNumber && !batchMap.has(line.batchNumber)) {
+          batchMap.set(line.batchNumber, {
+            batchNumber: line.batchNumber,
+            skuId: line.skuId as number | { id: number; skuCode?: string; description?: string },
+            skuDescription: line.skuDescription,
+          })
+        }
+      },
+    )
 
     return NextResponse.json({
       success: true,
@@ -189,6 +210,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ message: 'Failed to fetch batches' }, { status: 500 })
   }
 }
-
-
-

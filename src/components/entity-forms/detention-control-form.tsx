@@ -171,9 +171,16 @@ export function DetentionControlForm({
                 }))}
                 value={shippingLineId}
                 onValueChange={(value) => {
-                  setValue('shippingLineId', value ? Number(value) : undefined, {
-                    shouldValidate: true,
-                  })
+                  const numValue = value && !isNaN(Number(value)) ? Number(value) : undefined
+                  if (numValue !== undefined) {
+                    setValue('shippingLineId', numValue, {
+                      shouldValidate: true,
+                    })
+                  } else {
+                    setValue('shippingLineId', undefined as any, {
+                      shouldValidate: true,
+                    })
+                  }
                 }}
                 error={errors.shippingLineId?.message}
               />

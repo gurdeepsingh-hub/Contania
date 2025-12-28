@@ -85,7 +85,10 @@ export default function EditExportContainerBookingPage() {
             )
             if (containerDetailsRes.ok) {
               const containerDetailsData = await containerDetailsRes.json()
-              if (containerDetailsData.success && Array.isArray(containerDetailsData.containerDetails)) {
+              if (
+                containerDetailsData.success &&
+                Array.isArray(containerDetailsData.containerDetails)
+              ) {
                 // Transform container details to form format
                 containerDetails = containerDetailsData.containerDetails.map((detail: any) => ({
                   id: detail.id,
@@ -169,9 +172,15 @@ export default function EditExportContainerBookingPage() {
             toState: booking.toState,
             toPostcode: booking.toPostcode,
             containerSizeIds: Array.isArray(booking.containerSizeIds)
-              ? booking.containerSizeIds.map((size: any) =>
-                  typeof size === 'number' ? size : typeof size === 'object' && size?.id ? size.id : Number(size),
-                ).filter((id: any) => !isNaN(id) && id > 0)
+              ? booking.containerSizeIds
+                  .map((size: any) =>
+                    typeof size === 'number'
+                      ? size
+                      : typeof size === 'object' && size?.id
+                        ? size.id
+                        : Number(size),
+                  )
+                  .filter((id: any) => !isNaN(id) && id > 0)
               : [],
             containerQuantities: booking.containerQuantities || {},
             containerDetails: containerDetails, // Include container details in initial data
@@ -272,7 +281,6 @@ export default function EditExportContainerBookingPage() {
           setBooking(formData)
         } else {
           console.error('Invalid response format:', data)
-          setError('Invalid response format from server')
         }
       } else if (res.status === 404) {
         router.push('/dashboard/export-container-bookings')
@@ -316,7 +324,8 @@ export default function EditExportContainerBookingPage() {
     )
   }
 
-  const isEditable = booking.status === 'draft' || booking.status === 'confirmed' || booking.status === 'in_progress'
+  const isEditable =
+    booking.status === 'draft' || booking.status === 'confirmed' || booking.status === 'in_progress'
   const isReadOnly = booking.status === 'completed' || booking.status === 'cancelled'
 
   return (
@@ -330,9 +339,7 @@ export default function EditExportContainerBookingPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Edit Export Container Booking</h1>
-          <p className="text-muted-foreground">
-            {booking.bookingCode || `EXP-${booking.id}`}
-          </p>
+          <p className="text-muted-foreground">{booking.bookingCode || `EXP-${booking.id}`}</p>
         </div>
       </div>
 
@@ -344,7 +351,8 @@ export default function EditExportContainerBookingPage() {
               <div>
                 <p className="font-medium text-yellow-900">Read-Only Mode</p>
                 <p className="text-sm text-yellow-800 mt-1">
-                  This booking is {booking.status} and cannot be edited. You can view the details in read-only mode.
+                  This booking is {booking.status} and cannot be edited. You can view the details in
+                  read-only mode.
                 </p>
               </div>
             </div>
@@ -393,4 +401,3 @@ export default function EditExportContainerBookingPage() {
     </div>
   )
 }
-

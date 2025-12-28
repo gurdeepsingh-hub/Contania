@@ -45,17 +45,17 @@ export async function GET(request: NextRequest) {
 
     // Filter by tenant through container booking relationship (polymorphic)
     const allocationChecks = await Promise.all(
-      allocationsResult.docs.map(async (allocation) => {
-        const bookingRef = (allocation as {
-          containerBookingId?: number | { id: number; relationTo?: string }
-        }).containerBookingId
+      allocationsResult.docs.map(async (allocation: any) => {
+        const bookingRef = (
+          allocation as {
+            containerBookingId?: number | { id: number; relationTo?: string }
+          }
+        ).containerBookingId
 
         if (!bookingRef) return { allocation, belongsToTenant: false }
 
-        const bookingId =
-          typeof bookingRef === 'object' ? bookingRef.id : bookingRef
-        const collection =
-          typeof bookingRef === 'object' ? bookingRef.relationTo : null
+        const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+        const collection = typeof bookingRef === 'object' ? bookingRef.relationTo : null
 
         if (!bookingId || !collection) return { allocation, belongsToTenant: false }
 
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         }
 
         return { allocation, belongsToTenant: false }
-      })
+      }),
     )
 
     const filteredAllocations = allocationChecks
@@ -117,10 +117,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching stock allocations:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch stock allocations' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch stock allocations' }, { status: 500 })
   }
 }
 
@@ -138,7 +135,7 @@ export async function POST(request: NextRequest) {
     if (!body.containerDetailId || !body.containerBookingId) {
       return NextResponse.json(
         { message: 'Container detail ID and booking ID are required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -222,10 +219,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating stock allocation:', error)
-    return NextResponse.json(
-      { message: 'Failed to create stock allocation' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create stock allocation' }, { status: 500 })
   }
 }
-

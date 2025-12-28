@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    let context = await getTenantContext(request, 'settings_entity_settings')
+    const context = await getTenantContext(request, 'settings_entity_settings')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }

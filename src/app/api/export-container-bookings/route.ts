@@ -3,7 +3,7 @@ import { getTenantContext } from '@/lib/api-helpers'
 
 export async function GET(request: NextRequest) {
   try {
-    let context = await getTenantContext(request, 'containers_view')
+    const context = await getTenantContext(request, 'containers_view')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching export container bookings:', error)
     return NextResponse.json(
       { message: 'Failed to fetch export container bookings' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!body.customerReference || !body.bookingReference) {
       return NextResponse.json(
         { message: 'Customer reference and booking reference are required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -153,8 +153,7 @@ export async function POST(request: NextRequest) {
     console.error('Error creating export container booking:', error)
     return NextResponse.json(
       { message: 'Failed to create export container booking' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }
-

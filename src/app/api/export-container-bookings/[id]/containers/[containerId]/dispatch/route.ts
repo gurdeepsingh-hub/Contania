@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string; containerId: string }> },
 ) {
   try {
-    const context = await getTenantContext(request, 'containers_update')
+    const context = await getTenantContext(request, 'containers_edit')
     if ('error' in context) {
       return NextResponse.json({ message: context.error }, { status: context.status })
     }

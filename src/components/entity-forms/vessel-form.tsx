@@ -60,13 +60,9 @@ type Wharf = {
 }
 
 // Helper function to convert date string (YYYY-MM-DD) or Date object to datetime-local format (YYYY-MM-DDTHH:mm)
-const formatDateForInput = (
-  dateValue: string | Date | undefined | null,
-): string => {
+const formatDateForInput = (dateValue: string | Date | undefined | null): string => {
   if (!dateValue) return ''
-  
-  let dateString: string
-  
+
   // Handle Date objects
   if (dateValue instanceof Date) {
     // Convert Date to local datetime string (YYYY-MM-DDTHH:mm)
@@ -78,19 +74,19 @@ const formatDateForInput = (
     const minutes = String(dateValue.getMinutes()).padStart(2, '0')
     return `${year}-${month}-${day}T${hours}:${minutes}`
   }
-  
+
   // Handle string values
-  dateString = String(dateValue).trim()
-  
+  const dateString = String(dateValue).trim()
+
   // If empty after trimming, return empty string
   if (!dateString) return ''
-  
+
   // If it's already in datetime-local format (YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss)
   if (dateString.includes('T')) {
     // Extract date and time parts
     const [date, time] = dateString.split('T')
     if (!date || !time) return dateString
-    
+
     // Handle timezone offset (Z or +/-HH:mm)
     let timePart = time
     if (timePart.includes('Z')) {
@@ -102,18 +98,18 @@ const formatDateForInput = (
         timePart = timePart.replace(timezoneMatch[0], '')
       }
     }
-    
+
     // Remove seconds if present (datetime-local doesn't support seconds)
     const timeWithoutSeconds = timePart.split(':').slice(0, 2).join(':')
     return `${date}T${timeWithoutSeconds}`
   }
-  
+
   // If it's just a date (YYYY-MM-DD), add time component
   // Validate it's a proper date format
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     return `${dateString}T00:00`
   }
-  
+
   // If format is unexpected, try to parse it
   try {
     const parsedDate = new Date(dateString)
@@ -127,7 +123,7 @@ const formatDateForInput = (
     // If parsing fails, return empty string
     return ''
   }
-  
+
   return ''
 }
 
@@ -145,12 +141,7 @@ interface VesselFormProps {
   mode?: 'create' | 'edit'
 }
 
-export function VesselForm({
-  initialData,
-  onSuccess,
-  onCancel,
-  mode = 'create',
-}: VesselFormProps) {
+export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }: VesselFormProps) {
   const [wharves, setWharves] = useState<Wharf[]>([])
   const [showWharfModal, setShowWharfModal] = useState(false)
 
@@ -301,155 +292,154 @@ export function VesselForm({
   return (
     <>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FormInput
-          label="Vessel Name"
-          required
-          error={errors.vesselName?.message}
-          placeholder="Vessel name"
-          {...register('vesselName')}
-        />
-        <FormInput
-          label="Voyage Number"
-          error={errors.voyageNumber?.message}
-          placeholder="Voyage number"
-          {...register('voyageNumber')}
-        />
-        <FormInput
-          label="Lloyds Number"
-          error={errors.lloydsNumber?.message}
-          placeholder="Lloyds number"
-          {...register('lloydsNumber')}
-        />
-        <div className="flex items-start gap-2">
-          <div className="flex-1">
-            <FormCombobox
-              label="Wharf"
-              placeholder="Select wharf..."
-              options={wharves.map((wh) => ({
-                value: wh.id,
-                label: wh.name,
-              }))}
-              value={watch('wharfId')}
-              onValueChange={(value) => {
-                setValue('wharfId', value ? Number(value) : undefined)
-              }}
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormInput
+            label="Vessel Name"
+            required
+            error={errors.vesselName?.message}
+            placeholder="Vessel name"
+            {...register('vesselName')}
+          />
+          <FormInput
+            label="Voyage Number"
+            error={errors.voyageNumber?.message}
+            placeholder="Voyage number"
+            {...register('voyageNumber')}
+          />
+          <FormInput
+            label="Lloyds Number"
+            error={errors.lloydsNumber?.message}
+            placeholder="Lloyds number"
+            {...register('lloydsNumber')}
+          />
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <FormCombobox
+                label="Wharf"
+                placeholder="Select wharf..."
+                options={wharves.map((wh) => ({
+                  value: wh.id,
+                  label: wh.name,
+                }))}
+                value={watch('wharfId')}
+                onValueChange={(value) => {
+                  setValue('wharfId', value ? Number(value) : undefined)
+                }}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="mt-8"
+              onClick={() => setShowWharfModal(true)}
+              title="Quick create wharf"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="mt-8"
-            onClick={() => setShowWharfModal(true)}
-            title="Quick create wharf"
-          >
-            <Plus className="h-4 w-4" />
+          <FormSelect
+            label="Job Type"
+            required
+            error={errors.jobType?.message}
+            options={[
+              { value: 'import', label: 'Import' },
+              { value: 'export', label: 'Export' },
+            ]}
+            {...register('jobType')}
+          />
+        </div>
+
+        {jobType === 'import' && (
+          <div className="border-t pt-4">
+            <h3 className="text-lg font-semibold mb-4">Import Fields</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="ETA"
+                type="datetime-local"
+                error={errors.eta?.message}
+                {...register('eta')}
+              />
+              <FormInput
+                label="Availability"
+                type="datetime-local"
+                error={errors.availability?.message}
+                {...register('availability')}
+              />
+              <FormInput
+                label="Storage Start"
+                type="datetime-local"
+                error={errors.storageStart?.message}
+                {...register('storageStart')}
+              />
+              <FormInput
+                label="First Free Import Date"
+                type="datetime-local"
+                error={errors.firstFreeImportDate?.message}
+                {...register('firstFreeImportDate')}
+              />
+            </div>
+          </div>
+        )}
+
+        {jobType === 'export' && (
+          <div className="border-t pt-4">
+            <h3 className="text-lg font-semibold mb-4">Export Fields</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="ETD"
+                type="datetime-local"
+                error={errors.etd?.message}
+                {...register('etd')}
+              />
+              <FormInput
+                label="Receival Start"
+                type="datetime-local"
+                error={errors.receivalStart?.message}
+                {...register('receivalStart')}
+              />
+              <FormInput
+                label="Cutoff"
+                type="datetime-local"
+                error={errors.cutoff?.message}
+                {...register('cutoff')}
+              />
+              <FormInput
+                label="Reefer Cutoff"
+                type="datetime-local"
+                error={errors.reeferCutoff?.message}
+                {...register('reeferCutoff')}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            <Save className="h-4 w-4 mr-2" />
+            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
           </Button>
         </div>
-        <FormSelect
-          label="Job Type"
-          required
-          error={errors.jobType?.message}
-          options={[
-            { value: 'import', label: 'Import' },
-            { value: 'export', label: 'Export' },
-          ]}
-          {...register('jobType')}
-        />
-      </div>
+      </form>
 
-      {jobType === 'import' && (
-        <div className="border-t pt-4">
-          <h3 className="text-lg font-semibold mb-4">Import Fields</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormInput
-              label="ETA"
-              type="datetime-local"
-              error={errors.eta?.message}
-              {...register('eta')}
-            />
-            <FormInput
-              label="Availability"
-              type="datetime-local"
-              error={errors.availability?.message}
-              {...register('availability')}
-            />
-            <FormInput
-              label="Storage Start"
-              type="datetime-local"
-              error={errors.storageStart?.message}
-              {...register('storageStart')}
-            />
-            <FormInput
-              label="First Free Import Date"
-              type="datetime-local"
-              error={errors.firstFreeImportDate?.message}
-              {...register('firstFreeImportDate')}
-            />
-          </div>
-        </div>
-      )}
-
-      {jobType === 'export' && (
-        <div className="border-t pt-4">
-          <h3 className="text-lg font-semibold mb-4">Export Fields</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormInput
-              label="ETD"
-              type="datetime-local"
-              error={errors.etd?.message}
-              {...register('etd')}
-            />
-            <FormInput
-              label="Receival Start"
-              type="datetime-local"
-              error={errors.receivalStart?.message}
-              {...register('receivalStart')}
-            />
-            <FormInput
-              label="Cutoff"
-              type="datetime-local"
-              error={errors.cutoff?.message}
-              {...register('cutoff')}
-            />
-            <FormInput
-              label="Reefer Cutoff"
-              type="datetime-local"
-              error={errors.reeferCutoff?.message}
-              {...register('reeferCutoff')}
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          <X className="h-4 w-4 mr-2" />
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          <Save className="h-4 w-4 mr-2" />
-          {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
-        </Button>
-      </div>
-    </form>
-
-    {/* Quick Create Wharf Dialog */}
-    <Dialog open={showWharfModal} onOpenChange={setShowWharfModal}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Quick Create Wharf</DialogTitle>
-          <DialogDescription>Create a new wharf quickly</DialogDescription>
-        </DialogHeader>
-        <WharfForm
-          onSuccess={handleWharfCreated}
-          onCancel={() => setShowWharfModal(false)}
-          mode="create"
-        />
-      </DialogContent>
-    </Dialog>
+      {/* Quick Create Wharf Dialog */}
+      <Dialog open={showWharfModal} onOpenChange={setShowWharfModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Quick Create Wharf</DialogTitle>
+            <DialogDescription>Create a new wharf quickly</DialogDescription>
+          </DialogHeader>
+          <WharfForm
+            onSuccess={handleWharfCreated}
+            onCancel={() => setShowWharfModal(false)}
+            mode="create"
+          />
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
-

@@ -37,17 +37,17 @@ export async function GET(request: NextRequest) {
 
     // Filter by tenant through container booking relationship (polymorphic)
     const filteredDetails = await Promise.all(
-      detailsResult.docs.map(async (detail) => {
-        const bookingRef = (detail as {
-          containerBookingId?: number | { id: number; relationTo?: string }
-        }).containerBookingId
+      detailsResult.docs.map(async (detail: any) => {
+        const bookingRef = (
+          detail as {
+            containerBookingId?: number | { id: number; relationTo?: string }
+          }
+        ).containerBookingId
 
         if (!bookingRef) return { detail, belongsToTenant: false }
 
-        const bookingId =
-          typeof bookingRef === 'object' ? bookingRef.id : bookingRef
-        const collection =
-          typeof bookingRef === 'object' ? bookingRef.relationTo : null
+        const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+        const collection = typeof bookingRef === 'object' ? bookingRef.relationTo : null
 
         if (!bookingId || !collection) return { detail, belongsToTenant: false }
 
@@ -109,10 +109,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching container details:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch container details' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch container details' }, { status: 500 })
   }
 }
 
@@ -130,7 +127,7 @@ export async function POST(request: NextRequest) {
     if (!body.containerBookingId || !body.containerNumber || !body.containerSizeId) {
       return NextResponse.json(
         { message: 'Container booking ID, container number, and container size are required' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
@@ -232,10 +229,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating container detail:', error)
-    return NextResponse.json(
-      { message: 'Failed to create container detail' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create container detail' }, { status: 500 })
   }
 }
-

@@ -122,23 +122,23 @@ export const ExportContainerBookings: CollectionConfig = {
       name: 'chargeToId',
       type: 'relationship',
       relationTo: ['paying-customers', 'customers'],
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: (value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
         // For non-draft status, value is required (handled by required function)
-        return true
+        return true as const
       },
       admin: {
         description: 'Entity responsible for charges (paying customer or delivery customer)',
@@ -172,23 +172,23 @@ export const ExportContainerBookings: CollectionConfig = {
       name: 'consignorId',
       type: 'relationship',
       relationTo: 'customers',
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Consignor (for export jobs)',
       },
@@ -228,23 +228,23 @@ export const ExportContainerBookings: CollectionConfig = {
       name: 'fromId',
       type: 'relationship',
       relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Origin location (delivery customer, paying customer, empty park, or wharf)',
       },
@@ -293,23 +293,23 @@ export const ExportContainerBookings: CollectionConfig = {
       name: 'toId',
       type: 'relationship',
       relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty value when status is 'draft'
         if (
           data?.status === 'draft' &&
           (!value || value === '' || value === null || value === undefined)
         ) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description:
           'Destination location (delivery customer, paying customer, empty park, or wharf)',
@@ -360,20 +360,20 @@ export const ExportContainerBookings: CollectionConfig = {
       type: 'relationship',
       relationTo: 'container-sizes',
       hasMany: true,
-      required: ({ data, operation }) => {
+      required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
           return data?.status !== 'draft'
         }
         return false
-      },
-      validate: (value, { data }) => {
+      }) as any,
+      validate: ((value: any, { data }: { data: any }) => {
         // Allow empty array when status is 'draft'
         if (data?.status === 'draft' && (!value || (Array.isArray(value) && value.length === 0))) {
-          return true
+          return true as const
         }
-        return true
-      },
+        return true as const
+      }) as any,
       admin: {
         description: 'Container sizes for this booking',
       },
@@ -673,7 +673,7 @@ export const ExportContainerBookings: CollectionConfig = {
         if (data.fromId && req?.payload) {
           let fromId: number | undefined
           let collection: string | undefined
-          
+
           try {
             // Handle different fromId formats
             if (typeof data.fromId === 'object' && data.fromId !== null) {
@@ -705,7 +705,7 @@ export const ExportContainerBookings: CollectionConfig = {
             }
 
             const validCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
-            if (fromId && validCollections.includes(collection)) {
+            if (fromId && collection && validCollections.includes(collection)) {
               const entity = await req.payload.findByID({
                 collection: collection as
                   | 'customers'
@@ -825,7 +825,7 @@ export const ExportContainerBookings: CollectionConfig = {
             }
 
             const validCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
-            if (toId && validCollections.includes(collection)) {
+            if (toId && collection && validCollections.includes(collection)) {
               const entity = await req.payload.findByID({
                 collection: collection as
                   | 'customers'
@@ -956,7 +956,11 @@ export const ExportContainerBookings: CollectionConfig = {
           if (Array.isArray(emptyRouting.viaLocations)) {
             const cleanedVia = emptyRouting.viaLocations
               .map((via: unknown) => ensurePlainNumberId(via))
-              .filter((id): id is number | { relationTo: string; value: number } => id !== null)
+              .filter(
+                (
+                  id: number | { relationTo: string; value: number } | null,
+                ): id is number | { relationTo: string; value: number } => id !== null,
+              ) as (number | { relationTo: string; value: number })[]
 
             if (cleanedVia.length > 0) {
               emptyRouting.viaLocations = cleanedVia
@@ -1012,7 +1016,11 @@ export const ExportContainerBookings: CollectionConfig = {
           if (Array.isArray(fullRouting.viaLocations)) {
             const cleanedVia = fullRouting.viaLocations
               .map((via: unknown) => ensurePlainNumberId(via))
-              .filter((id): id is number | { relationTo: string; value: number } => id !== null)
+              .filter(
+                (
+                  id: number | { relationTo: string; value: number } | null,
+                ): id is number | { relationTo: string; value: number } => id !== null,
+              ) as (number | { relationTo: string; value: number })[]
 
             if (cleanedVia.length > 0) {
               fullRouting.viaLocations = cleanedVia
@@ -1031,7 +1039,7 @@ export const ExportContainerBookings: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, req, operation }) => {
+      async ({ doc, req, operation }: { doc: any; req: any; operation: any }) => {
         // Auto-calculate job status from container statuses
         if (doc && doc.id && req?.payload && operation !== 'delete') {
           try {
@@ -1058,17 +1066,17 @@ export const ExportContainerBookings: CollectionConfig = {
             let newStatus = doc.status
 
             // Check if all containers are in the same status
-            const allAllocated = containerStatuses.every((s) => s === 'allocated')
-            const allPickedUp = containerStatuses.every((s) => s === 'picked_up')
-            const allDispatched = containerStatuses.every((s) => s === 'dispatched')
+            const allAllocated = containerStatuses.every((s: string) => s === 'allocated')
+            const allPickedUp = containerStatuses.every((s: string) => s === 'picked_up')
+            const allDispatched = containerStatuses.every((s: string) => s === 'dispatched')
 
             // Check for partial states
             const somePickedUp =
-              containerStatuses.some((s) => s === 'picked_up' || s === 'dispatched') &&
-              containerStatuses.some((s) => s === 'allocated')
+              containerStatuses.some((s: string) => s === 'picked_up' || s === 'dispatched') &&
+              containerStatuses.some((s: string) => s === 'allocated')
             const someDispatched =
-              containerStatuses.some((s) => s === 'dispatched') &&
-              containerStatuses.some((s) => s === 'picked_up')
+              containerStatuses.some((s: string) => s === 'dispatched') &&
+              containerStatuses.some((s: string) => s === 'picked_up')
 
             if (allDispatched) {
               newStatus = 'dispatched'

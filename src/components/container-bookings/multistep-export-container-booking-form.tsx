@@ -267,11 +267,14 @@ export function MultistepExportContainerBookingForm({
       const result = schema.safeParse(stepData)
       if (!result.success) {
         const errors: Record<string, string> = {}
-        result.error.errors.forEach((err) => {
-          if (err.path.length > 0) {
-            errors[err.path.join('.')] = err.message
-          }
-        })
+        const zodError = result.error as { errors?: Array<{ path?: (string | number)[]; message?: string }> }
+        if (zodError.errors) {
+          zodError.errors.forEach((err) => {
+            if (err.path && err.path.length > 0) {
+              errors[err.path.join('.')] = err.message || 'Validation error'
+            }
+          })
+        }
         setValidationErrors((prev) => ({ ...prev, [stepNumber]: errors }))
         return false
       }

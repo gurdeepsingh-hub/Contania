@@ -463,7 +463,7 @@ export const ContainerDetails: CollectionConfig = {
                     collection: collection as 'import-container-bookings' | 'export-container-bookings',
                     id: bookingId,
                     data: {
-                      status: newBookingStatus,
+                      status: newBookingStatus as 'allocated' | 'picked' | 'dispatched' | 'expecting' | 'received' | 'put_away' | 'draft' | 'confirmed' | 'partially_received' | 'partially_put_away' | 'completed' | 'cancelled' | 'partially_picked' | 'ready_to_dispatch',
                     },
                   })
                 }
