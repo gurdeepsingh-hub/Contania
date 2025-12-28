@@ -70,6 +70,28 @@ export type InboundJob = {
   notes?: string
 }
 
+export type ContainerJob = {
+  id: number
+  type: 'import' | 'export'
+  bookingCode: string
+  customerReference?: string
+  bookingReference?: string
+  status?: string
+  createdAt?: string
+  updatedAt?: string
+  containerNumber?: string
+  // Import-specific fields
+  eta?: string
+  consigneeId?: number | { id: number }
+  receivedQty?: number
+  expectedQty?: number
+  // Export-specific fields
+  etd?: string
+  consignorId?: number | { id: number }
+  allocatedQty?: number
+  pickedQty?: number
+}
+
 export type AggregatedInventoryItem = {
   skuId: string
   skuDescription: string
@@ -97,6 +119,7 @@ export type AggregatedInventoryItem = {
   records?: InventoryRecord[] // Individual records for this SKU/Batch combination
   outboundJobs?: OutboundJob[] // Outbound jobs for this SKU
   inboundJobs?: InboundJob[] // Inbound jobs for this SKU
+  containerJobs?: ContainerJob[] // Container jobs (import/export) for this SKU
 }
 
 /**
@@ -122,11 +145,30 @@ export function aggregateInventoryRecords(
 
     if (!skuId) continue
 
-    // Get batch number
-    const batchNumber =
-      typeof record.inboundProductLineId === 'object'
-        ? record.inboundProductLineId.batchNumber
-        : undefined
+    // Get batch number - check both inbound product lines and container stock allocations
+    let batchNumber: string | undefined = undefined
+    
+    // Check inbound product line first
+    if (typeof record.inboundProductLineId === 'object' && record.inboundProductLineId !== null) {
+      batchNumber = record.inboundProductLineId.batchNumber
+    }
+    
+    // If no batch from inbound product line, check container stock allocation
+    if (!batchNumber) {
+      const containerAllocation = (record as any).containerStockAllocationId
+      if (containerAllocation && typeof containerAllocation === 'object' && containerAllocation !== null) {
+        // Container allocations have productLines array - find matching SKU
+        const productLines = containerAllocation.productLines || []
+        for (const productLine of productLines) {
+          const productLineSkuId =
+            typeof productLine.skuId === 'object' ? productLine.skuId?.id : productLine.skuId
+          if (productLineSkuId === skuId && productLine.batchNumber) {
+            batchNumber = productLine.batchNumber
+            break
+          }
+        }
+      }
+    }
 
     // Create unique key: SKU + Batch (or just SKU if no batch)
     const key = batchNumber ? `${skuId}_${batchNumber}` : `${skuId}_null`
@@ -203,8 +245,8 @@ export function aggregateInventoryRecords(
         break
     }
 
-    // Get product line info
-    if (typeof record.inboundProductLineId === 'object') {
+    // Get product line info - check both inbound product lines and container stock allocations
+    if (typeof record.inboundProductLineId === 'object' && record.inboundProductLineId !== null) {
       const productLine = record.inboundProductLineId
       const productLineId = productLine.id
 
@@ -227,10 +269,43 @@ export function aggregateInventoryRecords(
         item.qtyReceived += productLine.recievedQty
         countedProductLines.add(productLineId)
       }
+    } else {
+      // Check container stock allocation for product line info
+      const containerAllocation = (record as any).containerStockAllocationId
+      if (containerAllocation && typeof containerAllocation === 'object' && containerAllocation !== null) {
+        const productLines = containerAllocation.productLines || []
+        // Find matching product line for this SKU
+        for (const productLine of productLines) {
+          const productLineSkuId =
+            typeof productLine.skuId === 'object' ? productLine.skuId?.id : productLine.skuId
+          if (productLineSkuId === skuId) {
+            // Set expiry (use first non-null value)
+            if (productLine.expiryDate && !item.expiry) {
+              item.expiry = productLine.expiryDate
+            }
+
+            // Set attributes (use first non-null value)
+            if (productLine.attribute1 && !item.attribute1) {
+              item.attribute1 = productLine.attribute1
+            }
+            if (productLine.attribute2 && !item.attribute2) {
+              item.attribute2 = productLine.attribute2
+            }
+
+            // Add received quantity for import containers (only count once per allocation)
+            const allocationId = containerAllocation.id
+            if (allocationId && productLine.recievedQty && !countedProductLines.has(allocationId)) {
+              item.qtyReceived += productLine.recievedQty
+              countedProductLines.add(allocationId)
+            }
+            break
+          }
+        }
+      }
     }
 
     // Get inbound inventory info
-    if (typeof record.inboundInventoryId === 'object') {
+    if (typeof record.inboundInventoryId === 'object' && record.inboundInventoryId !== null) {
       const inboundInventory = record.inboundInventoryId
 
       // Add inbound order number
@@ -259,6 +334,41 @@ export function aggregateInventoryRecords(
       if (typeof inboundInventory.deliveryCustomerId === 'object') {
         if (inboundInventory.deliveryCustomerId.customer_name && !item.customerName) {
           item.customerName = inboundInventory.deliveryCustomerId.customer_name
+        }
+      }
+    }
+    
+    // Also check container bookings for order numbers and customer references
+    const containerAllocation = (record as any).containerStockAllocationId
+    if (containerAllocation && typeof containerAllocation === 'object' && containerAllocation !== null) {
+      const bookingRef = containerAllocation.containerBookingId
+      if (bookingRef && typeof bookingRef === 'object' && bookingRef !== null) {
+        let booking: any = null
+        if ('value' in bookingRef && bookingRef.value) {
+          booking = bookingRef.value
+        } else if ('id' in bookingRef && bookingRef.id) {
+          booking = bookingRef.id
+        }
+        
+        if (booking) {
+          // Add booking code as order number
+          if (booking.bookingCode && !item.inboundOrderNumbers.includes(booking.bookingCode)) {
+            item.inboundOrderNumbers.push(booking.bookingCode)
+          }
+          
+          // Add customer reference
+          if (booking.customerReference && !item.customerReferences.includes(booking.customerReference)) {
+            item.customerReferences.push(booking.customerReference)
+          }
+        }
+      }
+      
+      // Add container number from container detail
+      const containerDetail = containerAllocation.containerDetailId
+      if (containerDetail && typeof containerDetail === 'object' && containerDetail !== null) {
+        const containerNumber = containerDetail.containerNumber
+        if (containerNumber && !item.containerNumbers.includes(containerNumber)) {
+          item.containerNumbers.push(containerNumber)
         }
       }
     }

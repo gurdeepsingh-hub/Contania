@@ -208,6 +208,102 @@ export async function GET(request: NextRequest) {
         })
       }
 
+      case 'containerBookingCode': {
+        // Given container booking code → return related data
+        // Try import bookings first
+        let booking: any = null
+        try {
+          const importResult = await payload.find({
+            collection: 'import-container-bookings',
+            where: {
+              and: [
+                tenantWhere,
+                {
+                  bookingCode: {
+                    equals: value,
+                  },
+                },
+              ],
+            },
+            limit: 1,
+          })
+          if (importResult.docs.length > 0) {
+            booking = importResult.docs[0]
+          }
+        } catch (error) {
+          // Continue to try export bookings
+        }
+
+        // Try export bookings if import not found
+        if (!booking) {
+          try {
+            const exportResult = await payload.find({
+              collection: 'export-container-bookings',
+              where: {
+                and: [
+                  tenantWhere,
+                  {
+                    bookingCode: {
+                      equals: value,
+                    },
+                  },
+                ],
+              },
+              limit: 1,
+            })
+            if (exportResult.docs.length > 0) {
+              booking = exportResult.docs[0]
+            }
+          } catch (error) {
+            // Booking not found
+          }
+        }
+
+        if (!booking) {
+          return NextResponse.json({
+            success: true,
+            data: {},
+          })
+        }
+
+        const result: any = {
+          customerReference: booking.customerReference || '',
+          bookingReference: booking.bookingReference || '',
+        }
+
+        // Add container numbers if available
+        if (warehouseId) {
+          // Find container details for this booking
+          const bookingId = booking.id
+          const bookingCollection = booking.collection || 'import-container-bookings'
+          try {
+            const containers = await payload.find({
+              collection: 'container-details',
+              where: {
+                containerBookingId: {
+                  equals: bookingId,
+                },
+              },
+              limit: 100,
+            })
+
+            const containerNumbers = containers.docs
+              .map((c: any) => c.containerNumber)
+              .filter(Boolean)
+            if (containerNumbers.length > 0) {
+              result.containerNumbers = containerNumbers
+            }
+          } catch (error) {
+            // Ignore errors
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: result,
+        })
+      }
+
       default:
         return NextResponse.json({ message: `Unknown field: ${field}` }, { status: 400 })
     }

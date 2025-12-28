@@ -26,6 +26,7 @@ type SearchFilters = {
   containerNumber: string
   customerReference: string
   inboundOrderNumber: string
+  containerBookingCode: string
   attribute1: string
   attribute2: string
   locationFrom: string

@@ -18,6 +18,7 @@ type SearchFilters = {
   containerNumber: string
   customerReference: string
   inboundOrderNumber: string
+  containerBookingCode: string
   attribute1: string
   attribute2: string
   locationFrom: string
@@ -45,6 +46,7 @@ export function InventorySearchForm({
     containerNumber: '',
     customerReference: '',
     inboundOrderNumber: '',
+    containerBookingCode: '',
     attribute1: '',
     attribute2: '',
     locationFrom: '',
@@ -58,6 +60,7 @@ export function InventorySearchForm({
   const debouncedSkuId = useDebounce(filters.skuId, 300)
   const debouncedBatch = useDebounce(filters.batch, 300)
   const debouncedCustomerName = useDebounce(filters.customerName, 300)
+  const debouncedContainerBookingCode = useDebounce(filters.containerBookingCode, 300)
 
   // Fetch autocomplete suggestions with contextual filtering
   const fetchSuggestions = useCallback(
@@ -173,7 +176,10 @@ export function InventorySearchForm({
     // Fetch suggestions as user types
     // Map locationFrom/locationTo to 'location' field for API
     const apiField = field === 'locationFrom' || field === 'locationTo' ? 'location' : field
-    const minLength = field === 'locationFrom' || field === 'locationTo' ? 1 : 2
+    const minLength =
+      field === 'locationFrom' || field === 'locationTo' || field === 'containerBookingCode'
+        ? 1
+        : 2
     if (value && value.length >= minLength) {
       fetchSuggestions(apiField, value, false)
     } else {
@@ -187,9 +193,13 @@ export function InventorySearchForm({
     const currentValue = filters[field]
     // Map locationFrom/locationTo to 'location' field for API
     const apiField = field === 'locationFrom' || field === 'locationTo' ? 'location' : field
+    const minLength =
+      field === 'locationFrom' || field === 'locationTo' || field === 'containerBookingCode'
+        ? 1
+        : 2
     if (!currentValue || currentValue.length === 0) {
       fetchSuggestions(apiField, '', true)
-    } else if (currentValue.length >= (field === 'locationFrom' || field === 'locationTo' ? 1 : 2)) {
+    } else if (currentValue.length >= minLength) {
       fetchSuggestions(apiField, currentValue, false)
     }
   }
@@ -227,6 +237,7 @@ export function InventorySearchForm({
       containerNumber: '',
       customerReference: '',
       inboundOrderNumber: '',
+      containerBookingCode: '',
       attribute1: '',
       attribute2: '',
       locationFrom: '',
@@ -480,6 +491,37 @@ export function InventorySearchForm({
                           key={suggestion}
                           className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
                           onClick={() => handleSuggestionSelect('inboundOrderNumber', suggestion)}
+                        >
+                          {suggestion}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            {/* Container Booking Code */}
+            <div className="space-y-2 relative">
+              <Label htmlFor="containerBookingCode">Container Booking Code</Label>
+              <div className="relative">
+                <Input
+                  id="containerBookingCode"
+                  value={filters.containerBookingCode}
+                  onChange={(e) => handleFieldChange('containerBookingCode', e.target.value)}
+                  placeholder="Type to search (IMP-xxx or EXP-xxx)..."
+                  onFocus={() => handleFieldFocus('containerBookingCode')}
+                />
+                {showSuggestions.containerBookingCode &&
+                  suggestions.containerBookingCode &&
+                  suggestions.containerBookingCode.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                      {suggestions.containerBookingCode.map((suggestion) => (
+                        <div
+                          key={suggestion}
+                          className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                          onClick={() =>
+                            handleSuggestionSelect('containerBookingCode', suggestion)
+                          }
                         >
                           {suggestion}
                         </div>

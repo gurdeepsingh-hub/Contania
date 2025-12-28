@@ -31,6 +31,7 @@ import type {
   InventoryRecord,
   OutboundJob,
   InboundJob,
+  ContainerJob,
 } from '@/lib/inventory-helpers'
 
 type InventoryResultsDisplayProps = {
@@ -827,6 +828,105 @@ export function InventoryResultsDisplay({
                                   <div>
                                     <span className="text-muted-foreground">Received Qty: </span>
                                     <span>{formatNumber(job.receivedQty)}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+
+                  {/* Container Jobs */}
+                  {item.containerJobs && item.containerJobs.length > 0 && (
+                    <AccordionItem value="container-jobs">
+                      <AccordionTrigger>
+                        Container Jobs ({item.containerJobs.length})
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3">
+                          {item.containerJobs.map((job: ContainerJob, idx: number) => (
+                            <div key={idx} className="p-3 border rounded-md space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant={job.type === 'import' ? 'default' : 'secondary'}
+                                    className="font-mono"
+                                  >
+                                    {job.bookingCode}
+                                  </Badge>
+                                  <Badge variant="outline" className="text-xs">
+                                    {job.type === 'import' ? 'Import' : 'Export'}
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {job.status && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {job.status.replace(/_/g, ' ')}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                {job.customerReference && (
+                                  <div>
+                                    <span className="text-muted-foreground">Customer Ref: </span>
+                                    <span>{job.customerReference}</span>
+                                  </div>
+                                )}
+                                {job.bookingReference && (
+                                  <div>
+                                    <span className="text-muted-foreground">Booking Ref: </span>
+                                    <span>{job.bookingReference}</span>
+                                  </div>
+                                )}
+                                {job.containerNumber && (
+                                  <div>
+                                    <span className="text-muted-foreground">Container: </span>
+                                    <span>{job.containerNumber}</span>
+                                  </div>
+                                )}
+                                {job.type === 'import' && job.eta && (
+                                  <div>
+                                    <span className="text-muted-foreground">ETA: </span>
+                                    <span>{formatDate(job.eta)}</span>
+                                  </div>
+                                )}
+                                {job.type === 'export' && job.etd && (
+                                  <div>
+                                    <span className="text-muted-foreground">ETD: </span>
+                                    <span>{formatDate(job.etd)}</span>
+                                  </div>
+                                )}
+                                {job.type === 'import' && job.expectedQty !== undefined && (
+                                  <div>
+                                    <span className="text-muted-foreground">Expected Qty: </span>
+                                    <span>{formatNumber(job.expectedQty)}</span>
+                                  </div>
+                                )}
+                                {job.type === 'import' && job.receivedQty !== undefined && (
+                                  <div>
+                                    <span className="text-muted-foreground">Received Qty: </span>
+                                    <span>{formatNumber(job.receivedQty)}</span>
+                                  </div>
+                                )}
+                                {job.type === 'export' && job.expectedQty !== undefined && (
+                                  <div>
+                                    <span className="text-muted-foreground">Expected Qty: </span>
+                                    <span>{formatNumber(job.expectedQty)}</span>
+                                  </div>
+                                )}
+                                {job.type === 'export' && job.allocatedQty !== undefined && (
+                                  <div>
+                                    <span className="text-muted-foreground">Allocated Qty: </span>
+                                    <span>{formatNumber(job.allocatedQty)}</span>
+                                  </div>
+                                )}
+                                {job.type === 'export' && job.pickedQty !== undefined && (
+                                  <div>
+                                    <span className="text-muted-foreground">Picked Qty: </span>
+                                    <span>{formatNumber(job.pickedQty)}</span>
                                   </div>
                                 )}
                               </div>
