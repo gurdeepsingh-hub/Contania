@@ -69,120 +69,210 @@ export default function EditExportContainerBookingPage() {
     try {
       setLoadingBooking(true)
       const res = await fetch(`/api/export-container-bookings/${bookingId}?depth=2`)
+      const data = await res.json()
+
       if (res.ok) {
-        const data = await res.json()
-        if (data.success && data.exportContainerBooking) {
-          const booking = data.exportContainerBooking
-          console.log('[EDIT PAGE] Step 3 - Raw API response:', {
-            fromId: booking.fromId,
-            fromIdType: typeof booking.fromId,
-            fromCollection: booking.fromCollection,
-            toId: booking.toId,
-            toIdType: typeof booking.toId,
-            toCollection: booking.toCollection,
-            fromIdIsObject: typeof booking.fromId === 'object' && booking.fromId !== null,
-            toIdIsObject: typeof booking.toId === 'object' && booking.toId !== null,
-            fromIdHasId: booking.fromId?.id,
-            toIdHasId: booking.toId?.id,
-          })
-          // Transform API data to form format
-          const formData = {
-            id: data.exportContainerBooking.id,
-            bookingCode: data.exportContainerBooking.bookingCode,
-            status: data.exportContainerBooking.status,
-            customerReference: data.exportContainerBooking.customerReference,
-            bookingReference: data.exportContainerBooking.bookingReference,
-            chargeToId: typeof data.exportContainerBooking.chargeToId === 'object'
-              ? data.exportContainerBooking.chargeToId.id
-              : data.exportContainerBooking.chargeToId,
-            consignorId: typeof data.exportContainerBooking.consignorId === 'object'
-              ? data.exportContainerBooking.consignorId.id
-              : data.exportContainerBooking.consignorId,
-            vesselId: typeof data.exportContainerBooking.vesselId === 'object'
-              ? data.exportContainerBooking.vesselId.id
-              : data.exportContainerBooking.vesselId,
-            etd: data.exportContainerBooking.etd,
-            receivalStart: data.exportContainerBooking.receivalStart,
-            cutoff: data.exportContainerBooking.cutoff,
-            fromId: (() => {
-              const fromId = booking.fromId
-              const fromCollection = booking.fromCollection
-              console.log('[EDIT PAGE] Step 3 - Formatting fromId:', { fromId, fromCollection, fromIdType: typeof fromId })
-              
-              if (!fromId) {
-                console.log('[EDIT PAGE] Step 3 - fromId is empty/undefined')
-                return undefined
+        // Use normalizedExportContainerBooking for form prefill (has numeric IDs + collection fields)
+        // Fallback to exportContainerBooking if normalized version not available
+        const booking = data.normalizedExportContainerBooking || data.exportContainerBooking
+
+        if (data.success && booking) {
+          // Fetch container details for this booking
+          let containerDetails: any[] = []
+          try {
+            const containerDetailsRes = await fetch(
+              `/api/export-container-bookings/${bookingId}/container-details?depth=2`,
+            )
+            if (containerDetailsRes.ok) {
+              const containerDetailsData = await containerDetailsRes.json()
+              if (containerDetailsData.success && Array.isArray(containerDetailsData.containerDetails)) {
+                // Transform container details to form format
+                containerDetails = containerDetailsData.containerDetails.map((detail: any) => ({
+                  id: detail.id,
+                  containerNumber: detail.containerNumber || '',
+                  containerSizeId:
+                    typeof detail.containerSizeId === 'object' && detail.containerSizeId?.id
+                      ? detail.containerSizeId.id
+                      : detail.containerSizeId,
+                  warehouseId:
+                    typeof detail.warehouseId === 'object' && detail.warehouseId?.id
+                      ? detail.warehouseId.id
+                      : detail.warehouseId,
+                  gross: detail.gross || '',
+                  tare: detail.tare || '',
+                  net: detail.net || '',
+                  pin: detail.pin || '',
+                  whManifest: detail.whManifest || '',
+                  isoCode: detail.isoCode || '',
+                  timeSlot: detail.timeSlot || '',
+                  emptyTimeSlot: detail.emptyTimeSlot || '',
+                  dehireDate: detail.dehireDate || '',
+                  shippingLineId:
+                    typeof detail.shippingLineId === 'object' && detail.shippingLineId?.id
+                      ? detail.shippingLineId.id
+                      : detail.shippingLineId,
+                  countryOfOrigin: detail.countryOfOrigin || '',
+                  orderRef: detail.orderRef || '',
+                  jobAvailability: detail.jobAvailability || '',
+                  sealNumber: detail.sealNumber || '',
+                  customerRequestDate: detail.customerRequestDate || '',
+                  dock: detail.dock || '',
+                  confirmedUnpackDate: detail.confirmedUnpackDate || '',
+                  yardLocation: detail.yardLocation || '',
+                  secureSealsIntact: detail.secureSealsIntact || '',
+                  inspectUnpack: detail.inspectUnpack || '',
+                  directionType: detail.directionType || '',
+                  houseBillNumber: detail.houseBillNumber || '',
+                  oceanBillNumber: detail.oceanBillNumber || '',
+                  ventAirflow: detail.ventAirflow || '',
+                }))
               }
-              
-              if (typeof fromId === 'object' && fromId !== null && fromId.id) {
-                const collection = fromCollection || 'customers'
-                const formatted = `${collection}:${fromId.id}`
-                console.log('[EDIT PAGE] Step 3 - Formatted fromId (object):', formatted, 'from:', { fromId, fromCollection, fromIdId: fromId.id })
-                return formatted
-              } else if (typeof fromId === 'number') {
-                const collection = fromCollection || 'customers'
-                const formatted = `${collection}:${fromId}`
-                console.log('[EDIT PAGE] Step 3 - Formatted fromId (number):', formatted, 'from:', { fromId, fromCollection })
-                return formatted
-              }
-              
-              console.warn('[EDIT PAGE] Step 3 - fromId format not recognized:', typeof fromId, fromId)
-              return undefined
-            })(),
-            toId: (() => {
-              const toId = booking.toId
-              const toCollection = booking.toCollection
-              console.log('[EDIT PAGE] Step 3 - Formatting toId:', { toId, toCollection, toIdType: typeof toId })
-              
-              if (!toId) {
-                console.log('[EDIT PAGE] Step 3 - toId is empty/undefined')
-                return undefined
-              }
-              
-              if (typeof toId === 'object' && toId !== null && toId.id) {
-                const collection = toCollection || 'customers'
-                const formatted = `${collection}:${toId.id}`
-                console.log('[EDIT PAGE] Step 3 - Formatted toId (object):', formatted, 'from:', { toId, toCollection, toIdId: toId.id })
-                return formatted
-              } else if (typeof toId === 'number') {
-                const collection = toCollection || 'customers'
-                const formatted = `${collection}:${toId}`
-                console.log('[EDIT PAGE] Step 3 - Formatted toId (number):', formatted, 'from:', { toId, toCollection })
-                return formatted
-              }
-              
-              console.warn('[EDIT PAGE] Step 3 - toId format not recognized:', typeof toId, toId)
-              return undefined
-            })(),
-            fromAddress: data.exportContainerBooking.fromAddress,
-            fromCity: data.exportContainerBooking.fromCity,
-            fromState: data.exportContainerBooking.fromState,
-            fromPostcode: data.exportContainerBooking.fromPostcode,
-            toAddress: data.exportContainerBooking.toAddress,
-            toCity: data.exportContainerBooking.toCity,
-            toState: data.exportContainerBooking.toState,
-            toPostcode: data.exportContainerBooking.toPostcode,
-            containerSizeIds: Array.isArray(data.exportContainerBooking.containerSizeIds)
-              ? data.exportContainerBooking.containerSizeIds.map((size: any) =>
-                  typeof size === 'object' ? size.id : size,
-                )
-              : [],
-            containerQuantities: data.exportContainerBooking.containerQuantities || {},
-            emptyRouting: data.exportContainerBooking.emptyRouting,
-            fullRouting: data.exportContainerBooking.fullRouting,
-            instructions: data.exportContainerBooking.instructions,
-            jobNotes: data.exportContainerBooking.jobNotes,
-            releaseNumber: data.exportContainerBooking.releaseNumber,
-            weight: data.exportContainerBooking.weight,
-            driverAllocation: data.exportContainerBooking.driverAllocation,
+            }
+          } catch (containerDetailsError) {
+            console.error('Error fetching container details:', containerDetailsError)
+            // Continue without container details - they can be loaded later
           }
-          console.log('[EDIT PAGE] Step 3 - Final formData:', {
-            fromId: formData.fromId,
-            toId: formData.toId,
-            fromAddress: formData.fromAddress,
-            toAddress: formData.toAddress,
-          })
+
+          // Transform API data to form format
+          // normalizedExportContainerBooking already has numeric IDs + collection fields, so we just need to format for comboboxes
+          const formData = {
+            id: booking.id,
+            bookingCode: booking.bookingCode,
+            status: booking.status,
+            customerReference: booking.customerReference,
+            bookingReference: booking.bookingReference,
+            chargeToId:
+              booking.chargeToId && booking.chargeToCollection
+                ? `${booking.chargeToCollection}:${booking.chargeToId}`
+                : booking.chargeToId,
+            chargeToContactName: booking.chargeToContactName,
+            chargeToContactNumber: booking.chargeToContactNumber,
+            consignorId: booking.consignorId,
+            vesselId: booking.vesselId,
+            etd: booking.etd,
+            receivalStart: booking.receivalStart,
+            cutoff: booking.cutoff,
+            fromId:
+              booking.fromId && booking.fromCollection
+                ? `${booking.fromCollection}:${booking.fromId}`
+                : booking.fromId,
+            toId:
+              booking.toId && booking.toCollection
+                ? `${booking.toCollection}:${booking.toId}`
+                : booking.toId,
+            fromAddress: booking.fromAddress,
+            fromCity: booking.fromCity,
+            fromState: booking.fromState,
+            fromPostcode: booking.fromPostcode,
+            toAddress: booking.toAddress,
+            toCity: booking.toCity,
+            toState: booking.toState,
+            toPostcode: booking.toPostcode,
+            containerSizeIds: Array.isArray(booking.containerSizeIds)
+              ? booking.containerSizeIds.map((size: any) =>
+                  typeof size === 'number' ? size : typeof size === 'object' && size?.id ? size.id : Number(size),
+                ).filter((id: any) => !isNaN(id) && id > 0)
+              : [],
+            containerQuantities: booking.containerQuantities || {},
+            containerDetails: containerDetails, // Include container details in initial data
+            emptyRouting: booking.emptyRouting
+              ? (() => {
+                  const er = booking.emptyRouting
+                  const transformed: any = { ...er }
+
+                  // Preserve collection fields
+                  if (er.pickupLocationCollection) {
+                    transformed.pickupLocationCollection = er.pickupLocationCollection
+                  }
+                  if (er.dropoffLocationCollection) {
+                    transformed.dropoffLocationCollection = er.dropoffLocationCollection
+                  }
+                  if (er.viaLocationsCollections) {
+                    transformed.viaLocationsCollections = er.viaLocationsCollections
+                  }
+
+                  // Transform to "collection:id" format for combobox display
+                  if (er.pickupLocationId && er.pickupLocationCollection) {
+                    transformed.pickupLocationId = `${er.pickupLocationCollection}:${er.pickupLocationId}`
+                  }
+
+                  if (er.dropoffLocationId && er.dropoffLocationCollection) {
+                    transformed.dropoffLocationId = `${er.dropoffLocationCollection}:${er.dropoffLocationId}`
+                  }
+
+                  // Transform viaLocations array
+                  if (
+                    Array.isArray(er.viaLocations) &&
+                    er.viaLocations.length > 0 &&
+                    er.viaLocationsCollections
+                  ) {
+                    transformed.viaLocations = er.viaLocations.map((via: any, index: number) => {
+                      const id = typeof via === 'number' ? via : via
+                      const collection = er.viaLocationsCollections?.[index]
+                      if (collection) {
+                        return `${collection}:${id}`
+                      }
+                      return id
+                    })
+                  }
+
+                  return transformed
+                })()
+              : undefined,
+            fullRouting: booking.fullRouting
+              ? (() => {
+                  const fr = booking.fullRouting
+                  const transformed: any = { ...fr }
+
+                  // Preserve collection fields
+                  if (fr.pickupLocationCollection) {
+                    transformed.pickupLocationCollection = fr.pickupLocationCollection
+                  }
+                  if (fr.dropoffLocationCollection) {
+                    transformed.dropoffLocationCollection = fr.dropoffLocationCollection
+                  }
+                  if (fr.viaLocationsCollections) {
+                    transformed.viaLocationsCollections = fr.viaLocationsCollections
+                  }
+
+                  // Transform to "collection:id" format for combobox display
+                  if (fr.pickupLocationId && fr.pickupLocationCollection) {
+                    transformed.pickupLocationId = `${fr.pickupLocationCollection}:${fr.pickupLocationId}`
+                  }
+
+                  if (fr.dropoffLocationId && fr.dropoffLocationCollection) {
+                    transformed.dropoffLocationId = `${fr.dropoffLocationCollection}:${fr.dropoffLocationId}`
+                  }
+
+                  // Transform viaLocations array
+                  if (
+                    Array.isArray(fr.viaLocations) &&
+                    fr.viaLocations.length > 0 &&
+                    fr.viaLocationsCollections
+                  ) {
+                    transformed.viaLocations = fr.viaLocations.map((via: any, index: number) => {
+                      const id = typeof via === 'number' ? via : via
+                      const collection = fr.viaLocationsCollections?.[index]
+                      if (collection) {
+                        return `${collection}:${id}`
+                      }
+                      return id
+                    })
+                  }
+
+                  return transformed
+                })()
+              : undefined,
+            instructions: booking.instructions,
+            jobNotes: booking.jobNotes,
+            releaseNumber: booking.releaseNumber,
+            weight: booking.weight,
+            driverAllocation: booking.driverAllocation || {},
+          }
           setBooking(formData)
+        } else {
+          console.error('Invalid response format:', data)
+          setError('Invalid response format from server')
         }
       } else if (res.status === 404) {
         router.push('/dashboard/export-container-bookings')

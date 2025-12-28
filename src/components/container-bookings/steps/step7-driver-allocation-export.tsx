@@ -56,12 +56,18 @@ export function Step7DriverAllocationExport({
       const res = await fetch(`/api/export-container-bookings/${bookingId}/driver-allocation`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ driverAllocation: formData }),
       })
 
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
+          // Update formData with saved data
+          if (data.exportContainerBooking?.driverAllocation) {
+            onUpdate(data.exportContainerBooking.driverAllocation)
+          } else if (data.driverAllocation) {
+            onUpdate(data.driverAllocation)
+          }
           toast.success('Driver allocation saved')
         }
       } else {

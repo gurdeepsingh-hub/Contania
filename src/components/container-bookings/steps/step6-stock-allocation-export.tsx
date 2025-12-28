@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 type ContainerDetail = {
   id: number
   containerNumber: string
+  warehouseId?: number | { id: number } | null
 }
 
 type StockAllocation = {
@@ -291,19 +292,30 @@ export function Step6StockAllocationExport({
           <DialogHeader>
             <DialogTitle>Add Product Line - Stage: {selectedStage}</DialogTitle>
           </DialogHeader>
-          {selectedContainerId && (
-            <ContainerProductLineFormExport
-              containerDetailId={selectedContainerId}
-              containerBookingId={bookingId}
-              warehouseId={warehouseId}
-              stage={selectedStage}
-              onSave={handleProductLineSave}
-              onCancel={() => {
-                setShowProductLineModal(false)
-                setSelectedContainerId(null)
-              }}
-            />
-          )}
+          {selectedContainerId && (() => {
+            // Get warehouseId from the selected container's details
+            const selectedContainer = containers.find((c) => c.id === selectedContainerId)
+            // Handle warehouseId as both object (from API) and number (from form)
+            const containerWarehouseId = selectedContainer?.warehouseId
+              ? typeof selectedContainer.warehouseId === 'object' && selectedContainer.warehouseId !== null
+                ? (selectedContainer.warehouseId as any)?.id || selectedContainer.warehouseId
+                : selectedContainer.warehouseId
+              : warehouseId
+            
+            return (
+              <ContainerProductLineFormExport
+                containerDetailId={selectedContainerId}
+                containerBookingId={bookingId}
+                warehouseId={containerWarehouseId}
+                stage={selectedStage}
+                onSave={handleProductLineSave}
+                onCancel={() => {
+                  setShowProductLineModal(false)
+                  setSelectedContainerId(null)
+                }}
+              />
+            )
+          })()}
         </DialogContent>
       </Dialog>
     </div>

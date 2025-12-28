@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { hasViewPermission } from '@/lib/permissions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Edit, X } from 'lucide-react'
+import { ArrowLeft, Edit, X, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { StatusBadge } from '@/components/container-bookings/status-badge'
 import { ContainerDetailsTable } from '@/components/container-bookings/container-details-table'
@@ -63,12 +63,6 @@ export default function ExportContainerBookingViewPage() {
       checkAuth()
     }
   }, [loading, tenant, router])
-
-  useEffect(() => {
-    if (authChecked && bookingId) {
-      loadData()
-    }
-  }, [authChecked, bookingId])
 
   // Helper to fetch entity name from API
   const fetchEntityName = async (collection: string, id: number): Promise<string | null> => {
@@ -133,38 +127,74 @@ export default function ExportContainerBookingViewPage() {
     const names: Record<string, string> = {}
     const promises: Promise<void>[] = []
 
+    // Helper to extract ID and collection from polymorphic or direct format
+    const extractIdAndCollection = (field: any, defaultCollection?: string) => {
+      // Handle polymorphic format: {relationTo: "collection", value: {...}}
+      if (field && typeof field === 'object' && 'relationTo' in field && 'value' in field) {
+        const value = field.value
+        // If value is populated, return null (no need to fetch)
+        if (
+          value &&
+          typeof value === 'object' &&
+          'id' in value &&
+          (value.name || value.customer_name || value.vesselName)
+        ) {
+          return null
+        }
+        // If value is just an ID
+        if (typeof value === 'number') {
+          return { id: value, collection: field.relationTo }
+        }
+        // If value is an object with id
+        if (value && typeof value === 'object' && 'id' in value) {
+          return { id: value.id, collection: field.relationTo }
+        }
+        return null
+      }
+      // Handle direct number ID
+      if (typeof field === 'number') {
+        return { id: field, collection: defaultCollection }
+      }
+      // Handle populated object (has name fields)
+      if (field && typeof field === 'object' && 'id' in field) {
+        if (field.customer_name || field.name || field.vesselName || field.companyName) {
+          return null // Already populated
+        }
+        return { id: field.id, collection: defaultCollection }
+      }
+      return null
+    }
+
     // Charge To
-    if (
-      bookingData.chargeToId &&
-      typeof bookingData.chargeToId === 'number' &&
-      bookingData.chargeToCollection
-    ) {
-      const key = `chargeTo_${bookingData.chargeToId}`
+    const chargeToInfo = extractIdAndCollection(
+      bookingData.chargeToId,
+      bookingData.chargeToCollection,
+    )
+    if (chargeToInfo) {
+      const key = `chargeTo_${chargeToInfo.id}`
       promises.push(
-        fetchEntityName(bookingData.chargeToCollection, bookingData.chargeToId).then((name) => {
+        fetchEntityName(chargeToInfo.collection, chargeToInfo.id).then((name) => {
           if (name) names[key] = name
         }),
       )
     }
 
     // From/To locations
-    if (
-      bookingData.fromId &&
-      typeof bookingData.fromId === 'number' &&
-      bookingData.fromCollection
-    ) {
-      const key = `from_${bookingData.fromId}`
+    const fromInfo = extractIdAndCollection(bookingData.fromId, bookingData.fromCollection)
+    if (fromInfo) {
+      const key = `from_${fromInfo.id}`
       promises.push(
-        fetchEntityName(bookingData.fromCollection, bookingData.fromId).then((name) => {
+        fetchEntityName(fromInfo.collection, fromInfo.id).then((name) => {
           if (name) names[key] = name
         }),
       )
     }
 
-    if (bookingData.toId && typeof bookingData.toId === 'number' && bookingData.toCollection) {
-      const key = `to_${bookingData.toId}`
+    const toInfo = extractIdAndCollection(bookingData.toId, bookingData.toCollection)
+    if (toInfo) {
+      const key = `to_${toInfo.id}`
       promises.push(
-        fetchEntityName(bookingData.toCollection, bookingData.toId).then((name) => {
+        fetchEntityName(toInfo.collection, toInfo.id).then((name) => {
           if (name) names[key] = name
         }),
       )
@@ -192,49 +222,48 @@ export default function ExportContainerBookingViewPage() {
 
     // Routing locations
     if (bookingData.emptyRouting) {
-      if (
-        bookingData.emptyRouting.pickupLocationId &&
-        typeof bookingData.emptyRouting.pickupLocationId === 'number'
-      ) {
-        const key = `emptyPickup_${bookingData.emptyRouting.pickupLocationId}`
+      const emptyPickupInfo = extractIdAndCollection(
+        bookingData.emptyRouting.pickupLocationId,
+        bookingData.emptyRouting.pickupLocationCollection || 'empty-parks',
+      )
+      if (emptyPickupInfo) {
+        const key = `emptyPickup_${emptyPickupInfo.id}`
         promises.push(
-          fetchEntityName('empty-parks', bookingData.emptyRouting.pickupLocationId).then((name) => {
+          fetchEntityName(emptyPickupInfo.collection, emptyPickupInfo.id).then((name) => {
             if (name) names[key] = name
           }),
         )
       }
-      if (
-        bookingData.emptyRouting.dropoffLocationId &&
-        typeof bookingData.emptyRouting.dropoffLocationId === 'number' &&
-        bookingData.emptyRouting.dropoffLocationCollection
-      ) {
-        const key = `emptyDropoff_${bookingData.emptyRouting.dropoffLocationId}`
+
+      const emptyDropoffInfo = extractIdAndCollection(
+        bookingData.emptyRouting.dropoffLocationId,
+        bookingData.emptyRouting.dropoffLocationCollection,
+      )
+      if (emptyDropoffInfo) {
+        const key = `emptyDropoff_${emptyDropoffInfo.id}`
         promises.push(
-          fetchEntityName(
-            bookingData.emptyRouting.dropoffLocationCollection,
-            bookingData.emptyRouting.dropoffLocationId,
-          ).then((name) => {
+          fetchEntityName(emptyDropoffInfo.collection, emptyDropoffInfo.id).then((name) => {
             if (name) names[key] = name
           }),
         )
       }
+
       // Via locations for empty routing
       if (
         bookingData.emptyRouting.viaLocations &&
         Array.isArray(bookingData.emptyRouting.viaLocations)
       ) {
-        bookingData.emptyRouting.viaLocations.forEach((viaId: number, idx: number) => {
-          if (
-            typeof viaId === 'number' &&
-            bookingData.emptyRouting.viaLocationsCollections?.[idx]
-          ) {
-            const key = `emptyVia_${viaId}`
+        bookingData.emptyRouting.viaLocations.forEach((via: any, idx: number) => {
+          const viaInfo = extractIdAndCollection(
+            via,
+            bookingData.emptyRouting.viaLocationsCollections?.[idx],
+          )
+          if (viaInfo) {
+            const key = `emptyVia_${viaInfo.id}`
             promises.push(
-              fetchEntityName(bookingData.emptyRouting.viaLocationsCollections[idx], viaId).then(
-                (name) => {
-                  if (name) names[key] = name
-                },
-              ),
+              fetchEntityName(viaInfo.collection, viaInfo.id).then((name) => {
+                if (name) names[key] = name
+              }),
             )
           }
         })
@@ -242,50 +271,48 @@ export default function ExportContainerBookingViewPage() {
     }
 
     if (bookingData.fullRouting) {
-      if (
-        bookingData.fullRouting.pickupLocationId &&
-        typeof bookingData.fullRouting.pickupLocationId === 'number' &&
-        bookingData.fullRouting.pickupLocationCollection
-      ) {
-        const key = `fullPickup_${bookingData.fullRouting.pickupLocationId}`
+      const fullPickupInfo = extractIdAndCollection(
+        bookingData.fullRouting.pickupLocationId,
+        bookingData.fullRouting.pickupLocationCollection,
+      )
+      if (fullPickupInfo) {
+        const key = `fullPickup_${fullPickupInfo.id}`
         promises.push(
-          fetchEntityName(
-            bookingData.fullRouting.pickupLocationCollection,
-            bookingData.fullRouting.pickupLocationId,
-          ).then((name) => {
+          fetchEntityName(fullPickupInfo.collection, fullPickupInfo.id).then((name) => {
             if (name) names[key] = name
           }),
         )
       }
-      if (
-        bookingData.fullRouting.dropoffLocationId &&
-        typeof bookingData.fullRouting.dropoffLocationId === 'number' &&
-        bookingData.fullRouting.dropoffLocationCollection
-      ) {
-        const key = `fullDropoff_${bookingData.fullRouting.dropoffLocationId}`
+
+      const fullDropoffInfo = extractIdAndCollection(
+        bookingData.fullRouting.dropoffLocationId,
+        bookingData.fullRouting.dropoffLocationCollection,
+      )
+      if (fullDropoffInfo) {
+        const key = `fullDropoff_${fullDropoffInfo.id}`
         promises.push(
-          fetchEntityName(
-            bookingData.fullRouting.dropoffLocationCollection,
-            bookingData.fullRouting.dropoffLocationId,
-          ).then((name) => {
+          fetchEntityName(fullDropoffInfo.collection, fullDropoffInfo.id).then((name) => {
             if (name) names[key] = name
           }),
         )
       }
+
       // Via locations for full routing
       if (
         bookingData.fullRouting.viaLocations &&
         Array.isArray(bookingData.fullRouting.viaLocations)
       ) {
-        bookingData.fullRouting.viaLocations.forEach((viaId: number, idx: number) => {
-          if (typeof viaId === 'number' && bookingData.fullRouting.viaLocationsCollections?.[idx]) {
-            const key = `fullVia_${viaId}`
+        bookingData.fullRouting.viaLocations.forEach((via: any, idx: number) => {
+          const viaInfo = extractIdAndCollection(
+            via,
+            bookingData.fullRouting.viaLocationsCollections?.[idx],
+          )
+          if (viaInfo) {
+            const key = `fullVia_${viaInfo.id}`
             promises.push(
-              fetchEntityName(bookingData.fullRouting.viaLocationsCollections[idx], viaId).then(
-                (name) => {
-                  if (name) names[key] = name
-                },
-              ),
+              fetchEntityName(viaInfo.collection, viaInfo.id).then((name) => {
+                if (name) names[key] = name
+              }),
             )
           }
         })
@@ -298,7 +325,7 @@ export default function ExportContainerBookingViewPage() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoadingData(true)
       const [bookingRes, containersRes, allocationsRes, driverRes] = await Promise.all([
@@ -322,28 +349,63 @@ export default function ExportContainerBookingViewPage() {
         const containersData = await containersRes.json()
         if (containersData.success) {
           setContainerDetails(containersData.containerDetails || [])
+        } else {
+          console.error('Container details API returned success=false:', containersData)
         }
+      } else {
+        const errorData = await containersRes.json().catch(() => ({}))
+        console.error('Container details API error:', containersRes.status, errorData)
       }
 
       if (allocationsRes.ok) {
         const allocationsData = await allocationsRes.json()
         if (allocationsData.success) {
           setStockAllocations(allocationsData.stockAllocations || [])
+        } else {
+          console.error('Stock allocations API returned success=false:', allocationsData)
         }
+      } else {
+        const errorData = await allocationsRes.json().catch(() => ({}))
+        console.error('Stock allocations API error:', allocationsRes.status, errorData)
       }
 
       if (driverRes.ok) {
         const driverData = await driverRes.json()
         if (driverData.success) {
           setDriverAllocation(driverData.driverAllocation)
+        } else {
+          console.error('Driver allocation API returned success=false:', driverData)
         }
+      } else {
+        const errorData = await driverRes.json().catch(() => ({}))
+        console.error('Driver allocation API error:', driverRes.status, errorData)
       }
     } catch (error) {
       console.error('Error loading data:', error)
     } finally {
       setLoadingData(false)
     }
-  }
+  }, [bookingId])
+
+  useEffect(() => {
+    if (authChecked && bookingId) {
+      loadData()
+    }
+  }, [authChecked, bookingId, loadData])
+
+  // Refresh data when page becomes visible (user navigates back from other pages)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && authChecked && bookingId) {
+        loadData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [authChecked, bookingId, loadData])
 
   const handleCancel = async () => {
     if (!confirm(`Are you sure you want to cancel booking ${booking?.bookingCode || bookingId}?`)) {
@@ -387,6 +449,18 @@ export default function ExportContainerBookingViewPage() {
 
   const getEntityName = (entityId: any, collection?: string, prefix?: string): string => {
     if (!entityId) return '-'
+
+    // Handle polymorphic format: {relationTo: "collection", value: {...}}
+    if (
+      typeof entityId === 'object' &&
+      entityId !== null &&
+      'relationTo' in entityId &&
+      'value' in entityId
+    ) {
+      // Recursively call with the value, using relationTo as the collection
+      return getEntityName(entityId.value, entityId.relationTo, prefix)
+    }
+
     if (typeof entityId === 'object' && entityId !== null) {
       // Handle customers and paying-customers (they use customer_name)
       if (entityId.customer_name) {
@@ -431,6 +505,42 @@ export default function ExportContainerBookingViewPage() {
     return '-'
   }
 
+  // Helper to get chargeTo name (handles polymorphic relationship)
+  const getChargeToName = (): string => {
+    if (!booking?.chargeToId) {
+      return '-'
+    }
+
+    // Handle polymorphic format: {relationTo: "collection", value: {...}}
+    if (
+      typeof booking.chargeToId === 'object' &&
+      booking.chargeToId !== null &&
+      'relationTo' in booking.chargeToId &&
+      'value' in booking.chargeToId
+    ) {
+      return getEntityName(booking.chargeToId.value, booking.chargeToId.relationTo, 'chargeTo')
+    }
+
+    // Check if it's an object (populated relationship)
+    if (typeof booking.chargeToId === 'object' && booking.chargeToId !== null) {
+      return getEntityName(booking.chargeToId, booking.chargeToCollection, 'chargeTo')
+    }
+
+    // If it's just a number, try to use entityNames or chargeToCollection
+    if (typeof booking.chargeToId === 'number') {
+      const key = `chargeTo_${booking.chargeToId}`
+      if (entityNames[key]) {
+        return entityNames[key]
+      }
+      if (booking.chargeToCollection) {
+        return `${booking.chargeToCollection}:${booking.chargeToId}`
+      }
+      return `ID: ${booking.chargeToId}`
+    }
+
+    return getEntityName(booking.chargeToId, booking.chargeToCollection, 'chargeTo')
+  }
+
   // Helper to get routing location name (handles polymorphic relationship)
   const getRoutingLocationName = (
     locationId: any,
@@ -438,6 +548,16 @@ export default function ExportContainerBookingViewPage() {
     prefix?: string,
   ): string => {
     if (!locationId) return '-'
+
+    // Handle polymorphic format: {relationTo: "collection", value: {...}}
+    if (
+      typeof locationId === 'object' &&
+      locationId !== null &&
+      'relationTo' in locationId &&
+      'value' in locationId
+    ) {
+      return getEntityName(locationId.value, locationId.relationTo, prefix)
+    }
 
     // Check if it's an object (populated relationship)
     if (typeof locationId === 'object' && locationId !== null) {
@@ -480,6 +600,10 @@ export default function ExportContainerBookingViewPage() {
 
     return String(locationId)
   }
+  console.log('booking', booking)
+  console.log('containerDetails', containerDetails)
+  console.log('stockAllocations', stockAllocations)
+  console.log('driverAllocation', driverAllocation)
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -499,7 +623,16 @@ export default function ExportContainerBookingViewPage() {
             <p className="text-muted-foreground">Export Container Booking Details</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData()}
+            disabled={loadingData}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${loadingData ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           {isEditable && (
             <Link href={`/dashboard/export-container-bookings/${bookingId}/edit`}>
               <Button variant="outline">
@@ -539,25 +672,7 @@ export default function ExportContainerBookingViewPage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Charge To</label>
-                <p className="font-medium">
-                  {(() => {
-                    if (!booking?.chargeToId) return '-'
-                    if (typeof booking.chargeToId === 'object' && booking.chargeToId !== null) {
-                      return getEntityName(booking.chargeToId)
-                    }
-                    if (typeof booking.chargeToId === 'number') {
-                      const key = `chargeTo_${booking.chargeToId}`
-                      if (entityNames[key]) {
-                        return entityNames[key]
-                      }
-                      if (booking.chargeToCollection) {
-                        return `${booking.chargeToCollection}:${booking.chargeToId}`
-                      }
-                      return `ID: ${booking.chargeToId}`
-                    }
-                    return getEntityName(booking.chargeToId)
-                  })()}
-                </p>
+                <p className="font-medium">{getChargeToName()}</p>
                 {booking.chargeToContactName && (
                   <p className="text-sm text-muted-foreground">
                     Contact: {booking.chargeToContactName}
@@ -620,7 +735,16 @@ export default function ExportContainerBookingViewPage() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">From</label>
                 {(() => {
-                  const entityName = getEntityName(booking.fromId, booking.fromCollection, 'from')
+                  // Handle polymorphic format for fromId
+                  let fromCollection = booking.fromCollection
+                  if (
+                    booking.fromId &&
+                    typeof booking.fromId === 'object' &&
+                    'relationTo' in booking.fromId
+                  ) {
+                    fromCollection = booking.fromId.relationTo
+                  }
+                  const entityName = getEntityName(booking.fromId, fromCollection, 'from')
                   return (
                     <>
                       <p className="font-medium">{entityName || '-'}</p>
@@ -643,7 +767,16 @@ export default function ExportContainerBookingViewPage() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">To</label>
                 {(() => {
-                  const entityName = getEntityName(booking.toId, booking.toCollection, 'to')
+                  // Handle polymorphic format for toId
+                  let toCollection = booking.toCollection
+                  if (
+                    booking.toId &&
+                    typeof booking.toId === 'object' &&
+                    'relationTo' in booking.toId
+                  ) {
+                    toCollection = booking.toId.relationTo
+                  }
+                  const entityName = getEntityName(booking.toId, toCollection, 'to')
                   return (
                     <>
                       <p className="font-medium">{entityName || '-'}</p>
@@ -657,6 +790,13 @@ export default function ExportContainerBookingViewPage() {
                     </>
                   )
                 })()}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Container Sizes</label>
+                <p className="font-medium">
+                  {booking.containerSizeIds?.length || 0} size
+                  {booking.containerSizeIds?.length !== 1 ? 's' : ''}
+                </p>
               </div>
             </div>
           </AccordionContent>
@@ -673,21 +813,41 @@ export default function ExportContainerBookingViewPage() {
                 <div>
                   <h4 className="font-medium mb-2">Empty Container Routing</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
+                    {booking.emptyRouting.shippingLineId && (
+                      <div>
+                        <span className="text-muted-foreground">Shipping Line:</span>{' '}
+                        {getEntityName(
+                          booking.emptyRouting.shippingLineId,
+                          'shipping-lines',
+                          'shippingLine',
+                        )}
+                      </div>
+                    )}
                     <div>
                       <span className="text-muted-foreground">Pickup:</span>{' '}
-                      {getRoutingLocationName(
-                        booking.emptyRouting.pickupLocationId,
-                        booking.emptyRouting.pickupLocationCollection,
-                        'emptyPickup',
-                      )}
+                      {(() => {
+                        const pickup = booking.emptyRouting.pickupLocationId
+                        let collection = booking.emptyRouting.pickupLocationCollection
+                        // Extract collection from polymorphic format if needed
+                        if (pickup && typeof pickup === 'object' && 'relationTo' in pickup) {
+                          collection = pickup.relationTo
+                        } else if (!collection) {
+                          collection = 'empty-parks' // Default for empty routing pickup
+                        }
+                        return getRoutingLocationName(pickup, collection, 'emptyPickup')
+                      })()}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Dropoff:</span>{' '}
-                      {getRoutingLocationName(
-                        booking.emptyRouting.dropoffLocationId,
-                        booking.emptyRouting.dropoffLocationCollection,
-                        'emptyDropoff',
-                      )}
+                      {(() => {
+                        const dropoff = booking.emptyRouting.dropoffLocationId
+                        let collection = booking.emptyRouting.dropoffLocationCollection
+                        // Extract collection from polymorphic format if needed
+                        if (dropoff && typeof dropoff === 'object' && 'relationTo' in dropoff) {
+                          collection = dropoff.relationTo
+                        }
+                        return getRoutingLocationName(dropoff, collection, 'emptyDropoff')
+                      })()}
                     </div>
                     {booking.emptyRouting.pickupDate && (
                       <div>
@@ -705,16 +865,23 @@ export default function ExportContainerBookingViewPage() {
                       booking.emptyRouting.viaLocations.length > 0 && (
                         <div className="col-span-2">
                           <span className="text-muted-foreground">Via Locations:</span>{' '}
-                          {booking.emptyRouting.viaLocations.map((via: any, idx: number) => (
-                            <span key={idx} className="mr-2">
-                              {getRoutingLocationName(
-                                via,
-                                booking.emptyRouting.viaLocationsCollections?.[idx],
-                                `emptyVia_${via}`,
-                              )}
-                              {idx < booking.emptyRouting.viaLocations.length - 1 ? ',' : ''}
-                            </span>
-                          ))}
+                          {booking.emptyRouting.viaLocations.map((via: any, idx: number) => {
+                            let collection = booking.emptyRouting.viaLocationsCollections?.[idx]
+                            // Extract collection from polymorphic format if needed
+                            if (via && typeof via === 'object' && 'relationTo' in via) {
+                              collection = via.relationTo
+                            }
+                            const viaId =
+                              typeof via === 'object' && 'value' in via ? via.value : via
+                            const viaIdForKey =
+                              typeof viaId === 'object' && 'id' in viaId ? viaId.id : viaId
+                            return (
+                              <span key={idx} className="mr-2">
+                                {getRoutingLocationName(via, collection, `emptyVia_${viaIdForKey}`)}
+                                {idx < booking.emptyRouting.viaLocations.length - 1 ? ',' : ''}
+                              </span>
+                            )
+                          })}
                         </div>
                       )}
                   </div>
@@ -726,19 +893,27 @@ export default function ExportContainerBookingViewPage() {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Pickup:</span>{' '}
-                      {getRoutingLocationName(
-                        booking.fullRouting.pickupLocationId,
-                        booking.fullRouting.pickupLocationCollection,
-                        'fullPickup',
-                      )}
+                      {(() => {
+                        const pickup = booking.fullRouting.pickupLocationId
+                        let collection = booking.fullRouting.pickupLocationCollection
+                        // Extract collection from polymorphic format if needed
+                        if (pickup && typeof pickup === 'object' && 'relationTo' in pickup) {
+                          collection = pickup.relationTo
+                        }
+                        return getRoutingLocationName(pickup, collection, 'fullPickup')
+                      })()}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Dropoff:</span>{' '}
-                      {getRoutingLocationName(
-                        booking.fullRouting.dropoffLocationId,
-                        booking.fullRouting.dropoffLocationCollection,
-                        'fullDropoff',
-                      )}
+                      {(() => {
+                        const dropoff = booking.fullRouting.dropoffLocationId
+                        let collection = booking.fullRouting.dropoffLocationCollection
+                        // Extract collection from polymorphic format if needed
+                        if (dropoff && typeof dropoff === 'object' && 'relationTo' in dropoff) {
+                          collection = dropoff.relationTo
+                        }
+                        return getRoutingLocationName(dropoff, collection, 'fullDropoff')
+                      })()}
                     </div>
                     {booking.fullRouting.pickupDate && (
                       <div>
@@ -756,16 +931,23 @@ export default function ExportContainerBookingViewPage() {
                       booking.fullRouting.viaLocations.length > 0 && (
                         <div className="col-span-2">
                           <span className="text-muted-foreground">Via Locations:</span>{' '}
-                          {booking.fullRouting.viaLocations.map((via: any, idx: number) => (
-                            <span key={idx} className="mr-2">
-                              {getRoutingLocationName(
-                                via,
-                                booking.fullRouting.viaLocationsCollections?.[idx],
-                                `fullVia_${via}`,
-                              )}
-                              {idx < booking.fullRouting.viaLocations.length - 1 ? ',' : ''}
-                            </span>
-                          ))}
+                          {booking.fullRouting.viaLocations.map((via: any, idx: number) => {
+                            let collection = booking.fullRouting.viaLocationsCollections?.[idx]
+                            // Extract collection from polymorphic format if needed
+                            if (via && typeof via === 'object' && 'relationTo' in via) {
+                              collection = via.relationTo
+                            }
+                            const viaId =
+                              typeof via === 'object' && 'value' in via ? via.value : via
+                            const viaIdForKey =
+                              typeof viaId === 'object' && 'id' in viaId ? viaId.id : viaId
+                            return (
+                              <span key={idx} className="mr-2">
+                                {getRoutingLocationName(via, collection, `fullVia_${viaIdForKey}`)}
+                                {idx < booking.fullRouting.viaLocations.length - 1 ? ',' : ''}
+                              </span>
+                            )
+                          })}
                         </div>
                       )}
                   </div>
@@ -822,6 +1004,7 @@ export default function ExportContainerBookingViewPage() {
             <div className="pt-4">
               <StockAllocationSummary
                 allocations={stockAllocations}
+                containers={containerDetails}
                 bookingId={Number(bookingId)}
                 bookingType="export"
               />

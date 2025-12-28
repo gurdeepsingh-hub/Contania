@@ -455,7 +455,63 @@ export function MultistepExportContainerBookingForm({
   }
 
   const autoSave = async () => {
+    // Only send fields relevant to completed steps to avoid validation errors
     const transformedData = transformFormDataForAPI(formData)
+    
+    // Filter out step 4+ fields if user hasn't reached those steps yet
+    const dataToSave: any = { ...transformedData }
+    
+    // Step 0 (Basic Info) - always include
+    // Step 1 (Vessel Info) - include if step >= 1
+    if (step < 1) {
+      delete dataToSave.vesselId
+      delete dataToSave.etd
+      delete dataToSave.receivalStart
+      delete dataToSave.cutoff
+    }
+    
+    // Step 2 (Locations) - include if step >= 2
+    if (step < 2) {
+      delete dataToSave.fromId
+      delete dataToSave.fromCollection
+      delete dataToSave.toId
+      delete dataToSave.toCollection
+      delete dataToSave.containerSizeIds
+      delete dataToSave.containerQuantities
+      delete dataToSave.fromAddress
+      delete dataToSave.fromCity
+      delete dataToSave.fromState
+      delete dataToSave.fromPostcode
+      delete dataToSave.toAddress
+      delete dataToSave.toCity
+      delete dataToSave.toState
+      delete dataToSave.toPostcode
+    }
+    
+    // Step 3 (Routing) - include if step >= 3
+    if (step < 3) {
+      delete dataToSave.emptyRouting
+      delete dataToSave.fullRouting
+      delete dataToSave.instructions
+      delete dataToSave.jobNotes
+      delete dataToSave.releaseNumber
+      delete dataToSave.weight
+    }
+    
+    // Step 4 (Container Details) - include if step >= 4
+    if (step < 4) {
+      delete dataToSave.containerDetails
+    }
+    
+    // Step 5 (Stock Allocation) - include if step >= 5
+    if (step < 5) {
+      delete dataToSave.stockAllocations
+    }
+    
+    // Step 6 (Driver Allocation) - include if step >= 6
+    if (step < 6) {
+      delete dataToSave.driverAllocation
+    }
 
     if (!formData.id) {
       // Create new booking first
@@ -464,7 +520,7 @@ export function MultistepExportContainerBookingForm({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...transformedData,
+            ...dataToSave,
             status: 'draft',
           }),
         })
@@ -488,7 +544,7 @@ export function MultistepExportContainerBookingForm({
         const res = await fetch(`/api/export-container-bookings/${formData.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(transformedData),
+          body: JSON.stringify(dataToSave),
         })
 
         if (res.ok) {
@@ -581,7 +637,11 @@ export function MultistepExportContainerBookingForm({
   )
 
   const step7OnUpdate = useCallback(
-    (data: any) => setFormData((prev) => ({ ...prev, driverAllocation: data })),
+    (data: any) =>
+      setFormData((prev) => ({
+        ...prev,
+        driverAllocation: { ...(prev.driverAllocation || {}), ...data },
+      })),
     [],
   )
 

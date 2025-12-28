@@ -410,6 +410,14 @@ export const ExportContainerBookings: CollectionConfig = {
           },
         },
         {
+          name: 'pickupLocationCollection',
+          type: 'text',
+          admin: {
+            description: 'Collection type for pickupLocationId',
+            readOnly: true,
+          },
+        },
+        {
           name: 'pickupDate',
           type: 'date',
           admin: {
@@ -426,11 +434,27 @@ export const ExportContainerBookings: CollectionConfig = {
           },
         },
         {
+          name: 'viaLocationsCollections',
+          type: 'json',
+          admin: {
+            description: 'Collection types for viaLocations (array matching viaLocations order)',
+            readOnly: true,
+          },
+        },
+        {
           name: 'dropoffLocationId',
           type: 'relationship',
           relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
           admin: {
             description: 'Empty container dropoff location (prefilled from Step 3 From)',
+          },
+        },
+        {
+          name: 'dropoffLocationCollection',
+          type: 'text',
+          admin: {
+            description: 'Collection type for dropoffLocationId',
+            readOnly: true,
           },
         },
         {
@@ -465,6 +489,14 @@ export const ExportContainerBookings: CollectionConfig = {
           },
         },
         {
+          name: 'pickupLocationCollection',
+          type: 'text',
+          admin: {
+            description: 'Collection type for pickupLocationId',
+            readOnly: true,
+          },
+        },
+        {
           name: 'pickupDate',
           type: 'date',
           admin: {
@@ -481,11 +513,27 @@ export const ExportContainerBookings: CollectionConfig = {
           },
         },
         {
+          name: 'viaLocationsCollections',
+          type: 'json',
+          admin: {
+            description: 'Collection types for viaLocations (array matching viaLocations order)',
+            readOnly: true,
+          },
+        },
+        {
           name: 'dropoffLocationId',
           type: 'relationship',
           relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
           admin: {
             description: 'Full container dropoff location (prefilled from Step 3 To)',
+          },
+        },
+        {
+          name: 'dropoffLocationCollection',
+          type: 'text',
+          admin: {
+            description: 'Collection type for dropoffLocationId',
+            readOnly: true,
           },
         },
         {
@@ -623,10 +671,10 @@ export const ExportContainerBookings: CollectionConfig = {
 
         // Auto-fetch fromId entity details
         if (data.fromId && req?.payload) {
+          let fromId: number | undefined
+          let collection: string | undefined
+          
           try {
-            let fromId: number | undefined
-            let collection: string | undefined
-
             // Handle different fromId formats
             if (typeof data.fromId === 'object' && data.fromId !== null) {
               // Object format: { id: number, relationTo?: string }
@@ -829,6 +877,153 @@ export const ExportContainerBookings: CollectionConfig = {
             }
           } catch (error) {
             console.error('Error fetching toId entity:', error)
+          }
+        }
+
+        // Ensure all routing relationship IDs are in correct format for Payload
+        // Payload polymorphic relationships need {relationTo, value} format
+        // This function converts various formats to what Payload expects
+        const ensurePlainNumberId = (
+          value: unknown,
+        ): number | { relationTo: string; value: number } | null => {
+          if (value === null || value === undefined) return null
+
+          // If it's already a Payload relation object {relationTo, value}, preserve it
+          if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+            const relObj = value as any
+            if ('relationTo' in relObj && 'value' in relObj) {
+              // Valid Payload relation object - preserve it
+              return relObj as { relationTo: string; value: number }
+            }
+          }
+
+          if (Array.isArray(value)) {
+            // Convert [id, collectionIndex] to just id
+            const id = Number(value[0])
+            return !isNaN(id) && id > 0 ? id : null
+          }
+          if (typeof value === 'number') {
+            return value > 0 ? value : null
+          }
+          if (typeof value === 'string') {
+            const num = Number(value)
+            return !isNaN(num) && num > 0 ? num : null
+          }
+          return null
+        }
+
+        // Clean emptyRouting relationship IDs
+        if (data.emptyRouting && typeof data.emptyRouting === 'object') {
+          const emptyRouting = data.emptyRouting as any
+
+          // Clean pickupLocationId - preserve {relationTo, value} format or convert to number
+          if (
+            emptyRouting.pickupLocationId !== undefined &&
+            emptyRouting.pickupLocationId !== null
+          ) {
+            const cleanedId = ensurePlainNumberId(emptyRouting.pickupLocationId)
+            if (cleanedId !== null) {
+              emptyRouting.pickupLocationId = cleanedId
+              // If it's a relation object, remove the collection field (it's in the object)
+              if (typeof cleanedId === 'object' && 'relationTo' in cleanedId) {
+                delete emptyRouting.pickupLocationCollection
+              }
+            } else {
+              delete emptyRouting.pickupLocationId
+              delete emptyRouting.pickupLocationCollection
+            }
+          }
+
+          // Clean dropoffLocationId - preserve {relationTo, value} format or convert to number
+          if (
+            emptyRouting.dropoffLocationId !== undefined &&
+            emptyRouting.dropoffLocationId !== null
+          ) {
+            const cleanedId = ensurePlainNumberId(emptyRouting.dropoffLocationId)
+            if (cleanedId !== null) {
+              emptyRouting.dropoffLocationId = cleanedId
+              // If it's a relation object, remove the collection field (it's in the object)
+              if (typeof cleanedId === 'object' && 'relationTo' in cleanedId) {
+                delete emptyRouting.dropoffLocationCollection
+              }
+            } else {
+              delete emptyRouting.dropoffLocationId
+              delete emptyRouting.dropoffLocationCollection
+            }
+          }
+
+          // Clean viaLocations array - preserve {relationTo, value} format or convert to numbers
+          if (Array.isArray(emptyRouting.viaLocations)) {
+            const cleanedVia = emptyRouting.viaLocations
+              .map((via: unknown) => ensurePlainNumberId(via))
+              .filter((id): id is number | { relationTo: string; value: number } => id !== null)
+
+            if (cleanedVia.length > 0) {
+              emptyRouting.viaLocations = cleanedVia
+              // If all are relation objects, remove the collections field
+              if (cleanedVia.every((item) => typeof item === 'object' && 'relationTo' in item)) {
+                delete emptyRouting.viaLocationsCollections
+              }
+            } else {
+              delete emptyRouting.viaLocations
+              delete emptyRouting.viaLocationsCollections
+            }
+          }
+        }
+
+        // Clean fullRouting relationship IDs
+        if (data.fullRouting && typeof data.fullRouting === 'object') {
+          const fullRouting = data.fullRouting as any
+
+          // Clean pickupLocationId - preserve {relationTo, value} format or convert to number
+          if (fullRouting.pickupLocationId !== undefined && fullRouting.pickupLocationId !== null) {
+            const cleanedId = ensurePlainNumberId(fullRouting.pickupLocationId)
+            if (cleanedId !== null) {
+              fullRouting.pickupLocationId = cleanedId
+              // If it's a relation object, remove the collection field (it's in the object)
+              if (typeof cleanedId === 'object' && 'relationTo' in cleanedId) {
+                delete fullRouting.pickupLocationCollection
+              }
+            } else {
+              delete fullRouting.pickupLocationId
+              delete fullRouting.pickupLocationCollection
+            }
+          }
+
+          // Clean dropoffLocationId - preserve {relationTo, value} format or convert to number
+          if (
+            fullRouting.dropoffLocationId !== undefined &&
+            fullRouting.dropoffLocationId !== null
+          ) {
+            const cleanedId = ensurePlainNumberId(fullRouting.dropoffLocationId)
+            if (cleanedId !== null) {
+              fullRouting.dropoffLocationId = cleanedId
+              // If it's a relation object, remove the collection field (it's in the object)
+              if (typeof cleanedId === 'object' && 'relationTo' in cleanedId) {
+                delete fullRouting.dropoffLocationCollection
+              }
+            } else {
+              delete fullRouting.dropoffLocationId
+              delete fullRouting.dropoffLocationCollection
+            }
+          }
+
+          // Clean viaLocations array - preserve {relationTo, value} format or convert to numbers
+          if (Array.isArray(fullRouting.viaLocations)) {
+            const cleanedVia = fullRouting.viaLocations
+              .map((via: unknown) => ensurePlainNumberId(via))
+              .filter((id): id is number | { relationTo: string; value: number } => id !== null)
+
+            if (cleanedVia.length > 0) {
+              fullRouting.viaLocations = cleanedVia
+              // If all are relation objects, remove the collections field
+              if (cleanedVia.every((item) => typeof item === 'object' && 'relationTo' in item)) {
+                delete fullRouting.viaLocationsCollections
+              }
+            } else {
+              delete fullRouting.viaLocations
+              delete fullRouting.viaLocationsCollections
+            }
           }
         }
 

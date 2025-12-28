@@ -115,11 +115,17 @@ export function VehicleFormDialog({
             ? initialData.defaultDepotId.id
             : initialData.defaultDepotId
         const aTrailerId =
-          typeof initialData.aTrailerId === 'object' ? initialData.aTrailerId.id : initialData.aTrailerId
+          typeof initialData.aTrailerId === 'object'
+            ? initialData.aTrailerId.id
+            : initialData.aTrailerId
         const bTrailerId =
-          typeof initialData.bTrailerId === 'object' ? initialData.bTrailerId.id : initialData.bTrailerId
+          typeof initialData.bTrailerId === 'object'
+            ? initialData.bTrailerId.id
+            : initialData.bTrailerId
         const cTrailerId =
-          typeof initialData.cTrailerId === 'object' ? initialData.cTrailerId.id : initialData.cTrailerId
+          typeof initialData.cTrailerId === 'object'
+            ? initialData.cTrailerId.id
+            : initialData.cTrailerId
 
         reset({
           fleetNumber: initialData.fleetNumber || '',
@@ -216,7 +222,8 @@ export function VehicleFormDialog({
           // Handle API error responses
           try {
             const responseData = await res.json()
-            const errorMessage = responseData.message || responseData.error || 'Failed to update vehicle'
+            const errorMessage =
+              responseData.message || responseData.error || 'Failed to update vehicle'
             toast.error(errorMessage)
           } catch (jsonError) {
             toast.error('Failed to update vehicle. Please try again.')
@@ -241,7 +248,8 @@ export function VehicleFormDialog({
           // Handle API error responses
           try {
             const responseData = await res.json()
-            const errorMessage = responseData.message || responseData.error || 'Failed to create vehicle'
+            const errorMessage =
+              responseData.message || responseData.error || 'Failed to create vehicle'
             toast.error(errorMessage)
           } catch (jsonError) {
             toast.error('Failed to create vehicle. Please try again.')
@@ -402,10 +410,3 @@ export function VehicleFormDialog({
     </Dialog>
   )
 }
-
-
-
-
-
-
-

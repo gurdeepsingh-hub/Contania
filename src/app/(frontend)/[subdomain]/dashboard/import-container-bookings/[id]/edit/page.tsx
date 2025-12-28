@@ -88,7 +88,10 @@ export default function EditImportContainerBookingPage() {
             )
             if (containerDetailsRes.ok) {
               const containerDetailsData = await containerDetailsRes.json()
-              if (containerDetailsData.success && Array.isArray(containerDetailsData.containerDetails)) {
+              if (
+                containerDetailsData.success &&
+                Array.isArray(containerDetailsData.containerDetails)
+              ) {
                 // Transform container details to form format
                 containerDetails = containerDetailsData.containerDetails.map((detail: any) => ({
                   id: detail.id,
@@ -173,9 +176,15 @@ export default function EditImportContainerBookingPage() {
             toState: booking.toState,
             toPostcode: booking.toPostcode,
             containerSizeIds: Array.isArray(booking.containerSizeIds)
-              ? booking.containerSizeIds.map((size: any) =>
-                  typeof size === 'number' ? size : typeof size === 'object' && size?.id ? size.id : Number(size),
-                ).filter((id: any) => !isNaN(id) && id > 0)
+              ? booking.containerSizeIds
+                  .map((size: any) =>
+                    typeof size === 'number'
+                      ? size
+                      : typeof size === 'object' && size?.id
+                        ? size.id
+                        : Number(size),
+                  )
+                  .filter((id: any) => !isNaN(id) && id > 0)
               : [],
             containerQuantities: booking.containerQuantities || {},
             containerDetails: containerDetails, // Include container details in initial data

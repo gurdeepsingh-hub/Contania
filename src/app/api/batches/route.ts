@@ -23,9 +23,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid warehouseId' }, { status: 400 })
     }
 
-    // Find all inbound inventory jobs for this warehouse that have been completed (received)
-    const inboundJobs = await payload.find({
-      collection: 'inbound-inventory',
+    // Get all put-away records for this warehouse directly
+    // This is more reliable than checking completed inbound jobs
+    const putAwayRecords = await payload.find({
+      collection: 'put-away-stock',
       where: {
         and: [
           {
@@ -39,86 +40,125 @@ export async function GET(request: NextRequest) {
             },
           },
           {
-            or: [
-              {
-                completedDate: {
-                  exists: true,
-                },
-              },
-              {
-                completedDate: {
-                  not_equals: null,
-                },
-              },
-            ],
+            isDeleted: {
+              not_equals: true,
+            },
           },
         ],
       },
-      depth: 0,
-      limit: 1000, // Get all completed inbound jobs
+      depth: 2, // Need depth to get product line details
+      limit: 10000, // Get all put-away records
     })
 
-    const jobIds = inboundJobs.docs.map((job: { id: number }) => job.id)
+    // Get unique product line IDs from put-away records
+    const productLineIds = new Set<number>()
+    for (const record of putAwayRecords.docs) {
+      const inboundProductLineIdRef = (record as { inboundProductLineId?: number | { id: number } | null }).inboundProductLineId
+      if (!inboundProductLineIdRef) continue
+      
+      const productLineId =
+        typeof inboundProductLineIdRef === 'object' && inboundProductLineIdRef !== null
+          ? inboundProductLineIdRef.id
+          : inboundProductLineIdRef
+      if (productLineId) {
+        productLineIds.add(productLineId)
+      }
+    }
 
-    if (jobIds.length === 0) {
-      return NextResponse.json({
-        success: true,
-        batches: [],
+    // Get all product lines that have put-away records
+    let inboundProductLines: any[] = []
+    if (productLineIds.size > 0) {
+      const productLinesResult = await payload.find({
+        collection: 'inbound-product-line',
+        where: {
+          id: {
+            in: Array.from(productLineIds),
+          },
+        },
+        depth: 1,
+        limit: 10000, // Get all product lines
+      })
+
+      // Filter product lines to only those that have batch numbers and received quantity
+      inboundProductLines = productLinesResult.docs.filter((line: { id: number; recievedQty?: number; batchNumber?: string }) => {
+        // Check if line has received quantity
+        const hasReceived = line.recievedQty && line.recievedQty > 0
+        // Check if line has batch number
+        const hasBatch = line.batchNumber && line.batchNumber.trim() !== ''
+        return hasReceived && hasBatch
       })
     }
 
-    // Get all product lines from these jobs
-    const productLines = await payload.find({
-      collection: 'inbound-product-line',
-      where: {
-        inboundInventoryId: {
-          in: jobIds,
-        },
-      },
-      depth: 1,
-      limit: 1000, // Get all product lines
-    })
-
-    // Get all put-away records for these product lines to verify they're put away
-    const putAwayRecords = await payload.find({
-      collection: 'put-away-stock',
+    // Also get batches from import container booking product lines
+    // First, get all container details for this warehouse
+    const containerDetails = await payload.find({
+      collection: 'container-details',
       where: {
         and: [
           {
-            tenantId: {
-              equals: tenant.id,
-            },
-          },
-          {
-            inboundProductLineId: {
-              in: productLines.docs.map((line: { id: number }) => line.id),
+            warehouseId: {
+              equals: whId,
             },
           },
         ],
       },
       depth: 0,
-      limit: 1000, // Get all put-away records
+      limit: 10000,
     })
 
-    // Get unique product line IDs that have put-away records
-    const putAwayProductLineIds = new Set(
-      putAwayRecords.docs.map((record: { inboundProductLineId: number | { id: number } }) => {
-        const lineId =
-          typeof record.inboundProductLineId === 'object'
-            ? record.inboundProductLineId.id
-            : record.inboundProductLineId
-        return lineId
-      }),
-    )
+    const containerDetailIds = containerDetails.docs.map((cd: { id: number }) => cd.id)
 
-    // Filter product lines to only those that have been received and put away
-    const validProductLines = productLines.docs.filter((line: { id: number; recievedQty?: number; batchNumber?: string }) => {
-      // Check if line has received quantity
-      const hasReceived = line.recievedQty && line.recievedQty > 0
-      // Check if line has put-away records
-      const hasPutAway = putAwayProductLineIds.has(line.id)
-      return hasReceived && hasPutAway && line.batchNumber
-    })
+    // Get all container stock allocations for import bookings with these containers
+    // Note: We need to query all and filter by polymorphic relationship since Payload doesn't support direct polymorphic queries
+    let importContainerProductLines: any[] = []
+    if (containerDetailIds.length > 0) {
+      // Query allocations for these containers
+      const allocations = await payload.find({
+        collection: 'container-stock-allocations',
+        where: {
+          containerDetailId: {
+            in: containerDetailIds,
+          },
+        },
+        depth: 1, // Need depth to check polymorphic relationship
+        limit: 10000,
+      })
+
+      // Filter allocations that are for import bookings and have received/put_away stage
+      const importAllocations = allocations.docs.filter((allocation: any) => {
+        const bookingRef = allocation.containerBookingId
+        if (!bookingRef) return false
+
+        // Check if it's an import booking
+        if (typeof bookingRef === 'object' && bookingRef !== null) {
+          const relationTo = bookingRef.relationTo
+          if (relationTo !== 'import-container-bookings') return false
+        } else {
+          return false
+        }
+
+        // Check stage
+        const stage = allocation.stage
+        return stage === 'received' || stage === 'put_away'
+      })
+
+      // Extract product lines from import allocations
+      for (const allocation of importAllocations) {
+        const allocationData = allocation as { productLines?: any[] }
+        if (allocationData.productLines && Array.isArray(allocationData.productLines)) {
+          // Filter product lines that have batch numbers and received quantity
+          const validLines = allocationData.productLines.filter((line: any) => {
+            const hasReceived = line.recievedQty && line.recievedQty > 0
+            const hasBatch = line.batchNumber && line.batchNumber.trim() !== ''
+            return hasReceived && hasBatch
+          })
+          importContainerProductLines.push(...validLines)
+        }
+      }
+    }
+
+    // Combine both sources of product lines
+    const validProductLines = [...inboundProductLines, ...importContainerProductLines]
 
     // Group by batch number and get unique batches
     const batchMap = new Map<

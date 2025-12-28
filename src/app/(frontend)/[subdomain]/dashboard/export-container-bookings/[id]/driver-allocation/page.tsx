@@ -368,10 +368,12 @@ export default function ExportDriverAllocationPage() {
                           <div key={idx} className="border rounded-lg p-3">
                             <div className="text-sm space-y-1">
                               <div>
-                                <span className="font-medium">From:</span> {String(leg.from || '-')}
+                                <span className="font-medium">From:</span>{' '}
+                                {getLocationDisplayName(leg.from)}
                               </div>
                               <div>
-                                <span className="font-medium">To:</span> {String(leg.to || '-')}
+                                <span className="font-medium">To:</span>{' '}
+                                {getLocationDisplayName(leg.to)}
                               </div>
                             </div>
                           </div>

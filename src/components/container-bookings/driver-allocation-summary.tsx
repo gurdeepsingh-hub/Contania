@@ -44,7 +44,9 @@ export function DriverAllocationSummary({
 }: DriverAllocationSummaryProps) {
   const [allLocations, setAllLocations] = useState<UnifiedLocationOption[]>([])
   const [drivers, setDrivers] = useState<Array<{ id: number; name: string }>>([])
-  const [vehicles, setVehicles] = useState<Array<{ id: number; fleetNumber?: string; rego?: string }>>([])
+  const [vehicles, setVehicles] = useState<
+    Array<{ id: number; fleetNumber?: string; rego?: string }>
+  >([])
 
   // Load locations, drivers, and vehicles for name resolution
   useEffect(() => {
@@ -185,7 +187,9 @@ export function DriverAllocationSummary({
   const emptySection = Array.isArray(allocation?.emptyContainer) ? null : allocation?.emptyContainer
   const fullSection = Array.isArray(allocation?.fullContainer) ? null : allocation?.fullContainer
 
-  const getDriverName = (driverId?: number | { id: number; fullName?: string; name?: string }): string => {
+  const getDriverName = (
+    driverId?: number | { id: number; fullName?: string; name?: string },
+  ): string => {
     if (!driverId) return 'Not assigned'
     if (typeof driverId === 'object') {
       return driverId.name || driverId.fullName || 'Unknown'
@@ -195,7 +199,11 @@ export function DriverAllocationSummary({
     return driver ? driver.name : 'Unknown'
   }
 
-  const getVehicleReg = (vehicleId?: number | { id: number; registrationNumber?: string; fleetNumber?: string; rego?: string }): string => {
+  const getVehicleReg = (
+    vehicleId?:
+      | number
+      | { id: number; registrationNumber?: string; fleetNumber?: string; rego?: string },
+  ): string => {
     if (!vehicleId) return 'Not assigned'
     if (typeof vehicleId === 'object') {
       return vehicleId.fleetNumber || vehicleId.rego || vehicleId.registrationNumber || 'Unknown'
@@ -250,20 +258,24 @@ export function DriverAllocationSummary({
                         +{fullLegs.length - 3} more leg{fullLegs.length - 3 !== 1 ? 's' : ''}
                       </p>
                     )}
-                    {fullSection && (fullSection.date || fullSection.time || fullSection.vehicleId || fullSection.driverId) && (
-                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                        {fullSection.date && (
-                          <div>Date: {new Date(fullSection.date).toLocaleDateString()}</div>
-                        )}
-                        {fullSection.time && <div>Time: {fullSection.time}</div>}
-                        {fullSection.vehicleId && (
-                          <div>Vehicle: {getVehicleReg(fullSection.vehicleId)}</div>
-                        )}
-                        {fullSection.driverId && (
-                          <div>Driver: {getDriverName(fullSection.driverId)}</div>
-                        )}
-                      </div>
-                    )}
+                    {fullSection &&
+                      (fullSection.date ||
+                        fullSection.time ||
+                        fullSection.vehicleId ||
+                        fullSection.driverId) && (
+                        <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                          {fullSection.date && (
+                            <div>Date: {new Date(fullSection.date).toLocaleDateString()}</div>
+                          )}
+                          {fullSection.time && <div>Time: {fullSection.time}</div>}
+                          {fullSection.vehicleId && (
+                            <div>Vehicle: {getVehicleReg(fullSection.vehicleId)}</div>
+                          )}
+                          {fullSection.driverId && (
+                            <div>Driver: {getDriverName(fullSection.driverId)}</div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -284,20 +296,24 @@ export function DriverAllocationSummary({
                         +{emptyLegs.length - 3} more leg{emptyLegs.length - 3 !== 1 ? 's' : ''}
                       </p>
                     )}
-                    {emptySection && (emptySection.date || emptySection.time || emptySection.vehicleId || emptySection.driverId) && (
-                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                        {emptySection.date && (
-                          <div>Date: {new Date(emptySection.date).toLocaleDateString()}</div>
-                        )}
-                        {emptySection.time && <div>Time: {emptySection.time}</div>}
-                        {emptySection.vehicleId && (
-                          <div>Vehicle: {getVehicleReg(emptySection.vehicleId)}</div>
-                        )}
-                        {emptySection.driverId && (
-                          <div>Driver: {getDriverName(emptySection.driverId)}</div>
-                        )}
-                      </div>
-                    )}
+                    {emptySection &&
+                      (emptySection.date ||
+                        emptySection.time ||
+                        emptySection.vehicleId ||
+                        emptySection.driverId) && (
+                        <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                          {emptySection.date && (
+                            <div>Date: {new Date(emptySection.date).toLocaleDateString()}</div>
+                          )}
+                          {emptySection.time && <div>Time: {emptySection.time}</div>}
+                          {emptySection.vehicleId && (
+                            <div>Vehicle: {getVehicleReg(emptySection.vehicleId)}</div>
+                          )}
+                          {emptySection.driverId && (
+                            <div>Driver: {getDriverName(emptySection.driverId)}</div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -321,20 +337,24 @@ export function DriverAllocationSummary({
                         +{emptyLegs.length - 3} more leg{emptyLegs.length - 3 !== 1 ? 's' : ''}
                       </p>
                     )}
-                    {emptySection && (emptySection.date || emptySection.time || emptySection.vehicleId || emptySection.driverId) && (
-                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                        {emptySection.date && (
-                          <div>Date: {new Date(emptySection.date).toLocaleDateString()}</div>
-                        )}
-                        {emptySection.time && <div>Time: {emptySection.time}</div>}
-                        {emptySection.vehicleId && (
-                          <div>Vehicle: {getVehicleReg(emptySection.vehicleId)}</div>
-                        )}
-                        {emptySection.driverId && (
-                          <div>Driver: {getDriverName(emptySection.driverId)}</div>
-                        )}
-                      </div>
-                    )}
+                    {emptySection &&
+                      (emptySection.date ||
+                        emptySection.time ||
+                        emptySection.vehicleId ||
+                        emptySection.driverId) && (
+                        <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                          {emptySection.date && (
+                            <div>Date: {new Date(emptySection.date).toLocaleDateString()}</div>
+                          )}
+                          {emptySection.time && <div>Time: {emptySection.time}</div>}
+                          {emptySection.vehicleId && (
+                            <div>Vehicle: {getVehicleReg(emptySection.vehicleId)}</div>
+                          )}
+                          {emptySection.driverId && (
+                            <div>Driver: {getDriverName(emptySection.driverId)}</div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -355,31 +375,36 @@ export function DriverAllocationSummary({
                         +{fullLegs.length - 3} more leg{fullLegs.length - 3 !== 1 ? 's' : ''}
                       </p>
                     )}
-                    {fullSection && (fullSection.date || fullSection.time || fullSection.vehicleId || fullSection.driverId) && (
-                      <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                        {fullSection.date && (
-                          <div>Date: {new Date(fullSection.date).toLocaleDateString()}</div>
-                        )}
-                        {fullSection.time && <div>Time: {fullSection.time}</div>}
-                        {fullSection.vehicleId && (
-                          <div>Vehicle: {getVehicleReg(fullSection.vehicleId)}</div>
-                        )}
-                        {fullSection.driverId && (
-                          <div>Driver: {getDriverName(fullSection.driverId)}</div>
-                        )}
-                      </div>
-                    )}
+                    {fullSection &&
+                      (fullSection.date ||
+                        fullSection.time ||
+                        fullSection.vehicleId ||
+                        fullSection.driverId) && (
+                        <div className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                          {fullSection.date && (
+                            <div>Date: {new Date(fullSection.date).toLocaleDateString()}</div>
+                          )}
+                          {fullSection.time && <div>Time: {fullSection.time}</div>}
+                          {fullSection.vehicleId && (
+                            <div>Vehicle: {getVehicleReg(fullSection.vehicleId)}</div>
+                          )}
+                          {fullSection.driverId && (
+                            <div>Driver: {getDriverName(fullSection.driverId)}</div>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
             </>
           )}
           {totalLegs === 0 && (
-            <p className="text-muted-foreground text-center py-2">No driver allocation configured</p>
+            <p className="text-muted-foreground text-center py-2">
+              No driver allocation configured
+            </p>
           )}
         </div>
       </CardContent>
     </Card>
   )
 }
-

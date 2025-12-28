@@ -369,5 +369,117 @@ export const ContainerDetails: CollectionConfig = {
         return data
       },
     ],
+    afterChange: [
+      async ({ doc, previousDoc, operation, req }) => {
+        // Update parent booking status when container status changes
+        if (operation === 'update' && previousDoc && doc.status !== previousDoc.status && req?.payload) {
+          try {
+            const bookingRef = doc.containerBookingId
+            if (!bookingRef) return doc
+
+            const bookingId = typeof bookingRef === 'object' ? bookingRef.id : bookingRef
+            const collection = typeof bookingRef === 'object' ? bookingRef.relationTo : null
+
+            if (!bookingId || !collection) return doc
+
+            // Fetch all containers for this booking
+            const allContainers = await req.payload.find({
+              collection: 'container-details',
+              where: {
+                containerBookingId: {
+                  equals: bookingId,
+                },
+              },
+            })
+
+            if (allContainers.docs.length === 0) return doc
+
+            // Calculate aggregate status based on container statuses
+            const containerStatuses = allContainers.docs.map((c: any) => c.status)
+
+            let newBookingStatus: string | null = null
+
+            if (collection === 'export-container-bookings') {
+              // Export booking status logic
+              const allPicked = containerStatuses.every((s: string) => s === 'picked_up')
+              const somePicked = containerStatuses.some((s: string) => s === 'picked_up')
+              const allDispatched = containerStatuses.every((s: string) => s === 'dispatched')
+              const someDispatched = containerStatuses.some((s: string) => s === 'dispatched')
+              const allAllocated = containerStatuses.every((s: string) => s === 'allocated')
+
+              if (allDispatched) {
+                newBookingStatus = 'dispatched'
+              } else if (someDispatched) {
+                // Some dispatched but not all - could be ready_to_dispatch or partially_picked
+                if (allPicked) {
+                  newBookingStatus = 'ready_to_dispatch'
+                } else if (somePicked) {
+                  newBookingStatus = 'partially_picked'
+                }
+              } else if (allPicked) {
+                newBookingStatus = 'picked'
+              } else if (somePicked) {
+                newBookingStatus = 'partially_picked'
+              } else if (allAllocated) {
+                newBookingStatus = 'allocated'
+              }
+            } else if (collection === 'import-container-bookings') {
+              // Import booking status logic
+              const allReceived = containerStatuses.every((s: string) => s === 'received')
+              const someReceived = containerStatuses.some((s: string) => s === 'received')
+              const allPutAway = containerStatuses.every((s: string) => s === 'put_away')
+              const somePutAway = containerStatuses.some((s: string) => s === 'put_away')
+              const allExpecting = containerStatuses.every((s: string) => s === 'expecting')
+
+              if (allPutAway) {
+                newBookingStatus = 'put_away'
+              } else if (somePutAway) {
+                newBookingStatus = 'partially_put_away'
+              } else if (allReceived) {
+                newBookingStatus = 'received'
+              } else if (someReceived) {
+                newBookingStatus = 'partially_received'
+              } else if (allExpecting) {
+                newBookingStatus = 'expecting'
+              }
+            }
+
+            // Update booking status if we calculated a new status
+            if (newBookingStatus) {
+              try {
+                const booking = await req.payload.findByID({
+                  collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                  id: bookingId,
+                })
+
+                // Only update if status is different and booking is not cancelled or completed
+                const currentStatus = (booking as { status?: string }).status
+                if (
+                  currentStatus !== newBookingStatus &&
+                  currentStatus !== 'cancelled' &&
+                  currentStatus !== 'completed'
+                ) {
+                  await req.payload.update({
+                    collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                    id: bookingId,
+                    data: {
+                      status: newBookingStatus,
+                    },
+                  })
+                }
+              } catch (error) {
+                console.error('Error updating booking status:', error)
+                // Don't throw - status update failure shouldn't break container update
+              }
+            }
+          } catch (error) {
+            console.error('Error in ContainerDetails afterChange hook:', error)
+            // Don't throw - hook failure shouldn't break container update
+          }
+        }
+
+        return doc
+      },
+    ],
   },
 }

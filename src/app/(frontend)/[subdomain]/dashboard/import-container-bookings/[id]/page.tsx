@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { hasViewPermission } from '@/lib/permissions'
 import { CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Edit, X } from 'lucide-react'
+import { ArrowLeft, Edit, X, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { StatusBadge } from '@/components/container-bookings/status-badge'
 import { ContainerDetailsTable } from '@/components/container-bookings/container-details-table'
@@ -70,6 +70,20 @@ export default function ImportContainerBookingViewPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, bookingId])
+
+  // Refresh data when page becomes visible (user navigates back from other pages)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && authChecked && bookingId) {
+        loadData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [authChecked, bookingId, loadData])
 
   // Helper to fetch entity name from API
   const fetchEntityName = async (collection: string, id: number): Promise<string | null> => {
@@ -336,7 +350,7 @@ export default function ImportContainerBookingViewPage() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoadingData(true)
       const [bookingRes, containersRes, allocationsRes, driverRes] = await Promise.all([
@@ -381,7 +395,7 @@ export default function ImportContainerBookingViewPage() {
     } finally {
       setLoadingData(false)
     }
-  }
+  }, [bookingId])
 
   const handleCancel = async () => {
     if (!confirm(`Are you sure you want to cancel booking ${booking?.bookingCode || bookingId}?`)) {
@@ -598,6 +612,15 @@ export default function ImportContainerBookingViewPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData()}
+            disabled={loadingData}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${loadingData ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           {isEditable && (
             <Link href={`/dashboard/import-container-bookings/${bookingId}/edit`}>
               <Button variant="outline">

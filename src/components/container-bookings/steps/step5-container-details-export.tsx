@@ -363,14 +363,54 @@ export function Step5ContainerDetailsExport({
             >
               {sizeContainers.map(({ container, index }) => {
                 const containerId = `container-${index}`
+                const containerStatus = getContainerStatus(container)
+                const StatusIcon = containerStatus.icon
+                const isSaving = savingContainerIndex === index
+                const canSave =
+                  container.containerNumber &&
+                  container.containerSizeId &&
+                  container.warehouseId &&
+                  !weightErrors[index]?.gross &&
+                  !weightErrors[index]?.tare
+
                 return (
                   <AccordionItem key={index} value={containerId} className="border rounded-lg px-4">
                     <div className="flex items-center gap-2">
                       <AccordionTrigger className="hover:no-underline flex-1">
-                        <span className="font-medium">
-                          {getContainerDisplayName(container, index + 1)}
-                        </span>
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="font-medium">
+                            {getContainerDisplayName(container, index + 1)}
+                          </span>
+                          <Badge
+                            variant={
+                              containerStatus.status === 'saved'
+                                ? 'default'
+                                : containerStatus.status === 'incomplete'
+                                  ? 'destructive'
+                                  : 'secondary'
+                            }
+                            className="flex items-center gap-1"
+                          >
+                            <StatusIcon className="w-3 h-3" />
+                            {containerStatus.label}
+                          </Badge>
+                        </div>
                       </AccordionTrigger>
+                      {bookingId && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            saveContainer(index)
+                          }}
+                          disabled={!canSave || isSaving}
+                          className="shrink-0"
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          {isSaving ? 'Saving...' : container.id ? 'Update' : 'Save'}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"

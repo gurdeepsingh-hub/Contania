@@ -2237,6 +2237,10 @@ export interface ExportContainerBooking {
      */
     pickupLocationId?: (number | null) | EmptyPark;
     /**
+     * Collection type for pickupLocationId
+     */
+    pickupLocationCollection?: string | null;
+    /**
      * Empty container pickup date
      */
     pickupDate?: string | null;
@@ -2260,6 +2264,18 @@ export interface ExportContainerBooking {
         )[]
       | null;
     /**
+     * Collection types for viaLocations (array matching viaLocations order)
+     */
+    viaLocationsCollections?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
      * Empty container dropoff location (prefilled from Step 3 From)
      */
     dropoffLocationId?:
@@ -2279,6 +2295,10 @@ export interface ExportContainerBooking {
           relationTo: 'wharves';
           value: number | Wharf;
         } | null);
+    /**
+     * Collection type for dropoffLocationId
+     */
+    dropoffLocationCollection?: string | null;
     /**
      * Empty container dropoff date
      */
@@ -2313,6 +2333,10 @@ export interface ExportContainerBooking {
           value: number | Wharf;
         } | null);
     /**
+     * Collection type for pickupLocationId
+     */
+    pickupLocationCollection?: string | null;
+    /**
      * Full container pickup date
      */
     pickupDate?: string | null;
@@ -2336,6 +2360,18 @@ export interface ExportContainerBooking {
         )[]
       | null;
     /**
+     * Collection types for viaLocations (array matching viaLocations order)
+     */
+    viaLocationsCollections?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+    /**
      * Full container dropoff location (prefilled from Step 3 To)
      */
     dropoffLocationId?:
@@ -2355,6 +2391,10 @@ export interface ExportContainerBooking {
           relationTo: 'wharves';
           value: number | Wharf;
         } | null);
+    /**
+     * Collection type for dropoffLocationId
+     */
+    dropoffLocationCollection?: string | null;
     /**
      * Full container dropoff date
      */
@@ -4290,9 +4330,12 @@ export interface ExportContainerBookingsSelect<T extends boolean = true> {
     | {
         shippingLineId?: T;
         pickupLocationId?: T;
+        pickupLocationCollection?: T;
         pickupDate?: T;
         viaLocations?: T;
+        viaLocationsCollections?: T;
         dropoffLocationId?: T;
+        dropoffLocationCollection?: T;
         dropoffDate?: T;
         requestedDeliveryDate?: T;
       };
@@ -4300,9 +4343,12 @@ export interface ExportContainerBookingsSelect<T extends boolean = true> {
     | T
     | {
         pickupLocationId?: T;
+        pickupLocationCollection?: T;
         pickupDate?: T;
         viaLocations?: T;
+        viaLocationsCollections?: T;
         dropoffLocationId?: T;
+        dropoffLocationCollection?: T;
         dropoffDate?: T;
       };
   instructions?: T;

@@ -38,39 +38,136 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const url = new URL(request.url)
     const depth = url.searchParams.get('depth') ? Number(url.searchParams.get('depth')) : 1
 
-    // Fetch container details for this booking (polymorphic relationship)
+    // Optimized query: Query polymorphic relationship via container_details_rels table
+    // Payload CMS stores polymorphic relationships in PostgreSQL in a separate relation table:
+    // - container_details_rels table with:
+    //   - parent_id (container detail ID)
+    //   - path ("containerBookingId")
+    //   - import_container_bookings_id (booking ID if import)
+    //   - export_container_bookings_id (booking ID if export)
+    //
+    // We query the relation table to find container detail IDs, then fetch the full details
+    const db = payload.db
+    let matchingDetailIds: number[] = []
+
+    try {
+      // Use database adapter to query the relation table directly
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dbAdapter = db as any
+
+      // Check if we can access the PostgreSQL connection directly
+      if (dbAdapter && dbAdapter.sessions) {
+        // Get the database session/connection
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const session = Object.values(dbAdapter.sessions)[0] as any
+
+        if (session && session.query) {
+          // Try different possible table names (Payload might use different naming)
+          const possibleTableNames = [
+            'container_details_rels',
+            'container-details_rels',
+            'container_details_rels',
+          ]
+
+          for (const tableName of possibleTableNames) {
+            try {
+              // Query the relation table to find matching container detail IDs
+              const result = await session.query(
+                `SELECT parent_id FROM "${tableName}" WHERE path = $1 AND export_container_bookings_id = $2`,
+                ['containerBookingId', bookingId],
+              )
+              matchingDetailIds = result.rows.map((row: { parent_id: number }) => row.parent_id)
+              if (matchingDetailIds.length > 0) {
+                break
+              }
+            } catch {
+              // Try without quotes
+              try {
+                const result = await session.query(
+                  `SELECT parent_id FROM ${tableName} WHERE path = $1 AND export_container_bookings_id = $2`,
+                  ['containerBookingId', bookingId],
+                )
+                matchingDetailIds = result.rows.map((row: { parent_id: number }) => row.parent_id)
+                if (matchingDetailIds.length > 0) {
+                  break
+                }
+              } catch {
+                continue
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Fallback to querying all and filtering
+    }
+
+    // Fallback: Query all container details and filter by checking the relationship
+    if (matchingDetailIds.length === 0) {
+      try {
+        const allDetails = await payload.find({
+          collection: 'container-details',
+          depth: 1, // Need depth to populate containerBookingId
+          limit: 10000,
+        })
+
+        // Filter by checking if containerBookingId matches and is an export booking
+        matchingDetailIds = allDetails.docs
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((detail: any) => {
+            const bookingRef = detail.containerBookingId
+            if (!bookingRef) {
+              return false
+            }
+
+            // Check if it's an object with id and relationTo
+            if (typeof bookingRef === 'object' && bookingRef !== null) {
+              // Payload returns polymorphic relationships with depth=2 as:
+              // { relationTo: string, value: { id: number, ... } }
+              // The booking ID is nested in value.id
+              const bookingIdValue = bookingRef.id || (bookingRef.value && bookingRef.value.id)
+              const relationTo = bookingRef.relationTo
+
+              if (!bookingIdValue) {
+                return false
+              }
+
+              return bookingIdValue === bookingId && relationTo === 'export-container-bookings'
+            }
+
+            return false
+          })
+          .map((detail: { id: number }) => detail.id)
+      } catch (fallbackError) {
+        console.error('[Container Details Query] Fallback query failed:', fallbackError)
+      }
+    }
+
+    // If no matching IDs, return empty array
+    if (matchingDetailIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        containerDetails: [],
+        totalDocs: 0,
+      })
+    }
+
+    // Fetch the full container details with proper depth using the matching IDs
     const detailsResult = await payload.find({
       collection: 'container-details',
       where: {
-        containerBookingId: {
-          equals: bookingId,
+        id: {
+          in: matchingDetailIds,
         },
       },
       depth,
-    })
-
-    // Filter to ensure they're linked to this export booking
-    const filteredDetails = detailsResult.docs.filter((detail) => {
-      const detailBookingId =
-        typeof (detail as { containerBookingId?: number | { id: number; relationTo?: string } })
-          .containerBookingId === 'object'
-          ? (detail as { containerBookingId: { id: number; relationTo?: string } })
-              .containerBookingId
-          : null
-
-      if (detailBookingId && typeof detailBookingId === 'object') {
-        return (
-          detailBookingId.id === bookingId &&
-          detailBookingId.relationTo === 'export-container-bookings'
-        )
-      }
-      return false
+      limit: 1000,
     })
 
     return NextResponse.json({
       success: true,
-      containerDetails: filteredDetails,
-      totalDocs: filteredDetails.length,
+      containerDetails: detailsResult.docs,
+      totalDocs: detailsResult.docs.length,
     })
   } catch (error) {
     console.error('Error fetching container details:', error)

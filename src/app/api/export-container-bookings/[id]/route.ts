@@ -403,9 +403,107 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       toCollection: bookingData.toCollection,
     })
 
+    // Normalize polymorphic fields for frontend prefill: send numeric IDs + collection fields
+    // We keep the original populated bookingData for view pages and attach a normalized copy for forms
+    const extractIdCollection = (rel: any): { id?: number; collection?: string } => {
+      if (rel === null || rel === undefined) return {}
+      if (typeof rel === 'number') return { id: rel }
+      if (Array.isArray(rel)) {
+        // Handle Payload relation arrays [id, collectionIndex] or similar
+        const idCandidate = Number(rel[0])
+        if (!isNaN(idCandidate)) return { id: idCandidate }
+      }
+      if (typeof rel === 'object') {
+        // Payload polymorphic relation object { relationTo, value }
+        if ('relationTo' in rel && 'value' in rel) {
+          const relationTo = (rel as { relationTo: any }).relationTo
+          const value = (rel as { value: any }).value
+          if (typeof value === 'number') return { id: value, collection: relationTo as string }
+          if (value && typeof value === 'object' && 'id' in value) {
+            return { id: Number((value as any).id), collection: relationTo as string }
+          }
+        }
+        // Populated doc with id; collection may be unknown here
+        if ('id' in rel) {
+          return { id: Number((rel as any).id) }
+        }
+      }
+      return {}
+    }
+
+    const normalizeSingle = (obj: any, idField: string, collectionField?: string): void => {
+      if (!obj || !(idField in obj)) return
+      const { id, collection } = extractIdCollection(obj[idField])
+      if (id && id > 0) {
+        obj[idField] = id
+        if (collectionField && collection) obj[collectionField] = collection
+      } else {
+        delete obj[idField]
+        if (collectionField) delete obj[collectionField]
+      }
+    }
+
+    const normalizeArray = (obj: any, idsField: string, collectionsField?: string): void => {
+      if (!obj || !(idsField in obj) || !Array.isArray(obj[idsField])) return
+      const ids: number[] = []
+      const cols: string[] = []
+      const values = obj[idsField] as any[]
+      for (let i = 0; i < values.length; i++) {
+        const { id, collection } = extractIdCollection(values[i])
+        if (id && id > 0) {
+          ids.push(id)
+          if (collectionsField) cols.push(collection || '')
+        }
+      }
+      if (ids.length > 0) {
+        obj[idsField] = ids
+        if (collectionsField) obj[collectionsField] = cols
+      } else {
+        delete obj[idsField]
+        if (collectionsField) delete obj[collectionsField]
+      }
+    }
+
+    // Create a normalized copy for form prefill; keep original for view
+    const normalizedBooking = JSON.parse(JSON.stringify(bookingData))
+
+    // Top-level polymorphic fields
+    normalizeSingle(normalizedBooking, 'fromId', 'fromCollection')
+    normalizeSingle(normalizedBooking, 'toId', 'toCollection')
+    normalizeSingle(normalizedBooking, 'chargeToId', 'chargeToCollection')
+
+    // Single-collection relationship fields (normalize to numeric IDs)
+    normalizeSingle(normalizedBooking, 'vesselId')
+    normalizeSingle(normalizedBooking, 'consignorId')
+
+    // Routing group polymorphic fields
+    if (normalizedBooking.emptyRouting && typeof normalizedBooking.emptyRouting === 'object') {
+      // shippingLineId is a single-collection relation; normalize in case it's populated object
+      normalizeSingle(normalizedBooking.emptyRouting, 'shippingLineId')
+      // pickupLocationId here is single-collection (empty-parks) but still normalize
+      normalizeSingle(normalizedBooking.emptyRouting, 'pickupLocationId', 'pickupLocationCollection')
+      normalizeSingle(
+        normalizedBooking.emptyRouting,
+        'dropoffLocationId',
+        'dropoffLocationCollection',
+      )
+      normalizeArray(normalizedBooking.emptyRouting, 'viaLocations', 'viaLocationsCollections')
+    }
+
+    if (normalizedBooking.fullRouting && typeof normalizedBooking.fullRouting === 'object') {
+      normalizeSingle(normalizedBooking.fullRouting, 'pickupLocationId', 'pickupLocationCollection')
+      normalizeSingle(
+        normalizedBooking.fullRouting,
+        'dropoffLocationId',
+        'dropoffLocationCollection',
+      )
+      normalizeArray(normalizedBooking.fullRouting, 'viaLocations', 'viaLocationsCollections')
+    }
+
     return NextResponse.json({
       success: true,
-      exportContainerBooking: bookingData,
+      exportContainerBooking: bookingData, // original populated (good for view)
+      normalizedExportContainerBooking: normalizedBooking, // form-friendly numeric+collection
     })
   } catch (error: any) {
     console.error('Error fetching export container booking:', error)
@@ -426,6 +524,251 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const resolvedParams = await params
     const bookingId = Number(resolvedParams.id)
     const body = await request.json()
+
+    console.log('[PATCH] Raw request body:', JSON.stringify(body, null, 2))
+
+    // CRITICAL: Clean routing data FIRST - ensure IDs are numbers, not strings or arrays
+    if (body.fullRouting) {
+      const fr = body.fullRouting
+
+      // Clean pickupLocationId - must be a number
+      if (fr.pickupLocationId !== undefined && fr.pickupLocationId !== null) {
+        let cleanedId: number | null = null
+        let collection: string | undefined = undefined
+
+        if (typeof fr.pickupLocationId === 'string' && fr.pickupLocationId.includes(':')) {
+          const [coll, idStr] = fr.pickupLocationId.split(':')
+          const id = parseInt(idStr, 10)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+            collection = coll
+          }
+        } else if (Array.isArray(fr.pickupLocationId)) {
+          const id = Number(fr.pickupLocationId[0])
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        } else {
+          const id = Number(fr.pickupLocationId)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        }
+
+        if (cleanedId !== null && cleanedId > 0) {
+          fr.pickupLocationId = cleanedId
+          if (collection) {
+            fr.pickupLocationCollection = collection
+          }
+        } else {
+          delete fr.pickupLocationId
+          delete fr.pickupLocationCollection
+        }
+      }
+
+      // Clean dropoffLocationId - must be a number
+      if (fr.dropoffLocationId !== undefined && fr.dropoffLocationId !== null) {
+        let cleanedId: number | null = null
+        let collection: string | undefined = undefined
+
+        if (typeof fr.dropoffLocationId === 'string' && fr.dropoffLocationId.includes(':')) {
+          const [coll, idStr] = fr.dropoffLocationId.split(':')
+          const id = parseInt(idStr, 10)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+            collection = coll
+          }
+        } else if (Array.isArray(fr.dropoffLocationId)) {
+          const id = Number(fr.dropoffLocationId[0])
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        } else {
+          const id = Number(fr.dropoffLocationId)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        }
+
+        if (cleanedId !== null && cleanedId > 0) {
+          fr.dropoffLocationId = cleanedId
+          if (collection) {
+            fr.dropoffLocationCollection = collection
+          }
+        } else {
+          delete fr.dropoffLocationId
+          delete fr.dropoffLocationCollection
+        }
+      }
+
+      // Clean viaLocations - must be array of numbers
+      if (Array.isArray(fr.viaLocations)) {
+        const cleanedVia: number[] = []
+        const collections: string[] = []
+
+        fr.viaLocations.forEach((via: any, index: number) => {
+          let viaId: number
+          let collection: string | undefined
+
+          if (Array.isArray(via)) {
+            viaId = Number(via[0])
+          } else if (typeof via === 'string' && via.includes(':')) {
+            const [coll, idStr] = via.split(':')
+            viaId = parseInt(idStr, 10)
+            collection = coll
+          } else {
+            viaId = Number(via)
+            // Use collection from viaLocationsCollections if available
+            if (
+              fr.viaLocationsCollections &&
+              Array.isArray(fr.viaLocationsCollections) &&
+              fr.viaLocationsCollections[index]
+            ) {
+              collection = fr.viaLocationsCollections[index]
+            }
+          }
+
+          if (!isNaN(viaId) && viaId > 0) {
+            cleanedVia.push(viaId)
+            if (collection) {
+              collections.push(collection)
+            }
+          }
+        })
+
+        if (cleanedVia.length > 0) {
+          fr.viaLocations = cleanedVia
+          if (collections.length === cleanedVia.length && collections.every((c) => c)) {
+            fr.viaLocationsCollections = collections
+          }
+        } else {
+          delete fr.viaLocations
+          delete fr.viaLocationsCollections
+        }
+      }
+    }
+
+    if (body.emptyRouting) {
+      const er = body.emptyRouting
+
+      // Clean pickupLocationId - must be a number
+      if (er.pickupLocationId !== undefined && er.pickupLocationId !== null) {
+        let cleanedId: number | null = null
+        let collection: string | undefined = undefined
+
+        if (typeof er.pickupLocationId === 'string' && er.pickupLocationId.includes(':')) {
+          const [coll, idStr] = er.pickupLocationId.split(':')
+          const id = parseInt(idStr, 10)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+            collection = coll
+          }
+        } else if (Array.isArray(er.pickupLocationId)) {
+          const id = Number(er.pickupLocationId[0])
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        } else {
+          const id = Number(er.pickupLocationId)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        }
+
+        if (cleanedId !== null && cleanedId > 0) {
+          er.pickupLocationId = cleanedId
+          if (collection) {
+            er.pickupLocationCollection = collection
+          }
+        } else {
+          delete er.pickupLocationId
+          delete er.pickupLocationCollection
+        }
+      }
+
+      // Clean dropoffLocationId - must be a number
+      if (er.dropoffLocationId !== undefined && er.dropoffLocationId !== null) {
+        let cleanedId: number | null = null
+        let collection: string | undefined = undefined
+
+        if (typeof er.dropoffLocationId === 'string' && er.dropoffLocationId.includes(':')) {
+          const [coll, idStr] = er.dropoffLocationId.split(':')
+          const id = parseInt(idStr, 10)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+            collection = coll
+          }
+        } else if (Array.isArray(er.dropoffLocationId)) {
+          const id = Number(er.dropoffLocationId[0])
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        } else {
+          const id = Number(er.dropoffLocationId)
+          if (!isNaN(id) && id > 0) {
+            cleanedId = id
+          }
+        }
+
+        if (cleanedId !== null && cleanedId > 0) {
+          er.dropoffLocationId = cleanedId
+          if (collection) {
+            er.dropoffLocationCollection = collection
+          }
+        } else {
+          delete er.dropoffLocationId
+          delete er.dropoffLocationCollection
+        }
+      }
+
+      // Clean viaLocations - must be array of numbers
+      if (Array.isArray(er.viaLocations)) {
+        const cleanedVia: number[] = []
+        const collections: string[] = []
+
+        er.viaLocations.forEach((via: any, index: number) => {
+          let viaId: number
+          let collection: string | undefined
+
+          if (Array.isArray(via)) {
+            viaId = Number(via[0])
+          } else if (typeof via === 'string' && via.includes(':')) {
+            const [coll, idStr] = via.split(':')
+            viaId = parseInt(idStr, 10)
+            collection = coll
+          } else {
+            viaId = Number(via)
+            // Use collection from viaLocationsCollections if available
+            if (
+              er.viaLocationsCollections &&
+              Array.isArray(er.viaLocationsCollections) &&
+              er.viaLocationsCollections[index]
+            ) {
+              collection = er.viaLocationsCollections[index]
+            }
+          }
+
+          if (!isNaN(viaId) && viaId > 0) {
+            cleanedVia.push(viaId)
+            if (collection) {
+              collections.push(collection)
+            }
+          }
+        })
+
+        if (cleanedVia.length > 0) {
+          er.viaLocations = cleanedVia
+          if (collections.length === cleanedVia.length && collections.every((c) => c)) {
+            er.viaLocationsCollections = collections
+          }
+        } else {
+          delete er.viaLocations
+          delete er.viaLocationsCollections
+        }
+      }
+    }
+
+    console.log('[PATCH] Cleaned request body:', JSON.stringify(body, null, 2))
 
     // Get the booking to update
     const bookingToUpdate = await payload.findByID({
@@ -457,13 +800,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       'customerReference',
       'bookingReference',
       'chargeToId',
+      'chargeToCollection',
       'consignorId',
       'vesselId',
       'etd',
       'receivalStart',
       'cutoff',
       'fromId',
+      'fromCollection',
       'toId',
+      'toCollection',
       'containerSizeIds',
       'containerQuantities',
       'emptyRouting',
@@ -479,6 +825,294 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body[field] !== undefined) {
         updateData[field] = body[field]
       }
+    }
+
+    // If emptyRouting is sent but should be excluded (from steps 1-3), remove it
+    // Or if it's an empty object, remove it to avoid validation issues
+    if (updateData.emptyRouting && typeof updateData.emptyRouting === 'object') {
+      const er = updateData.emptyRouting as any
+      const hasValidFields =
+        er.shippingLineId ||
+        (er.pickupLocationId !== undefined && er.pickupLocationId !== null) ||
+        er.pickupDate ||
+        (er.viaLocations && Array.isArray(er.viaLocations) && er.viaLocations.length > 0) ||
+        (er.dropoffLocationId !== undefined && er.dropoffLocationId !== null) ||
+        er.dropoffDate ||
+        er.requestedDeliveryDate
+
+      if (!hasValidFields) {
+        // Empty object, remove it to avoid validation errors
+        delete updateData.emptyRouting
+      }
+    }
+
+    // Convert routing fields from numeric IDs + collection fields to Payload's {relationTo, value} format
+    // Full Routing polymorphic relationships
+    if (updateData.fullRouting && typeof updateData.fullRouting === 'object') {
+      const fr = updateData.fullRouting as any
+
+      // pickupLocationId: relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves']
+      if (fr.pickupLocationId !== undefined && fr.pickupLocationId !== null) {
+        // If it's already a valid relation object, keep it
+        if (
+          typeof fr.pickupLocationId === 'object' &&
+          'relationTo' in fr.pickupLocationId &&
+          'value' in fr.pickupLocationId
+        ) {
+          // Check if the value is valid
+          const value = fr.pickupLocationId.value
+          if (
+            typeof value === 'number' &&
+            value > 0 &&
+            typeof fr.pickupLocationId.relationTo === 'string' &&
+            fr.pickupLocationId.relationTo.trim() !== ''
+          ) {
+            // Already valid relation object, keep it
+          } else {
+            // Invalid relation object, remove it
+            delete fr.pickupLocationId
+            delete fr.pickupLocationCollection
+          }
+        } else if (
+          typeof fr.pickupLocationId === 'number' &&
+          fr.pickupLocationId > 0
+        ) {
+          if (fr.pickupLocationCollection) {
+            fr.pickupLocationId = {
+              relationTo: fr.pickupLocationCollection,
+              value: fr.pickupLocationId,
+            }
+            delete fr.pickupLocationCollection
+          } else {
+            // No collection provided, delete the field to avoid validation errors
+            console.warn('[PATCH] pickupLocationId has no collection, deleting field')
+            delete fr.pickupLocationId
+          }
+        } else {
+          // Invalid value - remove it
+          delete fr.pickupLocationId
+          delete fr.pickupLocationCollection
+        }
+      }
+
+      // dropoffLocationId: relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves']
+      if (fr.dropoffLocationId !== undefined && fr.dropoffLocationId !== null) {
+        // If it's already a valid relation object, keep it
+        if (
+          typeof fr.dropoffLocationId === 'object' &&
+          'relationTo' in fr.dropoffLocationId &&
+          'value' in fr.dropoffLocationId
+        ) {
+          // Check if the value is valid
+          const value = fr.dropoffLocationId.value
+          if (
+            typeof value === 'number' &&
+            value > 0 &&
+            typeof fr.dropoffLocationId.relationTo === 'string' &&
+            fr.dropoffLocationId.relationTo.trim() !== ''
+          ) {
+            // Already valid relation object, keep it
+          } else {
+            // Invalid relation object, remove it
+            delete fr.dropoffLocationId
+            delete fr.dropoffLocationCollection
+          }
+        } else if (
+          typeof fr.dropoffLocationId === 'number' &&
+          fr.dropoffLocationId > 0
+        ) {
+          if (fr.dropoffLocationCollection) {
+            fr.dropoffLocationId = {
+              relationTo: fr.dropoffLocationCollection,
+              value: fr.dropoffLocationId,
+            }
+            delete fr.dropoffLocationCollection
+          } else {
+            // No collection provided, delete the field to avoid validation errors
+            console.warn('[PATCH] dropoffLocationId has no collection, deleting field')
+            delete fr.dropoffLocationId
+          }
+        } else {
+          // Invalid value - remove it
+          delete fr.dropoffLocationId
+          delete fr.dropoffLocationCollection
+        }
+      }
+
+      // viaLocations: relationTo: ['warehouses', 'wharves', 'empty-parks']
+      if (
+        Array.isArray(fr.viaLocations) &&
+        fr.viaLocations.length > 0 &&
+        fr.viaLocations.every((id: any) => typeof id === 'number') &&
+        Array.isArray(fr.viaLocationsCollections)
+      ) {
+        fr.viaLocations = fr.viaLocations.map((id: number, index: number) => {
+          const collection = fr.viaLocationsCollections[index]
+          if (collection && collection.trim() !== '') {
+            return { relationTo: collection, value: id }
+          }
+          return id
+        }).filter((item: any) => {
+          // Only keep relation objects
+          return typeof item === 'object' && 'relationTo' in item && 'value' in item
+        })
+        delete fr.viaLocationsCollections
+      }
+    }
+
+    // Empty Routing polymorphic relationships
+    if (updateData.emptyRouting && typeof updateData.emptyRouting === 'object') {
+      const er = updateData.emptyRouting as any
+
+      // pickupLocationId: relationTo: 'empty-parks' (single collection - keep as plain number like import)
+      if (er.pickupLocationId !== undefined && er.pickupLocationId !== null) {
+        let pickupId: number
+        if (Array.isArray(er.pickupLocationId)) {
+          pickupId = Number(er.pickupLocationId[0])
+        } else if (
+          typeof er.pickupLocationId === 'object' &&
+          'relationTo' in er.pickupLocationId &&
+          'value' in er.pickupLocationId
+        ) {
+          // Extract value from relation object
+          pickupId = Number(er.pickupLocationId.value)
+        } else {
+          pickupId = Number(er.pickupLocationId)
+        }
+
+        if (isNaN(pickupId) || pickupId <= 0) {
+          delete er.pickupLocationId
+          delete er.pickupLocationCollection
+        } else {
+          // Validate ID exists in empty-parks collection (like import does)
+          try {
+            const found = await payload.find({
+              collection: 'empty-parks',
+              where: {
+                and: [{ id: { equals: pickupId } }, { tenantId: { equals: tenant.id } }],
+              },
+              limit: 1,
+            })
+            if (found.docs.length > 0) {
+              console.log(
+                `[PATCH] ✓ emptyRouting.pickupLocationId ${pickupId} EXISTS in empty-parks for tenant ${tenant.id}`,
+              )
+              // Keep as plain number (single collection relationship)
+              er.pickupLocationId = pickupId
+              delete er.pickupLocationCollection
+            } else {
+              throw new Error(`ID ${pickupId} not found in empty-parks for tenant ${tenant.id}`)
+            }
+          } catch (error: any) {
+            console.warn(
+              `[PATCH] ✗ emptyRouting.pickupLocationId ${pickupId} NOT FOUND in empty-parks for tenant ${tenant.id}. Error: ${error.message || error}`,
+            )
+            // Check if booking is draft - if so, delete invalid ID; otherwise keep it for Payload validation
+            const isDraft = updateData.status === 'draft' || (bookingToUpdate as any)?.status === 'draft'
+            if (isDraft) {
+              delete er.pickupLocationId
+              delete er.pickupLocationCollection
+            } else {
+              // Keep as plain number - let Payload handle validation
+              er.pickupLocationId = pickupId
+              delete er.pickupLocationCollection
+            }
+          }
+        }
+      }
+
+      // dropoffLocationId: relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves']
+      if (er.dropoffLocationId !== undefined && er.dropoffLocationId !== null) {
+        // If it's already a valid relation object, keep it
+        if (
+          typeof er.dropoffLocationId === 'object' &&
+          'relationTo' in er.dropoffLocationId &&
+          'value' in er.dropoffLocationId
+        ) {
+          // Check if the value is valid
+          const value = er.dropoffLocationId.value
+          if (
+            typeof value === 'number' &&
+            value > 0 &&
+            typeof er.dropoffLocationId.relationTo === 'string' &&
+            er.dropoffLocationId.relationTo.trim() !== ''
+          ) {
+            // Already valid relation object, keep it
+          } else {
+            // Invalid relation object, remove it
+            delete er.dropoffLocationId
+            delete er.dropoffLocationCollection
+          }
+        } else if (
+          typeof er.dropoffLocationId === 'number' &&
+          er.dropoffLocationId > 0
+        ) {
+          if (er.dropoffLocationCollection) {
+            er.dropoffLocationId = {
+              relationTo: er.dropoffLocationCollection,
+              value: er.dropoffLocationId,
+            }
+            delete er.dropoffLocationCollection
+          } else {
+            // No collection provided, delete the field to avoid validation errors
+            console.warn('[PATCH] emptyRouting.dropoffLocationId has no collection, deleting field')
+            delete er.dropoffLocationId
+          }
+        } else {
+          // Invalid value - remove it
+          delete er.dropoffLocationId
+          delete er.dropoffLocationCollection
+        }
+      }
+
+      // viaLocations: relationTo: ['warehouses', 'wharves', 'empty-parks']
+      if (
+        Array.isArray(er.viaLocations) &&
+        er.viaLocations.length > 0 &&
+        er.viaLocations.every((id: any) => typeof id === 'number') &&
+        Array.isArray(er.viaLocationsCollections)
+      ) {
+        er.viaLocations = er.viaLocations.map((id: number, index: number) => {
+          const collection = er.viaLocationsCollections[index]
+          if (collection && collection.trim() !== '') {
+            return { relationTo: collection, value: id }
+          }
+          return id
+        }).filter((item: any) => {
+          // Only keep relation objects
+          return typeof item === 'object' && 'relationTo' in item && 'value' in item
+        })
+        delete er.viaLocationsCollections
+      }
+    }
+
+    // Convert top-level polymorphic relationships (fromId, toId, chargeToId) to relation objects
+    if (updateData.fromId && typeof updateData.fromId === 'number' && updateData.fromCollection) {
+      updateData.fromId = {
+        relationTo: updateData.fromCollection as string,
+        value: updateData.fromId,
+      }
+      delete updateData.fromCollection
+    }
+
+    if (updateData.toId && typeof updateData.toId === 'number' && updateData.toCollection) {
+      updateData.toId = {
+        relationTo: updateData.toCollection as string,
+        value: updateData.toId,
+      }
+      delete updateData.toCollection
+    }
+
+    if (
+      updateData.chargeToId &&
+      typeof updateData.chargeToId === 'number' &&
+      updateData.chargeToCollection
+    ) {
+      updateData.chargeToId = {
+        relationTo: updateData.chargeToCollection as string,
+        value: updateData.chargeToId,
+      }
+      delete updateData.chargeToCollection
     }
 
     // Update export container booking
