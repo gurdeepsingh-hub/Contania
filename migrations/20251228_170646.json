@@ -1,5 +1,5 @@
 {
-  "id": "554285e2-dc28-4f29-83c5-d33ef57881fd",
+  "id": "24536fb2-9c1b-4906-a85a-cca6ef6ee77a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -3358,13 +3358,25 @@
           "name": "inbound_inventory_id_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "inbound_product_line_id_id": {
           "name": "inbound_product_line_id_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "container_detail_id_id": {
+          "name": "container_detail_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "container_stock_allocation_id_id": {
+          "name": "container_stock_allocation_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "sku_id_id": {
           "name": "sku_id_id",
@@ -3492,6 +3504,36 @@
           "columns": [
             {
               "expression": "inbound_product_line_id_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "put_away_stock_container_detail_id_idx": {
+          "name": "put_away_stock_container_detail_id_idx",
+          "columns": [
+            {
+              "expression": "container_detail_id_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "put_away_stock_container_stock_allocation_id_idx": {
+          "name": "put_away_stock_container_stock_allocation_id_idx",
+          "columns": [
+            {
+              "expression": "container_stock_allocation_id_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3656,6 +3698,32 @@
           "tableTo": "inbound_product_line",
           "columnsFrom": [
             "inbound_product_line_id_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "put_away_stock_container_detail_id_id_container_details_id_fk": {
+          "name": "put_away_stock_container_detail_id_id_container_details_id_fk",
+          "tableFrom": "put_away_stock",
+          "tableTo": "container_details",
+          "columnsFrom": [
+            "container_detail_id_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "put_away_stock_container_stock_allocation_id_id_container_stock_allocations_id_fk": {
+          "name": "put_away_stock_container_stock_allocation_id_id_container_stock_allocations_id_fk",
+          "tableFrom": "put_away_stock",
+          "tableTo": "container_stock_allocations",
+          "columnsFrom": [
+            "container_stock_allocation_id_id"
           ],
           "columnsTo": [
             "id"
@@ -4525,13 +4593,25 @@
           "name": "outbound_inventory_id_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "outbound_product_line_id_id": {
           "name": "outbound_product_line_id_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "container_detail_id_id": {
+          "name": "container_detail_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "container_stock_allocation_id_id": {
+          "name": "container_stock_allocation_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "picked_up_qty": {
           "name": "picked_up_qty",
@@ -4633,6 +4713,36 @@
           "method": "btree",
           "with": {}
         },
+        "pickup_stock_container_detail_id_idx": {
+          "name": "pickup_stock_container_detail_id_idx",
+          "columns": [
+            {
+              "expression": "container_detail_id_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pickup_stock_container_stock_allocation_id_idx": {
+          "name": "pickup_stock_container_stock_allocation_id_idx",
+          "columns": [
+            {
+              "expression": "container_stock_allocation_id_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "pickup_stock_picked_up_by_idx": {
           "name": "pickup_stock_picked_up_by_idx",
           "columns": [
@@ -4712,6 +4822,32 @@
           "tableTo": "outbound_product_line",
           "columnsFrom": [
             "outbound_product_line_id_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pickup_stock_container_detail_id_id_container_details_id_fk": {
+          "name": "pickup_stock_container_detail_id_id_container_details_id_fk",
+          "tableFrom": "pickup_stock",
+          "tableTo": "container_details",
+          "columnsFrom": [
+            "container_detail_id_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "pickup_stock_container_stock_allocation_id_id_container_stock_allocations_id_fk": {
+          "name": "pickup_stock_container_stock_allocation_id_id_container_stock_allocations_id_fk",
+          "tableFrom": "pickup_stock",
+          "tableTo": "container_stock_allocations",
+          "columnsFrom": [
+            "container_stock_allocation_id_id"
           ],
           "columnsTo": [
             "id"
@@ -8028,9 +8164,27 @@
           "primaryKey": false,
           "notNull": false
         },
+        "empty_routing_pickup_location_collection": {
+          "name": "empty_routing_pickup_location_collection",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "empty_routing_pickup_date": {
           "name": "empty_routing_pickup_date",
           "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "empty_routing_via_locations_collections": {
+          "name": "empty_routing_via_locations_collections",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "empty_routing_dropoff_location_collection": {
+          "name": "empty_routing_dropoff_location_collection",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -8046,9 +8200,27 @@
           "primaryKey": false,
           "notNull": false
         },
+        "full_routing_pickup_location_collection": {
+          "name": "full_routing_pickup_location_collection",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
         "full_routing_pickup_date": {
           "name": "full_routing_pickup_date",
           "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_routing_via_locations_collections": {
+          "name": "full_routing_via_locations_collections",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "full_routing_dropoff_location_collection": {
+          "name": "full_routing_dropoff_location_collection",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
@@ -8609,6 +8781,20 @@
           "primaryKey": true,
           "notNull": true
         },
+        "status": {
+          "name": "status",
+          "type": "enum_container_details_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'expecting'"
+        },
+        "warehouse_id_id": {
+          "name": "warehouse_id_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "container_number": {
           "name": "container_number",
           "type": "varchar",
@@ -8781,6 +8967,21 @@
         }
       },
       "indexes": {
+        "container_details_warehouse_id_idx": {
+          "name": "container_details_warehouse_id_idx",
+          "columns": [
+            {
+              "expression": "warehouse_id_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "container_details_container_size_id_idx": {
           "name": "container_details_container_size_id_idx",
           "columns": [
@@ -8843,6 +9044,19 @@
         }
       },
       "foreignKeys": {
+        "container_details_warehouse_id_id_warehouses_id_fk": {
+          "name": "container_details_warehouse_id_id_warehouses_id_fk",
+          "tableFrom": "container_details",
+          "tableTo": "warehouses",
+          "columnsFrom": [
+            "warehouse_id_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "container_details_container_size_id_id_container_sizes_id_fk": {
           "name": "container_details_container_size_id_id_container_sizes_id_fk",
           "tableFrom": "container_details",
@@ -11611,7 +11825,11 @@
       "values": [
         "draft",
         "confirmed",
-        "in_progress",
+        "expecting",
+        "partially_received",
+        "received",
+        "partially_put_away",
+        "put_away",
         "completed",
         "cancelled"
       ]
@@ -11622,9 +11840,25 @@
       "values": [
         "draft",
         "confirmed",
-        "in_progress",
+        "allocated",
+        "partially_picked",
+        "picked",
+        "ready_to_dispatch",
+        "dispatched",
         "completed",
         "cancelled"
+      ]
+    },
+    "public.enum_container_details_status": {
+      "name": "enum_container_details_status",
+      "schema": "public",
+      "values": [
+        "expecting",
+        "received",
+        "put_away",
+        "allocated",
+        "picked_up",
+        "dispatched"
       ]
     },
     "public.enum_container_stock_allocations_stage": {
