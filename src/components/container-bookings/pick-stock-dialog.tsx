@@ -129,13 +129,16 @@ export function PickStockDialog({
         `/api/export-container-bookings/${bookingId}/containers/${containerId}/allocated-lpns`
       )
       if (!lpnRes.ok) {
-        toast.error('Failed to load allocated LPNs')
+        const errorData = await lpnRes.json().catch(() => ({ message: 'Unknown error' }))
+        console.error('Failed to load allocated LPNs:', lpnRes.status, errorData)
+        toast.error(`Failed to load allocated LPNs: ${errorData.message || 'Unknown error'}`)
         return
       }
 
       const lpnData = await lpnRes.json()
       if (!lpnData.success) {
-        toast.error('Failed to load allocated LPNs')
+        console.error('LPN data load failed:', lpnData)
+        toast.error(`Failed to load allocated LPNs: ${lpnData.message || 'Unknown error'}`)
         return
       }
 

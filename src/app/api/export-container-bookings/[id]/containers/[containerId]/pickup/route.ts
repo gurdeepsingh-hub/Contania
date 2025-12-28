@@ -11,7 +11,16 @@ export async function POST(
       return NextResponse.json({ message: context.error }, { status: context.status })
     }
 
-    const { payload, tenant, user } = context
+    const { payload, tenant, currentUser: user } = context
+    
+    // Validate user exists (required for pickedUpBy field)
+    if (!user || !user.id) {
+      return NextResponse.json(
+        { message: 'User authentication required' },
+        { status: 401 },
+      )
+    }
+
     const resolvedParams = await params
     const bookingId = Number(resolvedParams.id)
     const containerId = Number(resolvedParams.containerId)
@@ -43,17 +52,39 @@ export async function POST(
     const container = await payload.findByID({
       collection: 'container-details',
       id: containerId,
+      depth: 2, // Ensure polymorphic containerBookingId is loaded
     })
 
     if (!container) {
       return NextResponse.json({ message: 'Container not found' }, { status: 404 })
     }
 
-    const containerBookingId =
-      typeof (container as { containerBookingId?: number | { id: number } }).containerBookingId ===
-      'object'
-        ? (container as { containerBookingId: { id: number } }).containerBookingId.id
-        : (container as { containerBookingId?: number }).containerBookingId
+    // Handle polymorphic relationship: number | { id: number } | { relationTo: string, value: {id: number} }
+    let containerBookingId: number | undefined
+    const containerBookingRef = (container as {
+      containerBookingId?: number | { id?: number | { id: number }; value?: number | { id: number }; relationTo?: string }
+    }).containerBookingId
+
+    if (typeof containerBookingRef === 'object' && containerBookingRef !== null) {
+      // When loaded with depth, Payload returns {relationTo: "...", value: {id: 1, ...}}
+      if ('value' in containerBookingRef && containerBookingRef.value) {
+        containerBookingId =
+          typeof containerBookingRef.value === 'object' && containerBookingRef.value !== null
+            ? (containerBookingRef.value as { id: number }).id
+            : typeof containerBookingRef.value === 'number'
+              ? containerBookingRef.value
+              : undefined
+      } else if ('id' in containerBookingRef && containerBookingRef.id) {
+        containerBookingId =
+          typeof containerBookingRef.id === 'object' && containerBookingRef.id !== null
+            ? (containerBookingRef.id as { id: number }).id
+            : typeof containerBookingRef.id === 'number'
+              ? containerBookingRef.id
+              : undefined
+      }
+    } else if (typeof containerBookingRef === 'number') {
+      containerBookingId = containerBookingRef
+    }
 
     if (containerBookingId !== bookingId) {
       return NextResponse.json(
@@ -249,7 +280,7 @@ export async function POST(
           bufferQty: finalBufferQty,
           finalPickedUpQty,
           pickupStatus: 'completed',
-          pickedUpBy: user?.id,
+          pickedUpBy: typeof user.id === 'number' ? user.id : Number(user.id), // Ensure it's a number
           notes: notes || '',
         },
       })
