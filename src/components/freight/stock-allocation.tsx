@@ -12,6 +12,10 @@ type AvailableLPN = {
   lpnNumber: string
   location: string
   huQty: number
+  originalHuQty?: number
+  remainingHuQty?: number
+  isLoosened?: boolean
+  loosenedQty?: number
   inboundProductLineId: number | null
   containerStockAllocationId?: number | null
   isAllocatedToThisProductLine?: boolean
@@ -313,7 +317,13 @@ export function StockAllocation({ outboundInventoryId, onAllocationComplete, pro
                                     )}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    Qty: {lpn.huQty} | Location: {lpn.location}
+                                    {lpn.isLoosened ? (
+                                      <>Loosened Qty: {lpn.loosenedQty || lpn.huQty || 0} | Location: {lpn.location || 'LOOSENED'}</>
+                                    ) : lpn.remainingHuQty !== undefined && lpn.remainingHuQty !== null && lpn.remainingHuQty < (lpn.originalHuQty || lpn.huQty || 0) ? (
+                                      <>Qty: {lpn.remainingHuQty}/{lpn.originalHuQty || lpn.huQty || 0} (Opened) | Location: {lpn.location || ''}</>
+                                    ) : (
+                                      <>Qty: {lpn.huQty || lpn.remainingHuQty || 0} | Location: {lpn.location || ''}</>
+                                    )}
                                   </p>
                                   {isDisabled && lpn.allocatedToJobCode && (
                                     <p className="text-xs text-red-600 mt-1">

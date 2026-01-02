@@ -176,9 +176,13 @@ export async function POST(
 
       // Get LPNs from PutAwayStock if lpnIds provided
       let pickedUpLPNs = []
+      let validatedLoosenedQty = 0
+      const loosenedLpnNumbers = pickupData.loosenedLpnNumbers || []
+      const loosenedQty = pickupData.loosenedQty || 0
+
       if (lpnIds && Array.isArray(lpnIds) && lpnIds.length > 0) {
-        // Fetch LPNs from PutAwayStock
-        const lpnRecords = await payload.find({
+        // First, fetch all LPNs (including loosened) to separate them
+        const allLpnRecords = await payload.find({
           collection: 'put-away-stock',
           where: {
             and: [
@@ -202,46 +206,175 @@ export async function POST(
           depth: 1,
         })
 
-        if (lpnRecords.docs.length !== lpnIds.length) {
+        // Separate regular LPNs from loosened stock
+        const regularLPNs = allLpnRecords.docs.filter((lpn: any) => !lpn.isLoosened)
+        const loosenedLPNs = allLpnRecords.docs.filter((lpn: any) => lpn.isLoosened)
+
+        // Validate that all requested LPNs were found
+        if (allLpnRecords.docs.length !== lpnIds.length) {
+          const errorMsg = `Some LPNs not found or not allocated to this allocation. Found ${allLpnRecords.docs.length} of ${lpnIds.length} LPNs`
           errors.push({
             allocationId: allocation.id,
             productLineIndex,
-            error: 'Some LPNs not found or not allocated to this allocation',
+            error: errorMsg,
           })
           continue
         }
 
-        pickedUpLPNs = lpnRecords.docs.map((lpn: any) => ({
-          lpnId: lpn.id,
-          lpnNumber: lpn.lpnNumber,
-          huQty: lpn.huQty,
-          location: lpn.location,
-        }))
+        // Process regular LPNs
+        pickedUpLPNs = regularLPNs.map((lpn: any) => {
+          // Calculate the allocated quantity for this LPN
+          let qty = 0
+          if ((lpn as any).remainingHuQty !== undefined && (lpn as any).remainingHuQty !== null && (lpn as any).remainingHuQty > 0) {
+            // Partially allocated: calculate allocated quantity
+            if ((lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
+              qty = (lpn as any).originalHuQty - (lpn as any).remainingHuQty
+            } else {
+              qty = (lpn.huQty || 0) - (lpn as any).remainingHuQty
+            }
+          } else if ((lpn as any).remainingHuQty === 0 && (lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
+            // Fully allocated: use huQty which stores the allocated quantity
+            qty = lpn.huQty || (lpn as any).originalHuQty || 0
+          } else {
+            // Fallback: use remainingHuQty or huQty
+            qty = (lpn as any).remainingHuQty ?? lpn.huQty ?? 0
+          }
+          return {
+            lpnId: lpn.id,
+            lpnNumber: lpn.lpnNumber,
+            huQty: qty,
+            location: lpn.location,
+            isLoosened: false,
+          }
+        })
+
+        // Process loosened stock LPNs - add them to pickedUpLPNs with their loosenedQty
+        if (loosenedLPNs.length > 0) {
+          for (const loosenedLpn of loosenedLPNs) {
+            pickedUpLPNs.push({
+              lpnId: loosenedLpn.id,
+              lpnNumber: loosenedLpn.lpnNumber,
+              huQty: loosenedLpn.loosenedQty || loosenedLpn.huQty || 0,
+              location: loosenedLpn.location,
+              isLoosened: true,
+            })
+            // Add to validated loosened quantity
+            validatedLoosenedQty += loosenedLpn.loosenedQty || loosenedLpn.huQty || 0
+          }
+        }
       } else if (pickupData.pickedUpLPNs && Array.isArray(pickupData.pickedUpLPNs)) {
         // Support direct LPN data (backward compatibility)
         pickedUpLPNs = pickupData.pickedUpLPNs
-      } else {
+      }
+
+      // Handle loosened stock if provided
+      if (loosenedQty > 0) {
+        const productLineSkuId = typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
+        const productLineBatch = productLine.batchNumber
+
+        if (productLineSkuId && productLineBatch) {
+          const loosenedStock = await payload.find({
+            collection: 'put-away-stock',
+            where: {
+              and: [
+                {
+                  tenantId: {
+                    equals: tenant.id,
+                  },
+                },
+                {
+                  isLoosened: {
+                    equals: true,
+                  },
+                },
+                {
+                  loosenedSkuId: {
+                    equals: productLineSkuId,
+                  },
+                },
+                {
+                  loosenedBatchNumber: {
+                    equals: productLineBatch,
+                  },
+                },
+                {
+                  allocationStatus: {
+                    equals: 'allocated',
+                  },
+                },
+                {
+                  containerStockAllocationId: {
+                    equals: allocation.id,
+                  },
+                },
+              ],
+            },
+            limit: 1000,
+          })
+
+          if (loosenedStock.docs.length > 0) {
+            // Sum up all available loosened stock allocated to this allocation
+            const totalAvailableLoosenedQty = loosenedStock.docs.reduce((sum, record) => {
+              return sum + (record.loosenedQty || 0)
+            }, 0)
+            
+            if (loosenedQty > totalAvailableLoosenedQty) {
+              errors.push({
+                allocationId: allocation.id,
+                productLineIndex,
+                error: `Requested ${loosenedQty} loosened items but only ${totalAvailableLoosenedQty} available`,
+              })
+              continue
+            } else {
+              validatedLoosenedQty = loosenedQty
+            }
+            
+            // Add all loosened stock records to pickedUpLPNs so they get picked up
+            // We'll distribute the picked quantity across them
+            let remainingToPick = validatedLoosenedQty
+            for (const loosenedRecord of loosenedStock.docs) {
+              if (remainingToPick <= 0) break
+              
+              const recordQty = loosenedRecord.loosenedQty || 0
+              if (recordQty > 0) {
+                const pickedFromThisRecord = Math.min(recordQty, remainingToPick)
+                pickedUpLPNs.push({
+                  lpnId: loosenedRecord.id,
+                  lpnNumber: loosenedRecord.lpnNumber,
+                  huQty: pickedFromThisRecord,
+                  location: loosenedRecord.location,
+                  isLoosened: true,
+                })
+                remainingToPick -= pickedFromThisRecord
+              }
+            }
+          } else {
+            errors.push({
+              allocationId: allocation.id,
+              productLineIndex,
+              error: 'No loosened stock available for this SKU+batch',
+            })
+            continue
+          }
+        }
+      }
+
+      if (pickedUpLPNs.length === 0 && validatedLoosenedQty === 0) {
         errors.push({
           allocationId: allocation.id,
           productLineIndex,
-          error: 'lpnIds or pickedUpLPNs is required',
+          error: 'At least one LPN or loosened quantity is required',
         })
         continue
       }
 
-      if (pickedUpLPNs.length === 0) {
-        errors.push({
-          allocationId: allocation.id,
-          productLineIndex,
-          error: 'At least one LPN is required',
-        })
-        continue
-      }
-
-      // Calculate picked up quantity from LPNs
-      const pickedUpQty = pickedUpLPNs.reduce((sum: number, lpn: any) => {
-        return sum + (lpn.huQty || 0)
-      }, 0)
+      // Calculate picked up quantity from regular LPNs (excluding loosened stock)
+      const regularLPNQty = pickedUpLPNs
+        .filter((lpn: any) => !lpn.isLoosened)
+        .reduce((sum: number, lpn: any) => {
+          return sum + (lpn.huQty || 0)
+        }, 0)
+      const pickedUpQty = regularLPNQty + validatedLoosenedQty
 
       const finalBufferQty = bufferQty || 0
       const finalPickedUpQty = pickedUpQty + finalBufferQty
@@ -264,19 +397,47 @@ export async function POST(
         }
       }
 
+      // Calculate how much loosened quantity is picked from each loosened stock record
+      const loosenedPickupMap = new Map<number, number>() // Map LPN ID to picked quantity
+      if (validatedLoosenedQty > 0) {
+        let remainingToDistribute = validatedLoosenedQty
+        for (const lpn of pickedUpLPNs) {
+          if ((lpn as any).isLoosened && remainingToDistribute > 0) {
+            const pickedQty = lpn.huQty || 0
+            loosenedPickupMap.set(typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId, pickedQty)
+            remainingToDistribute -= pickedQty
+          }
+        }
+      }
+
       // Create pickup record
+      const pickedUpLPNsMapped = pickedUpLPNs.map((lpn: any) => {
+        // Calculate the quantity to pick up
+        let qty = 0
+        if ((lpn as any).isLoosened) {
+          // For loosened stock, use the actual picked quantity from the map
+          qty = loosenedPickupMap.get(typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId) || 0
+        } else {
+          // For regular LPNs, use the huQty already calculated
+          qty = lpn.huQty || 0
+        }
+        return {
+          lpnId: typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId,
+          lpnNumber: lpn.lpnNumber,
+          huQty: qty,
+          location: lpn.location,
+          isLoosened: (lpn as any).isLoosened || false,
+        }
+      })
+
       const pickup = await payload.create({
         collection: 'pickup-stock',
         data: {
           tenantId: tenant.id,
           containerDetailId: containerId,
           containerStockAllocationId: allocation.id,
-          pickedUpLPNs: pickedUpLPNs.map((lpn: any) => ({
-            lpnId: typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId,
-            lpnNumber: lpn.lpnNumber,
-            huQty: lpn.huQty,
-            location: lpn.location,
-          })),
+          pickedUpLPNs: pickedUpLPNsMapped,
+          pickedUpLoosenedQty: validatedLoosenedQty,
           pickedUpQty,
           bufferQty: finalBufferQty,
           finalPickedUpQty,
@@ -287,17 +448,59 @@ export async function POST(
       })
 
       // Update PutAwayStock allocation status to 'picked'
+      // Track remaining loosened quantity to distribute across records
+      let remainingLoosenedToPick = validatedLoosenedQty
+      
       for (const lpn of pickedUpLPNs) {
         const lpnId = typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId
-        if (lpnId) {
-          await payload.update({
-            collection: 'put-away-stock',
-            id: lpnId,
-            data: {
-              allocationStatus: 'picked',
-            },
-          })
+        if (!lpnId) continue
+
+        // Fetch current LPN record to get current quantities
+        const lpnRecord = await payload.findByID({
+          collection: 'put-away-stock',
+          id: lpnId,
+        })
+
+        const lpnData: any = {
+          allocationStatus: 'picked',
         }
+
+        // If this is a loosened stock record, reduce the quantity picked
+        if ((lpn as any).isLoosened) {
+          const currentLoosenedQty = (lpnRecord as any).loosenedQty || 0
+          
+          // Calculate how much to pick from this record
+          const pickedFromThisRecord = Math.min(currentLoosenedQty, remainingLoosenedToPick)
+          
+          const newLoosenedQty = currentLoosenedQty - pickedFromThisRecord
+          
+          if (newLoosenedQty <= 0) {
+            // All loosened quantity picked up from this record
+            lpnData.allocationStatus = 'picked'
+            lpnData.loosenedQty = 0
+            lpnData.huQty = 0
+            lpnData.remainingHuQty = 0
+          } else {
+            // Partial pickup - reduce quantity but keep as allocated
+            lpnData.loosenedQty = newLoosenedQty
+            lpnData.huQty = newLoosenedQty
+            lpnData.remainingHuQty = 0
+            lpnData.allocationStatus = 'allocated' // Keep as allocated since not fully picked
+          }
+          
+          // Reduce the remaining loosened quantity for next records
+          remainingLoosenedToPick -= pickedFromThisRecord
+        } else {
+          // Regular LPN - mark as picked
+          lpnData.remainingHuQty = 0
+          lpnData.allocationStatus = 'picked'
+        }
+
+        await payload.update({
+          collection: 'put-away-stock',
+          id: lpnId,
+          data: lpnData,
+        })
       }
 
       // Update product line picked quantities
@@ -417,9 +620,15 @@ export async function GET(
               equals: containerId,
             },
           },
+          {
+            pickupStatus: {
+              not_equals: 'cancelled',
+            },
+          },
         ],
       },
       depth: 2,
+      sort: '-createdAt',
     })
 
     return NextResponse.json({

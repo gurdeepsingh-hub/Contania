@@ -143,6 +143,7 @@ export const OutboundInventory: CollectionConfig = {
         { label: 'Partially Picked', value: 'partially_picked' },
         { label: 'Picked', value: 'picked' },
         { label: 'Ready to Dispatch', value: 'ready_to_dispatch' },
+        { label: 'Dispatched', value: 'dispatched' },
       ],
       defaultValue: 'draft',
       admin: {

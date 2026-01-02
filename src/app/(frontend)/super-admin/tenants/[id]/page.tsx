@@ -91,7 +91,7 @@ export default function TenantDetailsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editFormData, setEditFormData] = useState<Partial<Tenant>>({})
-  const [signingIn, setSigningIn] = useState(false)
+  const [signingIn, setSigningIn] = useState<number | null>(null) // Track which user is being signed in
 
   useEffect(() => {
     if (tenantId) {
@@ -650,54 +650,6 @@ export default function TenantDetailsPage() {
         </Card>
       )}
 
-      {/* Sign in as Tenant Section - Only show for approved tenants */}
-      {tenant.approved && tenant.subdomain && (
-        <Card className="relative rounded-none shadow-zinc-950/5">
-          <CardDecorator />
-          <CardHeader>
-            <CardTitle className="text-lg sm:text-xl">Super Admin Access</CardTitle>
-            <CardDescription>
-              Sign into this tenant&apos;s dashboard with full admin permissions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={async () => {
-                setSigningIn(true)
-                try {
-                  const res = await fetch(`/api/admin/tenants/${tenantId}/sign-in`, {
-                    method: 'POST',
-                  })
-
-                  const data = await res.json()
-
-                  if (res.ok && data.success) {
-                    // Open in new tab - the callback URL will set the cookie and redirect
-                    window.open(data.url, '_blank')
-                  } else {
-                    alert(data.message || 'Failed to sign in as tenant')
-                  }
-                } catch (error) {
-                  console.error('Error signing in as tenant:', error)
-                  alert('Failed to sign in as tenant')
-                } finally {
-                  setSigningIn(false)
-                }
-              }}
-              disabled={signingIn}
-              className="bg-primary hover:bg-primary/90 min-h-[44px]"
-            >
-              <LogIn className="h-4 w-4 mr-2" />
-              {signingIn ? 'Signing in...' : 'Sign in as Tenant'}
-            </Button>
-            <p className="text-sm text-muted-foreground mt-3">
-              This will sign you into the tenant dashboard with full admin permissions. You will be
-              redirected to the tenant&apos;s subdomain.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Tenant Users */}
       <Card className="relative rounded-none shadow-zinc-950/5">
         <CardDecorator />
@@ -718,34 +670,76 @@ export default function TenantDetailsPage() {
                   key={user.id}
                   className="p-4 sm:p-6 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-base sm:text-lg">{user.fullName}</h3>
-                      {user.userGroup && (
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                          {user.userGroup}
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{user.email}</span>
-                      </div>
-                      {user.position && <p className="break-words">Position: {user.position}</p>}
-                      {user.phoneMobile && <p>Mobile: {user.phoneMobile}</p>}
-                      {user.phoneFixed && <p>Fixed: {user.phoneFixed}</p>}
-                      {user.status && (
-                        <p>
-                          Status:{' '}
-                          <span
-                            className={user.status === 'active' ? 'text-green-600' : 'text-red-600'}
-                          >
-                            {user.status}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-base sm:text-lg">{user.fullName}</h3>
+                        {user.userGroup && (
+                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            {user.userGroup}
                           </span>
-                        </p>
-                      )}
+                        )}
+                      </div>
+                      <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 flex-shrink-0" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                        {user.position && <p className="break-words">Position: {user.position}</p>}
+                        {user.phoneMobile && <p>Mobile: {user.phoneMobile}</p>}
+                        {user.phoneFixed && <p>Fixed: {user.phoneFixed}</p>}
+                        {user.status && (
+                          <p>
+                            Status:{' '}
+                            <span
+                              className={
+                                user.status === 'active' ? 'text-green-600' : 'text-red-600'
+                              }
+                            >
+                              {user.status}
+                            </span>
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    {tenant.approved && tenant.subdomain && (
+                      <div className="flex-shrink-0">
+                        <Button
+                          onClick={async () => {
+                            setSigningIn(user.id)
+                            try {
+                              const res = await fetch(`/api/admin/tenants/${tenantId}/sign-in`, {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({ userId: user.id }),
+                              })
+
+                              const data = await res.json()
+
+                              if (res.ok && data.success) {
+                                // Open in new tab - the callback URL will set the cookie and redirect
+                                window.open(data.url, '_blank')
+                              } else {
+                                alert(data.message || 'Failed to sign in as tenant user')
+                              }
+                            } catch (error) {
+                              console.error('Error signing in as tenant user:', error)
+                              alert('Failed to sign in as tenant user')
+                            } finally {
+                              setSigningIn(null)
+                            }
+                          }}
+                          disabled={signingIn === user.id}
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90 min-h-[44px] w-full sm:w-auto"
+                        >
+                          <LogIn className="h-4 w-4 mr-2" />
+                          {signingIn === user.id ? 'Signing in...' : 'Sign in as Tenant'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

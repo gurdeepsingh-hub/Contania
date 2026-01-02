@@ -77,14 +77,41 @@ export async function GET(
       page++
     }
 
-    // Format LPN data
-    const lpnData = allAllocatedLPNs.map((lpn, index) => ({
-      serialNumber: index + 1,
-      lpnNumber: lpn.lpnNumber,
-      location: lpn.location || '',
-      huQty: lpn.huQty || 0,
-      id: lpn.id,
-    }))
+    // Format LPN data - calculate actual allocated quantity
+    const lpnData = allAllocatedLPNs.map((lpn: any, index) => {
+      // Calculate actual allocated quantity
+      // For partial allocations: allocatedQty = originalHuQty - remainingHuQty
+      // For full allocations: allocatedQty = huQty (which stores the allocated quantity for opened pallets)
+      let allocatedQty = lpn.huQty || 0
+      
+      if (lpn.isLoosened) {
+        // For loosened stock, use the loosenedQty (the quantity allocated)
+        // Since it's fully allocated, remainingHuQty should be 0
+        allocatedQty = lpn.loosenedQty || lpn.huQty || 0
+      } else if (lpn.remainingHuQty !== undefined && lpn.remainingHuQty !== null && lpn.remainingHuQty > 0) {
+        // Partial allocation: calculate allocated quantity
+        // Only calculate if remainingHuQty > 0 (partially allocated)
+        if (lpn.originalHuQty !== undefined && lpn.originalHuQty !== null) {
+          allocatedQty = lpn.originalHuQty - lpn.remainingHuQty
+        } else {
+          // Has remainingHuQty but no originalHuQty - use huQty as original
+          allocatedQty = (lpn.huQty || 0) - lpn.remainingHuQty
+        }
+      } else if (lpn.remainingHuQty === 0 && lpn.originalHuQty !== undefined && lpn.originalHuQty !== null) {
+        // Fully allocated pallet: use huQty which stores the allocated quantity
+        // For opened pallets that were fully allocated, huQty contains the allocated quantity
+        // For full pallets that were never opened, huQty contains the full pallet quantity
+        allocatedQty = lpn.huQty || lpn.originalHuQty || 0
+      }
+      
+      return {
+        serialNumber: index + 1,
+        lpnNumber: lpn.lpnNumber,
+        location: lpn.location || '',
+        huQty: allocatedQty,
+        id: lpn.id,
+      }
+    })
 
     return NextResponse.json({
       success: true,

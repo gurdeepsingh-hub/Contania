@@ -41,41 +41,100 @@ export async function GET(
       return NextResponse.json({ message: 'Product line not found' }, { status: 404 })
     }
 
-    // Fetch allocated LPNs for this product line
-    const allAllocatedLPNs = []
-    let page = 1
-    let hasMore = true
+      // Fetch allocated LPNs for this product line (including partial allocations)
+      // Exclude loosened stock here - we'll fetch it separately to ensure proper filtering
+      const allAllocatedLPNs = []
+      let page = 1
+      let hasMore = true
 
-    while (hasMore) {
-      const allocatedLPNsResult = await payload.find({
-        collection: 'put-away-stock',
-        where: {
-          and: [
-            {
-              tenantId: {
-                equals: tenant.id,
+      while (hasMore) {
+        const allocatedLPNsResult = await payload.find({
+          collection: 'put-away-stock',
+          where: {
+            and: [
+              {
+                tenantId: {
+                  equals: tenant.id,
+                },
               },
-            },
-            {
-              outboundProductLineId: {
-                equals: productLineId,
+              {
+                outboundProductLineId: {
+                  equals: productLineId,
+                },
               },
-            },
-            {
-              allocationStatus: {
-                equals: 'allocated',
+              {
+                allocationStatus: {
+                  equals: 'allocated',
+                },
               },
-            },
-          ],
-        },
-        sort: 'lpnNumber',
-        limit: 1000,
-        page,
-      })
-      allAllocatedLPNs.push(...allocatedLPNsResult.docs)
-      hasMore = allocatedLPNsResult.hasNextPage
-      page++
-    }
+              {
+                isLoosened: {
+                  not_equals: true,
+                },
+              },
+            ],
+          },
+          sort: 'lpnNumber',
+          limit: 1000,
+          page,
+        })
+        allAllocatedLPNs.push(...allocatedLPNsResult.docs)
+        hasMore = allocatedLPNsResult.hasNextPage
+        page++
+      }
+
+      // Fetch loosened stock allocated to THIS product line only (separate query to ensure proper filtering)
+      const productLineSkuId =
+        productLine.skuId && typeof productLine.skuId === 'object'
+          ? productLine.skuId.id
+          : productLine.skuId
+      const productLineBatch = productLine.batchNumber
+
+      if (productLineSkuId && productLineBatch) {
+        const loosenedStock = await payload.find({
+          collection: 'put-away-stock',
+          where: {
+            and: [
+              {
+                tenantId: {
+                  equals: tenant.id,
+                },
+              },
+              {
+                isLoosened: {
+                  equals: true,
+                },
+              },
+              {
+                loosenedSkuId: {
+                  equals: productLineSkuId,
+                },
+              },
+              {
+                loosenedBatchNumber: {
+                  equals: productLineBatch,
+                },
+              },
+              {
+                allocationStatus: {
+                  equals: 'allocated',
+                },
+              },
+              {
+                outboundProductLineId: {
+                  equals: productLineId,
+                },
+              },
+            ],
+          },
+          limit: 1000,
+        })
+
+        // Add only loosened stock allocated to THIS product line
+        if (loosenedStock.docs.length > 0) {
+          allAllocatedLPNs.push(...loosenedStock.docs)
+        }
+      }
 
     // Fetch existing pickup records for this product line
     const existingPickups = await payload.find({
@@ -117,13 +176,35 @@ export async function GET(
     })
 
     // Format LPN data with validation status
-    const lpnData = allAllocatedLPNs.map((lpn) => {
+    const lpnData = allAllocatedLPNs.map((lpn: any) => {
       const isPickedUp = pickedUpLPNIds.has(lpn.id)
+      
+      // Determine quantity - show the ALLOCATED quantity for pickup
+      let displayQty = lpn.huQty || 0
+      if (lpn.isLoosened) {
+        displayQty = lpn.loosenedQty || 0
+      } else if (lpn.remainingHuQty !== undefined && lpn.remainingHuQty !== null && lpn.remainingHuQty > 0) {
+        // Partially allocated pallet: calculate allocated quantity
+        if (lpn.originalHuQty !== undefined && lpn.originalHuQty !== null) {
+          displayQty = lpn.originalHuQty - lpn.remainingHuQty
+        } else {
+          // Has remaining but no original - use huQty as original
+          displayQty = (lpn.huQty || 0) - lpn.remainingHuQty
+        }
+      } else if (lpn.remainingHuQty === 0 && lpn.originalHuQty !== undefined && lpn.originalHuQty !== null) {
+        // Fully allocated pallet: use huQty which stores the allocated quantity
+        // For opened pallets that were fully allocated, huQty contains the allocated quantity (not original)
+        // For full pallets that were never opened, huQty contains the full pallet quantity
+        displayQty = lpn.huQty || lpn.originalHuQty || 0
+      }
+
       return {
         id: lpn.id,
         lpnNumber: lpn.lpnNumber,
-        location: lpn.location || '',
-        huQty: lpn.huQty || 0,
+        location: lpn.location || (lpn.isLoosened ? 'LOOSENED' : ''),
+        huQty: displayQty,
+        isLoosened: lpn.isLoosened || false,
+        loosenedQty: lpn.loosenedQty || 0,
         isPickedUp,
         allocationStatus: lpn.allocationStatus,
       }

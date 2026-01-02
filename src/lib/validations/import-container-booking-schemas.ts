@@ -47,18 +47,14 @@ export const step1Schema = z.object({
   consigneeId: z.number().min(1, 'Consignee is required'),
 })
 
-// Step 2: Vessel Info (Import-specific)
-export const step2Schema = z.object({
-  vesselId: numberOrUndefined,
-  eta: dateStringOrUndefined,
-  availability: z.boolean().optional(),
-  storageStart: dateStringOrUndefined,
-  firstFreeImportDate: dateStringOrUndefined,
-})
-
-// Step 3: Locations
-export const step3Schema = z
+// Step 2: Vessel Info + Locations (Merged) (Import-specific)
+export const step2Schema = z
   .object({
+    vesselId: numberOrUndefined,
+    eta: dateStringOrUndefined,
+    availability: z.boolean().optional(),
+    storageStart: dateStringOrUndefined,
+    firstFreeImportDate: dateStringOrUndefined,
     fromId: z.union([
       z.string().refine((val) => {
         if (!val || typeof val !== 'string') return false
@@ -105,8 +101,8 @@ export const step3Schema = z
     },
   )
 
-// Step 4: Routing (Import: Full → Empty)
-export const step4Schema = z.object({
+// Step 3: Routing (Import: Full → Empty)
+export const step3Schema = z.object({
   fullRouting: z
     .object({
       pickupLocationId: z.union([z.string(), z.number()]).optional(),
@@ -129,8 +125,8 @@ export const step4Schema = z.object({
     .optional(),
 })
 
-// Step 5: Container Details
-export const step5Schema = z.object({
+// Step 4: Container Details
+export const step4Schema = z.object({
   containerDetails: z
     .array(
       z.object({
@@ -164,9 +160,9 @@ export const step5Schema = z.object({
     .min(1, 'At least one container detail is required'),
 })
 
-// Step 6: Stock Allocation (Import)
+// Step 5: Stock Allocation (Import)
 // Stock allocations are optional - can be added later, so validation is lenient
-export const step6Schema = z.object({
+export const step5Schema = z.object({
   stockAllocations: z
     .array(
       z.object({
@@ -196,8 +192,8 @@ export const step6Schema = z.object({
     .optional(),
 })
 
-// Step 7: Driver Allocation
-export const step7Schema = z.object({
+// Step 6: Driver Allocation
+export const step6Schema = z.object({
   driverAllocation: z
     .object({
       emptyContainer: z
@@ -243,7 +239,6 @@ export const completeBookingSchema = step1Schema
   .merge(step4Schema)
   .merge(step5Schema)
   .merge(step6Schema)
-  .merge(step7Schema)
 
 export type Step1Data = z.infer<typeof step1Schema>
 export type Step2Data = z.infer<typeof step2Schema>
@@ -251,6 +246,4 @@ export type Step3Data = z.infer<typeof step3Schema>
 export type Step4Data = z.infer<typeof step4Schema>
 export type Step5Data = z.infer<typeof step5Schema>
 export type Step6Data = z.infer<typeof step6Schema>
-export type Step7Data = z.infer<typeof step7Schema>
 export type CompleteBookingData = z.infer<typeof completeBookingSchema>
-

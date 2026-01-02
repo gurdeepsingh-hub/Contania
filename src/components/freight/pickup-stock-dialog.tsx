@@ -23,6 +23,8 @@ type AllocatedLPN = {
   location: string
   huQty: number
   isPickedUp: boolean
+  isLoosened?: boolean
+  loosenedQty?: number
 }
 
 type PickupInfo = {
@@ -49,9 +51,17 @@ interface PickupStockDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   jobId: number
+  onPickupComplete?: () => void
+  preventReload?: boolean
 }
 
-export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDialogProps) {
+export function PickupStockDialog({ 
+  open, 
+  onOpenChange, 
+  jobId,
+  onPickupComplete,
+  preventReload = false,
+}: PickupStockDialogProps) {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [completing, setCompleting] = useState(false)
@@ -59,6 +69,7 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
   const [pickupInfo, setPickupInfo] = useState<Record<number, PickupInfo>>({})
   const [productLineDetails, setProductLineDetails] = useState<Record<number, ProductLineDetails>>({})
   const [selectedLPNs, setSelectedLPNs] = useState<Record<number, string[]>>({})
+  const [loosenedQtys, setLoosenedQtys] = useState<Record<number, number>>({})
   const [bufferQtys, setBufferQtys] = useState<Record<number, number>>({})
   const [notes, setNotes] = useState<Record<number, string>>({})
 
@@ -165,10 +176,13 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
     const info = pickupInfo[productLineId]
     if (!info) return 0
 
-    return lpnNumbers.reduce((sum, lpnNumber) => {
+    const lpnQty = lpnNumbers.reduce((sum, lpnNumber) => {
       const lpn = info.allocatedLPNs.find((l) => l.lpnNumber === lpnNumber)
       return sum + (lpn?.huQty || 0)
     }, 0)
+
+    const loosenedQty = loosenedQtys[productLineId] || 0
+    return lpnQty + loosenedQty
   }
 
   const calculateFinalQty = (productLineId: number): number => {
@@ -178,25 +192,35 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
   }
 
   const handleSubmit = async () => {
-    // Validate that at least one product line has LPNs selected
-    const hasSelections = Object.values(selectedLPNs).some((lpns) => lpns.length > 0)
-    if (!hasSelections) {
-      toast.error('Please select at least one LPN to pick up')
+    // Validate that at least one product line has LPNs or loosened stock selected
+    const hasLPNSelections = Object.values(selectedLPNs).some((lpns) => lpns.length > 0)
+    const hasLoosenedSelections = Object.values(loosenedQtys).some((qty) => qty > 0)
+    if (!hasLPNSelections && !hasLoosenedSelections) {
+      toast.error('Please select at least one LPN or loosened stock to pick up')
       return
     }
 
     setSubmitting(true)
     try {
-      const promises = Object.keys(selectedLPNs).map(async (productLineIdStr) => {
-        const productLineId = parseInt(productLineIdStr, 10)
-        const lpnNumbers = selectedLPNs[productLineId]
-        if (lpnNumbers.length === 0) return null
+      // Get all product line IDs that have either LPNs or loosened stock selected
+      const allProductLineIds = new Set([
+        ...Object.keys(selectedLPNs).map(Number),
+        ...Object.keys(loosenedQtys).map(Number),
+      ])
+      
+      const promises = Array.from(allProductLineIds).map(async (productLineId) => {
+        const lpnNumbers = selectedLPNs[productLineId] || []
+        const loosenedQty = loosenedQtys[productLineId] || 0
+        
+        // Skip if no LPNs and no loosened stock
+        if (lpnNumbers.length === 0 && loosenedQty <= 0) return null
 
         const res = await fetch(`/api/outbound-product-lines/${productLineId}/pickup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             lpnNumbers,
+            loosenedQty,
             bufferQty: bufferQtys[productLineId] || 0,
             notes: notes[productLineId] || '',
           }),
@@ -218,10 +242,13 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
         onOpenChange(false)
         // Reset state
         setSelectedLPNs({})
+        setLoosenedQtys({})
         setBufferQtys({})
         setNotes({})
-        // Reload page to show updated status
-        if (typeof window !== 'undefined') {
+        // Call callback if provided, otherwise reload page
+        if (onPickupComplete) {
+          onPickupComplete()
+        } else if (!preventReload && typeof window !== 'undefined') {
           window.location.reload()
         }
       }
@@ -251,8 +278,10 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
 
       toast.success('Pickup completed. Job is now ready to dispatch.')
       onOpenChange(false)
-      // Reload page to show updated status
-      if (typeof window !== 'undefined') {
+      // Call callback if provided, otherwise reload page
+      if (onPickupComplete) {
+        onPickupComplete()
+      } else if (!preventReload && typeof window !== 'undefined') {
         window.location.reload()
       }
     } catch (error: any) {
@@ -324,6 +353,10 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
             const finalQty = calculateFinalQty(productLineId)
             const hasExistingPickup = info.existingPickups.length > 0
 
+            // Get loosened stock for this product line
+            const loosenedStock = info.allocatedLPNs.filter((lpn) => lpn.isLoosened)
+            const availableLoosenedQty = loosenedStock.reduce((sum, lpn) => sum + (lpn.loosenedQty || lpn.huQty || 0), 0)
+
             // Get SKU ID display
             const skuIdDisplay =
               details?.skuId && typeof details.skuId === 'object'
@@ -362,13 +395,53 @@ export function PickupStockDialog({ open, onOpenChange, jobId }: PickupStockDial
                   <div>
                     <Label className="mb-2 block">Select LPNs to Pick Up</Label>
                     <PickupLPNInput
-                      availableLPNs={info.allocatedLPNs}
+                      availableLPNs={info.allocatedLPNs.filter((lpn) => !lpn.isLoosened)}
                       selectedLPNs={selectedLPNsForLine}
                       onLPNAdd={(lpnNumber) => handleLPNAdd(productLineId, lpnNumber)}
                       onLPNRemove={(lpnNumber) => handleLPNRemove(productLineId, lpnNumber)}
                       onLPNAddBulk={(lpnNumbers) => handleLPNAddBulk(productLineId, lpnNumbers)}
                     />
                   </div>
+
+                  {/* Loosened Stock Input */}
+                  {availableLoosenedQty > 0 && (
+                    <div>
+                      <Label htmlFor={`loosened-${productLineId}`} className="mb-2 block">
+                        Loosened Stock (Non-LPN Items)
+                      </Label>
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">
+                          Available: {availableLoosenedQty} units
+                        </div>
+                        <Input
+                          id={`loosened-${productLineId}`}
+                          type="number"
+                          min="0"
+                          max={availableLoosenedQty}
+                          value={loosenedQtys[productLineId] || 0}
+                          onChange={(e) =>
+                            setLoosenedQtys((prev) => ({
+                              ...prev,
+                              [productLineId]: Math.max(0, Math.min(availableLoosenedQty, parseFloat(e.target.value) || 0)),
+                            }))
+                          }
+                          placeholder="Enter quantity to pick up"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setLoosenedQtys((prev) => ({
+                              ...prev,
+                              [productLineId]: availableLoosenedQty,
+                            }))
+                          }
+                        >
+                          Select All ({availableLoosenedQty})
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Quantity Summary */}
                   {selectedLPNsForLine.length > 0 && (

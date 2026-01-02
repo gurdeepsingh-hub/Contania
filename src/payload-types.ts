@@ -104,6 +104,7 @@ export interface Config {
     'export-container-bookings': ExportContainerBooking;
     'container-details': ContainerDetail;
     'container-stock-allocations': ContainerStockAllocation;
+    dispatches: Dispatch;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -146,6 +147,7 @@ export interface Config {
     'export-container-bookings': ExportContainerBookingsSelect<false> | ExportContainerBookingsSelect<true>;
     'container-details': ContainerDetailsSelect<false> | ContainerDetailsSelect<true>;
     'container-stock-allocations': ContainerStockAllocationsSelect<false> | ContainerStockAllocationsSelect<true>;
+    dispatches: DispatchesSelect<false> | DispatchesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -1266,6 +1268,34 @@ export interface PutAwayStock {
    * Quantity of handling units per pallet
    */
   huQty: number;
+  /**
+   * Original quantity when pallet was created (for tracking partial allocations)
+   */
+  originalHuQty?: number | null;
+  /**
+   * Current remaining quantity (for partially allocated pallets)
+   */
+  remainingHuQty?: number | null;
+  /**
+   * Flag indicating if this is a loosened stock record (aggregated loosened items)
+   */
+  isLoosened?: boolean | null;
+  /**
+   * Quantity of loosened items aggregated in this record
+   */
+  loosenedQty?: number | null;
+  /**
+   * Reference to original LPN if this is a loosened record created from a partial allocation
+   */
+  parentLpnId?: (number | null) | PutAwayStock;
+  /**
+   * SKU for loosened items (when isLoosened is true)
+   */
+  loosenedSkuId?: (number | null) | Skus;
+  /**
+   * Batch number for loosened items (when isLoosened is true)
+   */
+  loosenedBatchNumber?: string | null;
   /**
    * Outbound job this LPN is allocated to (if allocated)
    */
@@ -2603,6 +2633,7 @@ export interface OutboundInventory {
         | 'partially_picked'
         | 'picked'
         | 'ready_to_dispatch'
+        | 'dispatched'
       )
     | null;
   /**
@@ -2852,8 +2883,16 @@ export interface PickupStock {
      * Storage location of LPN (cached)
      */
     location?: string | null;
+    /**
+     * Whether this is a loosened item (non-LPN)
+     */
+    isLoosened?: boolean | null;
     id?: string | null;
   }[];
+  /**
+   * Quantity of loosened items picked up (non-LPN items)
+   */
+  pickedUpLoosenedQty?: number | null;
   /**
    * Total quantity calculated from picked up LPNs
    */
@@ -3273,6 +3312,55 @@ export interface DetentionControl {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "dispatches".
+ */
+export interface Dispatch {
+  id: number;
+  /**
+   * Links dispatch to their company (tenant)
+   */
+  tenantId: number | Tenant;
+  /**
+   * Links dispatch to outbound job
+   */
+  outboundInventoryId: number | OutboundInventory;
+  /**
+   * Date for dispatch
+   */
+  dispatchDate: string;
+  /**
+   * Time for dispatch (e.g., "14:30" or "2:30 PM")
+   */
+  dispatchTime: string;
+  /**
+   * Driver assigned to this dispatch
+   */
+  driverId?: (number | null) | Driver;
+  /**
+   * Vehicle assigned to this dispatch
+   */
+  vehicleId: number | Vehicle;
+  /**
+   * Status of the dispatch entry
+   */
+  status?: ('planned' | 'allocated') | null;
+  /**
+   * Additional notes about the dispatch
+   */
+  notes?: string | null;
+  /**
+   * User who created this dispatch entry
+   */
+  createdBy?: (number | null) | TenantUser;
+  /**
+   * Timestamp when dispatch was allocated
+   */
+  allocatedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -3421,6 +3509,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'container-stock-allocations';
         value: number | ContainerStockAllocation;
+      } | null)
+    | ({
+        relationTo: 'dispatches';
+        value: number | Dispatch;
       } | null);
   globalSlug?: string | null;
   user:
@@ -3872,6 +3964,13 @@ export interface PutAwayStockSelect<T extends boolean = true> {
   warehouseId?: T;
   location?: T;
   huQty?: T;
+  originalHuQty?: T;
+  remainingHuQty?: T;
+  isLoosened?: T;
+  loosenedQty?: T;
+  parentLpnId?: T;
+  loosenedSkuId?: T;
+  loosenedBatchNumber?: T;
   outboundInventoryId?: T;
   outboundProductLineId?: T;
   allocationStatus?: T;
@@ -3970,8 +4069,10 @@ export interface PickupStockSelect<T extends boolean = true> {
         lpnNumber?: T;
         huQty?: T;
         location?: T;
+        isLoosened?: T;
         id?: T;
       };
+  pickedUpLoosenedQty?: T;
   pickedUpQty?: T;
   bufferQty?: T;
   finalPickedUpQty?: T;
@@ -4440,6 +4541,24 @@ export interface ContainerStockAllocationsSelect<T extends boolean = true> {
         attribute2?: T;
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "dispatches_select".
+ */
+export interface DispatchesSelect<T extends boolean = true> {
+  tenantId?: T;
+  outboundInventoryId?: T;
+  dispatchDate?: T;
+  dispatchTime?: T;
+  driverId?: T;
+  vehicleId?: T;
+  status?: T;
+  notes?: T;
+  createdBy?: T;
+  allocatedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

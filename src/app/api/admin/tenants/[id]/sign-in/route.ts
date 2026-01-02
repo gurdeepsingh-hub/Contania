@@ -24,10 +24,7 @@ async function isSuperAdmin(req: NextRequest): Promise<{ payload: any; user: any
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await isSuperAdmin(request)
     if (!auth) {
@@ -37,6 +34,10 @@ export async function POST(
     const { payload } = auth
     const resolvedParams = await params
     const tenantId = Number(resolvedParams.id)
+
+    // Parse request body to check for userId
+    const body = await request.json().catch(() => ({}))
+    const userId = body.userId ? Number(body.userId) : null
 
     // Get the tenant
     const tenant = await payload.findByID({
@@ -51,52 +52,55 @@ export async function POST(
     if (!tenant.approved) {
       return NextResponse.json(
         { message: 'Tenant must be approved before signing in' },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
     if (!tenant.subdomain) {
-      return NextResponse.json(
-        { message: 'Tenant subdomain not found' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'Tenant subdomain not found' }, { status: 400 })
     }
-
-    // Find or create an admin tenant user for super admin access
-    // First, try to find an existing admin user
-    const adminUsers = await payload.find({
-      collection: 'tenant-users',
-      where: {
-        and: [
-          {
-            tenantId: {
-              equals: tenantId,
-            },
-          },
-        ],
-      },
-      limit: 1,
-    })
 
     let tenantUser
     let loginPassword: string
 
-    if (adminUsers.docs.length > 0) {
-      // Use existing admin user - need to reset password to login
-      tenantUser = adminUsers.docs[0]
-      loginPassword = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
-      await payload.update({
-        collection: 'tenant-users',
-        id: tenantUser.id,
-        data: {
-          password: loginPassword,
-        },
-      })
+    // If userId is provided, use that specific user
+    if (userId) {
+      try {
+        tenantUser = await payload.findByID({
+          collection: 'tenant-users',
+          id: userId,
+        })
+
+        // Verify the user belongs to this tenant
+        const userTenantId =
+          typeof tenantUser.tenantId === 'object'
+            ? (tenantUser.tenantId as { id: number }).id
+            : tenantUser.tenantId
+
+        if (userTenantId !== tenantId) {
+          return NextResponse.json(
+            { message: 'User does not belong to this tenant' },
+            { status: 403 },
+          )
+        }
+
+        // Reset password temporarily to login
+        loginPassword = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        await payload.update({
+          collection: 'tenant-users',
+          id: tenantUser.id,
+          data: {
+            password: loginPassword,
+          },
+        })
+      } catch (error) {
+        return NextResponse.json({ message: 'User not found' }, { status: 404 })
+      }
     } else {
-      // Create a temporary admin user for super admin access
-      // Find admin role first
-      const adminRoles = await payload.find({
-        collection: 'tenant-roles',
+      // Find or create an admin tenant user for super admin access
+      // First, try to find an existing admin user
+      const adminUsers = await payload.find({
+        collection: 'tenant-users',
         where: {
           and: [
             {
@@ -109,41 +113,75 @@ export async function POST(
         limit: 1,
       })
 
-      let adminRoleId
-      if (adminRoles.docs.length > 0) {
-        adminRoleId = adminRoles.docs[0].id
-      } else {
-        // Create a default admin role with all permissions
-        const newRole = await payload.create({
-          collection: 'tenant-roles',
+      if (adminUsers.docs.length > 0) {
+        // Use existing admin user - need to reset password to login
+        tenantUser = adminUsers.docs[0]
+        loginPassword = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
+        await payload.update({
+          collection: 'tenant-users',
+          id: tenantUser.id,
           data: {
-            tenantId: tenantId,
-            name: 'Super Admin',
-            permissions: {
-              dashboard: { view: true },
-              settings: { view: true, entity_settings: true, user_settings: true, personalization: true },
-              // Add all other permissions as true
-            },
+            password: loginPassword,
           },
         })
-        adminRoleId = newRole.id
+      } else {
+        // Create a temporary admin user for super admin access
+        // Find admin role first
+        const adminRoles = await payload.find({
+          collection: 'tenant-roles',
+          where: {
+            and: [
+              {
+                tenantId: {
+                  equals: tenantId,
+                },
+              },
+            ],
+          },
+          limit: 1,
+        })
+
+        let adminRoleId
+        if (adminRoles.docs.length > 0) {
+          adminRoleId = adminRoles.docs[0].id
+        } else {
+          // Create a default admin role with all permissions
+          const newRole = await payload.create({
+            collection: 'tenant-roles',
+            data: {
+              tenantId: tenantId,
+              name: 'Super Admin',
+              permissions: {
+                dashboard: { view: true },
+                settings: {
+                  view: true,
+                  entity_settings: true,
+                  user_settings: true,
+                  personalization: true,
+                },
+                // Add all other permissions as true
+              },
+            },
+          })
+          adminRoleId = newRole.id
+        }
+
+        // Create temporary admin user
+        const tempEmail = `superadmin-${tenantId}@temp.containa.io`
+        loginPassword = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
+
+        tenantUser = await payload.create({
+          collection: 'tenant-users',
+          data: {
+            tenantId: tenantId,
+            email: tempEmail,
+            password: loginPassword,
+            fullName: 'Super Admin (Temporary)',
+            role: adminRoleId,
+            status: 'active',
+          },
+        })
       }
-
-      // Create temporary admin user
-      const tempEmail = `superadmin-${tenantId}@temp.containa.io`
-      loginPassword = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
-
-      tenantUser = await payload.create({
-        collection: 'tenant-users',
-        data: {
-          tenantId: tenantId,
-          email: tempEmail,
-          password: loginPassword,
-          fullName: 'Super Admin (Temporary)',
-          role: adminRoleId,
-          status: 'active',
-        },
-      })
     }
 
     // Generate token for tenant user using the password we know
@@ -156,22 +194,19 @@ export async function POST(
     })
 
     if (!result.token) {
-      return NextResponse.json(
-        { message: 'Failed to create tenant user session' },
-        { status: 500 }
-      )
+      return NextResponse.json({ message: 'Failed to create tenant user session' }, { status: 500 })
     }
 
     // Generate URL based on environment
     const hostname = request.headers.get('host') || ''
     const isLocalhost = hostname.includes('localhost')
-    const baseUrl = isLocalhost 
+    const baseUrl = isLocalhost
       ? `http://${tenant.subdomain}.localhost:${hostname.split(':')[1] || '3000'}`
       : `https://${tenant.subdomain}.containa.io`
-    
+
     // Use auth callback route to set cookie on the subdomain
     const callbackUrl = `${baseUrl}/auth/callback?token=${encodeURIComponent(result.token)}`
-    
+
     const response = NextResponse.json({
       success: true,
       subdomain: tenant.subdomain,
@@ -181,10 +216,6 @@ export async function POST(
     return response
   } catch (error) {
     console.error('Super admin tenant sign-in error:', error)
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Internal server error' }, { status: 500 })
   }
 }
-

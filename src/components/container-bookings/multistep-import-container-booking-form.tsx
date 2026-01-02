@@ -12,12 +12,10 @@ import {
   step4Schema,
   step5Schema,
   step6Schema,
-  step7Schema,
 } from '@/lib/validations/import-container-booking-schemas'
 import { useTenant } from '@/lib/tenant-context'
 import { Step1BasicInfoImport } from './steps/step1-basic-info-import'
-import { Step2VesselInfoImport } from './steps/step2-vessel-info-import'
-import { Step3Locations } from './steps/step3-locations'
+import { Step2VesselLocationsImport } from './steps/step2-vessel-locations-import'
 import { Step4RoutingImport } from './steps/step4-routing-import'
 import { Step5ContainerDetailsImport } from './steps/step5-container-details-import'
 import { Step6StockAllocationImport } from './steps/step6-stock-allocation-import'
@@ -94,7 +92,7 @@ interface MultistepImportContainerBookingFormProps {
   onCancel?: () => void
 }
 
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 6
 
 export function MultistepImportContainerBookingForm({
   initialData,
@@ -165,16 +163,6 @@ export function MultistepImportContainerBookingForm({
           break
         case 1:
           schema = step2Schema
-          stepData = {
-            vesselId: formData.vesselId,
-            eta: formData.eta,
-            availability: formData.availability,
-            storageStart: formData.storageStart,
-            firstFreeImportDate: formData.firstFreeImportDate,
-          }
-          break
-        case 2:
-          schema = step3Schema
           // Normalize containerSizeIds to just numbers (handle populated objects)
           const normalizedSizeIds = (formData.containerSizeIds || [])
             .map((size: any) => {
@@ -196,28 +184,33 @@ export function MultistepImportContainerBookingForm({
             }
           })
           stepData = {
+            vesselId: formData.vesselId,
+            eta: formData.eta,
+            availability: formData.availability,
+            storageStart: formData.storageStart,
+            firstFreeImportDate: formData.firstFreeImportDate,
             fromId: formData.fromId,
             toId: formData.toId,
             containerSizeIds: normalizedSizeIds,
             containerQuantities: cleanedQuantities,
           }
-          console.log('[validateStep] Step 3 data:', JSON.stringify(stepData, null, 2))
+          console.log('[validateStep] Step 2 data:', JSON.stringify(stepData, null, 2))
           break
-        case 3:
-          schema = step4Schema
+        case 2:
+          schema = step3Schema
           stepData = {
             emptyRouting: formData.emptyRouting,
             fullRouting: formData.fullRouting,
           }
           break
-        case 4:
-          schema = step5Schema
+        case 3:
+          schema = step4Schema
           stepData = {
             containerDetails: formData.containerDetails,
           }
           break
-        case 5:
-          schema = step6Schema
+        case 4:
+          schema = step5Schema
           // Normalize stockAllocations to match schema expectations
           // Step 6 is optional - stock allocations can be added later, so allow empty/undefined
           const stockAllocations = formData.stockAllocations
@@ -290,8 +283,8 @@ export function MultistepImportContainerBookingForm({
             }
           }
           break
-        case 6:
-          schema = step7Schema
+        case 5:
+          schema = step6Schema
           stepData = {
             driverAllocation: formData.driverAllocation,
           }
@@ -894,16 +887,15 @@ export function MultistepImportContainerBookingForm({
 
   const stepTitles = [
     'Basic Information',
-    'Vessel Information',
-    'Locations',
+    'Vessel & Locations',
     'Routing',
     'Container Details',
     'Stock Allocation',
     'Driver Allocation',
   ]
 
-  // Memoize props for Step 7 to prevent infinite re-renders
-  const step7RoutingData = useMemo(
+  // Memoize props for Step 6 to prevent infinite re-renders
+  const step6RoutingData = useMemo(
     () => ({
       emptyRouting: formData.emptyRouting,
       fullRouting: formData.fullRouting,
@@ -911,7 +903,7 @@ export function MultistepImportContainerBookingForm({
     [formData.emptyRouting, formData.fullRouting],
   )
 
-  const step7Step3Data = useMemo(
+  const step6Step2Data = useMemo(
     () => ({
       fromId: formData.fromId,
       toId: formData.toId,
@@ -919,7 +911,7 @@ export function MultistepImportContainerBookingForm({
     [formData.fromId, formData.toId],
   )
 
-  const step7OnUpdate = useCallback(
+  const step6OnUpdate = useCallback(
     (data: any) => setFormData((prev) => ({ ...prev, driverAllocation: data })),
     [],
   )
@@ -975,21 +967,13 @@ export function MultistepImportContainerBookingForm({
               />
             )}
             {step === 1 && (
-              <Step2VesselInfoImport
+              <Step2VesselLocationsImport
                 formData={{
                   vesselId: formData.vesselId,
                   eta: formData.eta,
                   availability: formData.availability,
                   storageStart: formData.storageStart,
                   firstFreeImportDate: formData.firstFreeImportDate,
-                }}
-                onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[1]}
-              />
-            )}
-            {step === 2 && (
-              <Step3Locations
-                formData={{
                   fromId: formData.fromId,
                   toId: formData.toId,
                   containerSizeIds: formData.containerSizeIds,
@@ -1004,10 +988,10 @@ export function MultistepImportContainerBookingForm({
                   toPostcode: formData.toPostcode,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[2]}
+                errors={validationErrors[1]}
               />
             )}
-            {step === 3 && (
+            {step === 2 && (
               <Step4RoutingImport
                 formData={{
                   emptyRouting: formData.emptyRouting,
@@ -1020,10 +1004,10 @@ export function MultistepImportContainerBookingForm({
                   toId: formData.toId,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[3]}
+                errors={validationErrors[2]}
               />
             )}
-            {step === 4 && (
+            {step === 3 && (
               <Step5ContainerDetailsImport
                 bookingId={formData.id}
                 formData={{
@@ -1037,10 +1021,10 @@ export function MultistepImportContainerBookingForm({
                   emptyRouting: formData.emptyRouting,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[4]}
+                errors={validationErrors[3]}
               />
             )}
-            {step === 5 && (
+            {step === 4 && (
               <Step6StockAllocationImport
                 bookingId={formData.id || 0}
                 bookingStatus={formData.status}
@@ -1049,17 +1033,17 @@ export function MultistepImportContainerBookingForm({
                   stockAllocations: formData.stockAllocations,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[5]}
+                errors={validationErrors[4]}
               />
             )}
-            {step === 6 && (
+            {step === 5 && (
               <Step7DriverAllocationImport
                 bookingId={formData.id || 0}
                 formData={formData.driverAllocation || {}}
-                routingData={step7RoutingData}
-                step3Data={step7Step3Data}
-                onUpdate={step7OnUpdate}
-                errors={validationErrors[6]}
+                routingData={step6RoutingData}
+                step3Data={step6Step2Data}
+                onUpdate={step6OnUpdate}
+                errors={validationErrors[5]}
               />
             )}
           </div>

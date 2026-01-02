@@ -1,6 +1,101 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/api-helpers'
 
+/**
+ * Create or update loosened stock record for a SKU+batch combination
+ */
+async function createOrUpdateLoosenedStock(
+  payload: any,
+  tenantId: number,
+  skuId: number,
+  batchNumber: string,
+  warehouseId: number | null,
+  quantity: number,
+  parentLpnId?: number,
+) {
+  // Find existing loosened stock for this SKU+batch+warehouse
+  const existing = await payload.find({
+    collection: 'put-away-stock',
+    where: {
+      and: [
+        {
+          tenantId: {
+            equals: tenantId,
+          },
+        },
+        {
+          isLoosened: {
+            equals: true,
+          },
+        },
+        {
+          loosenedSkuId: {
+            equals: skuId,
+          },
+        },
+        {
+          loosenedBatchNumber: {
+            equals: batchNumber,
+          },
+        },
+        {
+          allocationStatus: {
+            equals: 'available',
+          },
+        },
+        ...(warehouseId
+          ? [
+              {
+                warehouseId: {
+                  equals: warehouseId,
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+    limit: 1,
+  })
+
+  if (existing.docs.length > 0) {
+    // Update existing loosened stock
+    const loosened = existing.docs[0]
+    const currentQty = loosened.loosenedQty || 0
+    await payload.update({
+      collection: 'put-away-stock',
+      id: loosened.id,
+      data: {
+        loosenedQty: currentQty + quantity,
+        huQty: currentQty + quantity, // Keep huQty in sync
+        remainingHuQty: currentQty + quantity,
+      },
+    })
+    return loosened.id
+  } else {
+    // Create new loosened stock record
+    const loosened = await payload.create({
+      collection: 'put-away-stock',
+      data: {
+        tenantId,
+        skuId, // Still need skuId for the record
+        warehouseId: warehouseId || undefined,
+        location: 'LOOSENED', // Special location for loosened items
+        huQty: quantity,
+        originalHuQty: quantity,
+        remainingHuQty: quantity,
+        isLoosened: true,
+        loosenedQty: quantity,
+        loosenedSkuId: skuId,
+        loosenedBatchNumber: batchNumber,
+        parentLpnId: parentLpnId || undefined,
+        allocationStatus: 'available',
+        lpnNumber: `LOOSENED-${skuId}-${batchNumber}`, // Will be generated if not unique
+      },
+    })
+    return loosened.id
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -331,14 +426,13 @@ export async function POST(
           continue
         }
 
-        // Fetch available LPNs - fetch all pages
-        // Query LPNs that match batch/SKU through either inbound-product-line OR container-stock-allocation
-        const allAvailableLPNs = []
+        // Fetch opened pallets first (prioritize already-opened pallets)
+        const openedPallets = []
         let page = 1
         let hasMore = true
         
         while (hasMore) {
-          const availableLPNsResult = await payload.find({
+          const openedResult = await payload.find({
             collection: 'put-away-stock',
             where: {
               and: [
@@ -360,6 +454,16 @@ export async function POST(
                     equals: 'available',
                   },
                 },
+                {
+                  remainingHuQty: {
+                    exists: true,
+                  },
+                },
+                {
+                  originalHuQty: {
+                    exists: true,
+                  },
+                },
                 ...(warehouseId
                   ? [
                       {
@@ -371,23 +475,190 @@ export async function POST(
                   : []),
               ],
             },
-            sort: 'createdAt', // FIFO allocation
+            sort: 'createdAt',
             limit: 1000,
             page,
           })
-          allAvailableLPNs.push(...availableLPNsResult.docs)
-          hasMore = availableLPNsResult.hasNextPage
+          
+          // Filter to only opened pallets (remainingHuQty < originalHuQty)
+          const filtered = openedResult.docs.filter((lpn: any) => {
+            const remaining = lpn.remainingHuQty || lpn.huQty
+            const original = lpn.originalHuQty || lpn.huQty
+            return remaining < original && remaining > 0
+          })
+          openedPallets.push(...filtered)
+          hasMore = openedResult.hasNextPage
           page++
         }
 
-        // Allocate LPNs until remaining quantity requirement is met
+        // Fetch full pallets (not opened) - fetch all available and filter
+        const allFullPallets = []
+        page = 1
+        hasMore = true
+        
+        while (hasMore) {
+          const fullResult = await payload.find({
+            collection: 'put-away-stock',
+            where: {
+              and: [
+                {
+                  tenantId: {
+                    equals: tenant.id,
+                  },
+                },
+                {
+                  skuId: {
+                    equals: skuId,
+                  },
+                },
+                {
+                  or: orConditions,
+                },
+                {
+                  allocationStatus: {
+                    equals: 'available',
+                  },
+                },
+                {
+                  isLoosened: {
+                    not_equals: true,
+                  },
+                },
+                ...(warehouseId
+                  ? [
+                      {
+                        warehouseId: {
+                          equals: warehouseId,
+                        },
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            sort: 'createdAt',
+            limit: 1000,
+            page,
+          })
+          
+          allFullPallets.push(...fullResult.docs)
+          hasMore = fullResult.hasNextPage
+          page++
+        }
+        
+        // Filter to full pallets (remainingHuQty === originalHuQty or not set, and not in openedPallets)
+        const openedLpnIds = new Set(openedPallets.map((l: any) => l.id))
+        const fullPallets = allFullPallets.filter((lpn: any) => {
+          if (openedLpnIds.has(lpn.id)) return false
+          const remaining = lpn.remainingHuQty ?? lpn.huQty
+          const original = lpn.originalHuQty ?? lpn.huQty
+          return remaining === original
+        })
+
+        // Fetch loosened stock for this SKU+batch
+        const loosenedStock = await payload.find({
+          collection: 'put-away-stock',
+          where: {
+            and: [
+              {
+                tenantId: {
+                  equals: tenant.id,
+                },
+              },
+              {
+                isLoosened: {
+                  equals: true,
+                },
+              },
+              {
+                loosenedSkuId: {
+                  equals: skuId,
+                },
+              },
+              {
+                loosenedBatchNumber: {
+                  equals: batchNumber,
+                },
+              },
+              {
+                allocationStatus: {
+                  equals: 'available',
+                },
+              },
+              ...(warehouseId
+                ? [
+                    {
+                      warehouseId: {
+                        equals: warehouseId,
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          },
+          limit: 1,
+        })
+
+        // Allocate using partial pallet logic
         let allocatedQty = 0
-        for (const lpn of allAvailableLPNs) {
-          if (allocatedQty >= remainingQtyNeeded) {
-            break
+        const partialAllocations: Array<{ lpn: any; qty: number }> = []
+        const THRESHOLD_PERCENTAGE = 0.85 // 85% threshold
+
+        // First, try to use loosened stock
+        if (loosenedStock.docs.length > 0) {
+          const loosened = loosenedStock.docs[0]
+          const loosenedQty = loosened.loosenedQty || 0
+          if (loosenedQty > 0) {
+            const qtyToTake = Math.min(loosenedQty, remainingQtyNeeded - allocatedQty)
+            allocatedQty += qtyToTake
+            partialAllocations.push({ lpn: loosened, qty: qtyToTake })
           }
-          lpnRecordsToAllocate.push(lpn)
-          allocatedQty += lpn.huQty || 0
+        }
+
+        // Then prioritize opened pallets
+        for (const lpn of openedPallets) {
+          if (allocatedQty >= remainingQtyNeeded) break
+
+          const remaining = lpn.remainingHuQty || lpn.huQty
+          const original = lpn.originalHuQty || lpn.huQty
+          const needed = remainingQtyNeeded - allocatedQty
+
+          if (remaining === needed) {
+            // Exact match - assign whole pallet
+            lpnRecordsToAllocate.push(lpn)
+            allocatedQty += remaining
+          } else if (remaining > needed) {
+            // Take only needed quantity (partial allocation)
+            partialAllocations.push({ lpn, qty: needed })
+            allocatedQty += needed
+          } else {
+            // Take all remaining (remaining < needed)
+            lpnRecordsToAllocate.push(lpn)
+            allocatedQty += remaining
+          }
+        }
+
+        // Then use full pallets
+        for (const lpn of fullPallets) {
+          if (allocatedQty >= remainingQtyNeeded) break
+
+          const palletQty = lpn.huQty || 0
+          const needed = remainingQtyNeeded - allocatedQty
+          const percentageNeeded = palletQty > 0 ? needed / palletQty : 0
+
+          if (percentageNeeded >= THRESHOLD_PERCENTAGE) {
+            // Assign whole pallet, create loosened stock for remainder
+            lpnRecordsToAllocate.push(lpn)
+            allocatedQty += palletQty
+            const remainder = palletQty - needed
+            if (remainder > 0) {
+              // Will create loosened stock after allocation
+              partialAllocations.push({ lpn, qty: -remainder }) // Negative indicates remainder
+            }
+          } else {
+            // Take only needed quantity
+            partialAllocations.push({ lpn, qty: needed })
+            allocatedQty += needed
+          }
         }
 
         if (allocatedQty < remainingQtyNeeded) {
@@ -397,6 +668,9 @@ export async function POST(
           })
           continue
         }
+
+        // Store partial allocations for processing after main allocation
+        ;(allocation as any).partialAllocations = partialAllocations
       } else {
         errors.push({
           productLineId,
@@ -409,7 +683,9 @@ export async function POST(
       const allocatedLPNNumbers = []
       let totalAllocatedQty = 0
       let primaryLocation = ''
+      const partialAllocations = (allocation as any).partialAllocations || []
 
+      // Process full pallet allocations
       for (const lpn of lpnRecordsToAllocate) {
         // Check if LPN is already allocated to this product line
         const lpnProductLineId =
@@ -419,7 +695,8 @@ export async function POST(
         if (lpnProductLineId === productLineId && lpn.allocationStatus === 'allocated') {
           // Already allocated to this product line, skip
           allocatedLPNNumbers.push(lpn.lpnNumber)
-          totalAllocatedQty += lpn.huQty || 0
+          const qty = lpn.remainingHuQty || lpn.huQty || 0
+          totalAllocatedQty += qty
           if (!primaryLocation && lpn.location) {
             primaryLocation = lpn.location
           }
@@ -427,6 +704,12 @@ export async function POST(
         }
 
         // Update PutAwayStock record
+        // For opened pallets that are fully allocated, store the allocated quantity in huQty
+        // This preserves the actual allocated quantity (remainingHuQty before allocation)
+        const allocatedQty = lpn.remainingHuQty !== undefined && lpn.remainingHuQty !== null
+          ? lpn.remainingHuQty  // For opened pallets, this is what was allocated
+          : (lpn.huQty || 0)    // For full pallets, use huQty
+        
         await payload.update({
           collection: 'put-away-stock',
           id: lpn.id,
@@ -436,13 +719,102 @@ export async function POST(
             allocationStatus: 'allocated',
             allocatedAt: new Date().toISOString(),
             allocatedBy: currentUser.id,
+            // Ensure originalHuQty and remainingHuQty are set
+            // For full pallet allocation, remainingHuQty should be 0
+            originalHuQty: lpn.originalHuQty || lpn.huQty,
+            remainingHuQty: 0, // Full pallet allocated, nothing remaining
+            // Store the actual allocated quantity in huQty for opened pallets
+            huQty: allocatedQty, // This preserves the allocated quantity for display
           },
         })
 
         allocatedLPNNumbers.push(lpn.lpnNumber)
-        totalAllocatedQty += lpn.huQty || 0
+        // For opened pallets, use remainingHuQty; for full pallets, use huQty
+        const qty = lpn.remainingHuQty !== undefined && lpn.remainingHuQty !== null 
+          ? lpn.remainingHuQty 
+          : (lpn.huQty || 0)
+        totalAllocatedQty += qty
         if (!primaryLocation && lpn.location) {
           primaryLocation = lpn.location
+        }
+      }
+
+      // Process partial allocations
+      for (const partial of partialAllocations) {
+        const { lpn, qty } = partial
+        
+        if (qty < 0) {
+          // Negative qty indicates remainder from whole pallet allocation
+          // Create loosened stock for remainder
+          const remainder = Math.abs(qty)
+          await createOrUpdateLoosenedStock(
+            payload,
+            tenant.id,
+            skuId,
+            batchNumber,
+            warehouseId,
+            remainder,
+            lpn.id,
+          )
+        } else {
+          // Partial allocation - create loosened stock for allocated quantity, keep pallet available
+          const currentRemaining = lpn.remainingHuQty || lpn.huQty || 0
+          const originalQty = lpn.originalHuQty || lpn.huQty || 0
+          const newRemaining = currentRemaining - qty
+
+          // Update the pallet - reduce remaining quantity but keep it as "available"
+          // Don't link it to product line since most of it is still on the pallet
+          await payload.update({
+            collection: 'put-away-stock',
+            id: lpn.id,
+            data: {
+              remainingHuQty: newRemaining,
+              originalHuQty: originalQty,
+              // Keep allocationStatus as 'available' - don't mark as allocated
+              // Don't set outboundInventoryId or outboundProductLineId
+            },
+          })
+
+          // Create a NEW loosened stock record specifically for this allocation
+          // This ensures we allocate exactly the quantity needed, not aggregated loosened stock
+          // Generate unique LPN number for loosened stock
+          const timestamp = Date.now()
+          const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase()
+          const loosenedLpnNumber = `LOOSENED-${skuId}-${batchNumber}-${timestamp}-${randomSuffix}`
+          
+          // Use the original pallet's location for the loosened stock
+          const loosenedLocation = lpn.location || 'LOOSENED'
+          
+          const loosenedStockRecord = await payload.create({
+            collection: 'put-away-stock',
+            data: {
+              tenantId: tenant.id,
+              skuId, // Still need skuId for the record
+              warehouseId: warehouseId || undefined,
+              location: loosenedLocation, // Use original pallet's location
+              huQty: qty,
+              originalHuQty: qty,
+              remainingHuQty: 0, // Fully allocated, nothing remaining
+              isLoosened: true,
+              loosenedQty: qty,
+              loosenedSkuId: skuId,
+              loosenedBatchNumber: batchNumber,
+              parentLpnId: lpn.id,
+              allocationStatus: 'allocated', // Immediately allocate to product line
+              outboundInventoryId: jobId,
+              outboundProductLineId: productLineId,
+              allocatedAt: new Date().toISOString(),
+              allocatedBy: currentUser.id,
+              lpnNumber: loosenedLpnNumber, // Unique LPN for this allocation
+            },
+          })
+          allocatedLPNNumbers.push(loosenedStockRecord.lpnNumber)
+
+          // Track allocated quantity
+          totalAllocatedQty += qty
+          if (!primaryLocation && lpn.location) {
+            primaryLocation = lpn.location
+          }
         }
       }
 

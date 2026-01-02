@@ -10,6 +10,7 @@ import Link from 'next/link'
 import { ContainerStatusBadge } from '@/components/container-bookings/container-status-badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ContainerProductLineFormExport } from '@/components/container-bookings/container-product-line-form-export'
+import { PickStockDialog } from '@/components/container-bookings/pick-stock-dialog'
 import { toast } from 'sonner'
 
 export default function ExportContainerDetailPage() {
@@ -277,6 +278,17 @@ export default function ExportContainerDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      <PickStockDialog
+        open={showPickupModal}
+        onOpenChange={setShowPickupModal}
+        bookingId={Number(bookingId)}
+        containerId={Number(containerId)}
+        onComplete={() => {
+          // Refresh data after pickup is completed
+          loadData()
+        }}
+      />
     </div>
   )
 }

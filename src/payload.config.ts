@@ -43,6 +43,7 @@ import { ImportContainerBookings } from './collections/ImportContainerBookings'
 import { ExportContainerBookings } from './collections/ExportContainerBookings'
 import { ContainerDetails } from './collections/ContainerDetails'
 import { ContainerStockAllocations } from './collections/ContainerStockAllocations'
+import { Dispatches } from './collections/Dispatches'
 
 import { nodemailerAdapter } from '@payloadcms/email-nodemailer'
 const filename = fileURLToPath(import.meta.url)
@@ -92,6 +93,7 @@ export default buildConfig({
     ExportContainerBookings,
     ContainerDetails,
     ContainerStockAllocations,
+    Dispatches,
   ],
   email: nodemailerAdapter(),
   // {

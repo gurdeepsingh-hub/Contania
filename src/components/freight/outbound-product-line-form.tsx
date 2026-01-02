@@ -69,28 +69,36 @@ const numberOrUndefined = z.union([
 const productLineSchema = z.object({
   skuId: z.number().min(1, 'SKU is required'),
   batchNumber: z.string().min(1, 'Batch number is required'),
-  requiredQty: z.union([
-    z.undefined(),
-    z.preprocess(
-      (val) => {
-        if (val === '' || val === null || val === undefined) {
-          return undefined
-        }
-        if (typeof val === 'number' && Number.isNaN(val)) {
-          return undefined
-        }
-        if (typeof val === 'number') {
-          return val
-        }
-        if (typeof val === 'string') {
-          const parsed = parseFloat(val)
-          return Number.isNaN(parsed) ? undefined : parsed
-        }
-        return undefined
-      },
-      z.number().min(1, 'Required quantity must be at least 1'),
-    ),
-  ]),
+  requiredQty: z.preprocess(
+    (val) => {
+      // Convert empty/NaN to a special marker for validation
+      if (
+        val === '' ||
+        val === null ||
+        val === undefined ||
+        (typeof val === 'number' && Number.isNaN(val))
+      ) {
+        return '__EMPTY__'
+      }
+      // If it's already a valid number, return it
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        return val
+      }
+      // If it's a string, try to parse it
+      if (typeof val === 'string') {
+        const parsed = parseFloat(val)
+        return Number.isNaN(parsed) || !Number.isFinite(parsed) ? '__EMPTY__' : parsed
+      }
+      return '__EMPTY__'
+    },
+    z
+      .union([
+        z.literal('__EMPTY__').refine(() => false, {
+          message: 'Required quantity is required',
+        }),
+        z.number().min(1, 'Required quantity must be at least 1'),
+      ]),
+  ),
   requiredWeight: numberOrUndefined,
   requiredCubicPerHU: numberOrUndefined,
   containerNumber: z.string().optional(),
@@ -316,6 +324,15 @@ export function OutboundProductLineForm({
   }, [initialData, warehouseId, batchOptions, handleBatchChange])
 
   const onSubmit = async (data: ProductLineFormData) => {
+    // Helper to clean NaN/undefined values
+    const cleanNumber = (val: number | undefined): number | undefined => {
+      if (val === undefined || val === null) return undefined
+      if (typeof val === 'number' && (Number.isNaN(val) || !Number.isFinite(val))) {
+        return undefined
+      }
+      return val
+    }
+
     // Map frontend "required" fields to backend "expected" fields
     await onSave({
       ...data,
@@ -324,10 +341,10 @@ export function OutboundProductLineForm({
       expiry: selectedSku?.isExpriy ? expiryDate : undefined,
       attribute1: selectedSku?.isAttribute1 ? attribute1 : undefined,
       attribute2: selectedSku?.isAttribute2 ? attribute2 : undefined,
-      // Map to backend field names
+      // Map to backend field names, ensuring NaN is converted to undefined
       expectedQty: data.requiredQty,
-      expectedWeight: data.requiredWeight,
-      expectedCubicPerHU: data.requiredCubicPerHU,
+      expectedWeight: cleanNumber(data.requiredWeight),
+      expectedCubicPerHU: cleanNumber(data.requiredCubicPerHU),
     } as OutboundProductLine & {
       expectedQty?: number
       expectedWeight?: number
@@ -491,29 +508,38 @@ export function OutboundProductLineForm({
           label="Required Quantity"
           type="number"
           min="1"
+          required
           error={errors.requiredQty?.message}
           placeholder="Enter required quantity"
           {...register('requiredQty', { valueAsNumber: true })}
         />
         <FormInput
-          label="Required Weight (kg) (optional)"
+          label="Required Weight (kg)"
           type="number"
           min="0"
           step="0.01"
           error={errors.requiredWeight?.message}
-          placeholder="Enter required weight"
+          placeholder="Enter weight"
           {...register('requiredWeight', {
-            valueAsNumber: true,
             setValueAs: (v) => {
-              if (
-                v === '' ||
-                v === null ||
-                v === undefined ||
-                (typeof v === 'number' && Number.isNaN(v))
-              ) {
+              // Handle empty, null, undefined
+              if (v === '' || v === null || v === undefined) {
                 return undefined
               }
-              return typeof v === 'string' ? parseFloat(v) : v
+              // Handle NaN (can occur with number inputs)
+              if (typeof v === 'number' && (Number.isNaN(v) || !Number.isFinite(v))) {
+                return undefined
+              }
+              // Convert string to number
+              if (typeof v === 'string') {
+                const parsed = parseFloat(v)
+                return Number.isNaN(parsed) || !Number.isFinite(parsed) ? undefined : parsed
+              }
+              // Return number as-is if valid
+              if (typeof v === 'number') {
+                return v
+              }
+              return undefined
             },
           })}
         />

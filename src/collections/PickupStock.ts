@@ -129,9 +129,25 @@ export const PickupStock: CollectionConfig = {
             readOnly: true,
           },
         },
+        {
+          name: 'isLoosened',
+          type: 'checkbox',
+          defaultValue: false,
+          admin: {
+            description: 'Whether this is a loosened item (non-LPN)',
+          },
+        },
       ],
       admin: {
         description: 'LPN pallets that have been picked up',
+      },
+    },
+    {
+      name: 'pickedUpLoosenedQty',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        description: 'Quantity of loosened items picked up (non-LPN items)',
       },
     },
     {
@@ -296,12 +312,21 @@ export const PickupStock: CollectionConfig = {
           }
         }
 
-        // Auto-calculate pickedUpQty from LPNs
+        // Auto-calculate pickedUpQty from LPNs and loosened items
+        // Exclude loosened stock from LPN sum since it's tracked separately in pickedUpLoosenedQty
         if (data.pickedUpLPNs && Array.isArray(data.pickedUpLPNs)) {
-          data.pickedUpQty = data.pickedUpLPNs.reduce(
-            (sum, lpn) => sum + (lpn.huQty || 0),
+          const lpnQty = data.pickedUpLPNs.reduce(
+            (sum, lpn) => {
+              // Skip loosened stock items - they're counted in pickedUpLoosenedQty
+              if (lpn.isLoosened) {
+                return sum
+              }
+              return sum + (lpn.huQty || 0)
+            },
             0,
           )
+          const loosenedQty = data.pickedUpLoosenedQty || 0
+          data.pickedUpQty = lpnQty + loosenedQty
         }
 
         // Auto-calculate finalPickedUpQty

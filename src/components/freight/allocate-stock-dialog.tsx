@@ -13,13 +13,24 @@ interface AllocateStockDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   jobId: number
+  onAllocationComplete?: () => void
+  preventReload?: boolean
 }
 
-export function AllocateStockDialog({ open, onOpenChange, jobId }: AllocateStockDialogProps) {
+export function AllocateStockDialog({ 
+  open, 
+  onOpenChange, 
+  jobId,
+  onAllocationComplete,
+  preventReload = false,
+}: AllocateStockDialogProps) {
   const handleAllocationComplete = () => {
     onOpenChange(false)
-    // Optionally reload the page or refresh data
-    if (typeof window !== 'undefined') {
+    if (onAllocationComplete) {
+      onAllocationComplete()
+    }
+    // Only reload if preventReload is false
+    if (!preventReload && typeof window !== 'undefined') {
       window.location.reload()
     }
   }

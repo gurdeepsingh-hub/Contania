@@ -211,6 +211,58 @@ export const PutAwayStock: CollectionConfig = {
         description: 'Quantity of handling units per pallet',
       },
     },
+    {
+      name: 'originalHuQty',
+      type: 'number',
+      admin: {
+        description: 'Original quantity when pallet was created (for tracking partial allocations)',
+      },
+    },
+    {
+      name: 'remainingHuQty',
+      type: 'number',
+      admin: {
+        description: 'Current remaining quantity (for partially allocated pallets)',
+      },
+    },
+    {
+      name: 'isLoosened',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Flag indicating if this is a loosened stock record (aggregated loosened items)',
+      },
+    },
+    {
+      name: 'loosenedQty',
+      type: 'number',
+      admin: {
+        description: 'Quantity of loosened items aggregated in this record',
+      },
+    },
+    {
+      name: 'parentLpnId',
+      type: 'relationship',
+      relationTo: 'put-away-stock',
+      admin: {
+        description: 'Reference to original LPN if this is a loosened record created from a partial allocation',
+      },
+    },
+    {
+      name: 'loosenedSkuId',
+      type: 'relationship',
+      relationTo: 'skus',
+      admin: {
+        description: 'SKU for loosened items (when isLoosened is true)',
+      },
+    },
+    {
+      name: 'loosenedBatchNumber',
+      type: 'text',
+      admin: {
+        description: 'Batch number for loosened items (when isLoosened is true)',
+      },
+    },
     // Outbound allocation tracking fields
     {
       name: 'outboundInventoryId',
@@ -350,10 +402,43 @@ export const PutAwayStock: CollectionConfig = {
           const tenantId =
             typeof data.tenantId === 'object' ? (data.tenantId as { id: number }).id : data.tenantId
           if (tenantId) {
-            data.lpnNumber = await generateUniqueLPN(req.payload, tenantId)
+            // Generate special LPN for loosened items
+            if (data.isLoosened && data.loosenedSkuId && data.loosenedBatchNumber) {
+              const skuId = typeof data.loosenedSkuId === 'object' 
+                ? (data.loosenedSkuId as { id: number }).id 
+                : data.loosenedSkuId
+              const batchNumber = data.loosenedBatchNumber as string
+              data.lpnNumber = `LOOSENED-${skuId}-${batchNumber}`
+            } else {
+              data.lpnNumber = await generateUniqueLPN(req.payload, tenantId)
+            }
           }
         }
         // If LPN is provided, use it (from form generation)
+
+        // Initialize originalHuQty and remainingHuQty for new records
+        if (operation === 'create') {
+          if (!data.originalHuQty && data.huQty) {
+            data.originalHuQty = data.huQty
+          }
+          if (!data.remainingHuQty && data.huQty) {
+            data.remainingHuQty = data.huQty
+          }
+        }
+
+        // Maintain remainingHuQty consistency
+        if (operation === 'update' && data.huQty !== undefined && !data.isLoosened) {
+          // If huQty is being updated and it's not a loosened record, update remainingHuQty
+          if (originalDoc && !data.originalHuQty) {
+            // Preserve originalHuQty if not being changed
+            const existingOriginal = (originalDoc as any).originalHuQty || (originalDoc as any).huQty
+            data.originalHuQty = existingOriginal
+          }
+          // Update remainingHuQty to match huQty if not explicitly set
+          if (data.remainingHuQty === undefined) {
+            data.remainingHuQty = data.huQty
+          }
+        }
 
         // Prevent double allocation: if trying to allocate an already allocated LPN
         if (

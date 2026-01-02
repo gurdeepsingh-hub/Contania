@@ -72,10 +72,7 @@ export async function GET(
         ? allocationBookingRef.relationTo
         : null
 
-    if (
-      allocationBookingId !== bookingId ||
-      allocationRelationTo !== 'export-container-bookings'
-    ) {
+    if (allocationBookingId !== bookingId || allocationRelationTo !== 'export-container-bookings') {
       return NextResponse.json(
         { message: 'Stock allocation does not belong to this booking' },
         { status: 403 },
@@ -88,10 +85,7 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching stock allocation:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch stock allocation' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch stock allocation' }, { status: 500 })
   }
 }
 
@@ -155,10 +149,7 @@ export async function PATCH(
         ? allocationBookingRef.relationTo
         : null
 
-    if (
-      allocationBookingId !== bookingId ||
-      allocationRelationTo !== 'export-container-bookings'
-    ) {
+    if (allocationBookingId !== bookingId || allocationRelationTo !== 'export-container-bookings') {
       return NextResponse.json(
         { message: 'Stock allocation does not belong to this booking' },
         { status: 403 },
@@ -181,11 +172,6 @@ export async function PATCH(
     })
   } catch (error) {
     console.error('Error updating stock allocation:', error)
-    return NextResponse.json(
-      { message: 'Failed to update stock allocation' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to update stock allocation' }, { status: 500 })
   }
 }
-
-

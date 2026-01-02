@@ -1,16 +1,28 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { FormInput, FormTextarea, FormCombobox } from '@/components/ui/form-field'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChevronLeft, ChevronRight, Save, Plus } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Save,
+  Plus,
+  PackageCheck,
+  Truck,
+  Edit,
+  Trash2,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { OutboundProductLineForm } from './outbound-product-line-form'
 import { CustomerForm } from '@/components/entity-forms/customer-form'
 import { PayingCustomerForm } from '@/components/entity-forms/paying-customer-form'
 import { WarehouseForm } from '@/components/entity-forms/warehouse-form'
+import { AllocateStockDialog } from './allocate-stock-dialog'
+import { PickupStockDialog } from './pickup-stock-dialog'
 import {
   Dialog,
   DialogContent,
@@ -206,6 +218,7 @@ export function MultistepOutboundForm({
   onSave,
   onCancel,
 }: MultistepOutboundFormProps) {
+  const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [_customers, setCustomers] = useState<Customer[]>([])
@@ -222,6 +235,8 @@ export function MultistepOutboundForm({
   const [showPayingCustomerModal, setShowPayingCustomerModal] = useState(false)
   const [showWarehouseModal, setShowWarehouseModal] = useState(false)
   const [showProductLineDialog, setShowProductLineDialog] = useState(false)
+  const [showAllocateStockDialog, setShowAllocateStockDialog] = useState(false)
+  const [showPickupStockDialog, setShowPickupStockDialog] = useState(false)
   type ProductLineDisplay = {
     id?: number
     skuId?: number | { id: number; skuCode?: string; description?: string }
@@ -389,6 +404,32 @@ export function MultistepOutboundForm({
     } catch (error) {
       console.error('Error saving product line:', error)
       toast.error('Failed to save product line')
+    }
+  }
+
+  const handleDeleteProductLine = async (productLineId: number) => {
+    if (!formData.id) {
+      toast.error('Please save the job first')
+      return
+    }
+    if (!confirm('Are you sure you want to delete this product line?')) {
+      return
+    }
+    try {
+      const res = await fetch(`/api/outbound-product-lines/${productLineId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        toast.success('Product line deleted successfully')
+        loadProductLines()
+      } else {
+        const error = await res.json()
+        toast.error(error.message || 'Failed to delete product line')
+      }
+    } catch (error) {
+      console.error('Error deleting product line:', error)
+      toast.error('Failed to delete product line')
     }
   }
 
@@ -709,8 +750,10 @@ export function MultistepOutboundForm({
           const data = await res.json()
           if (data.success) {
             toast.success('Job updated successfully')
-            // Don't call onSave here - it would create a duplicate job
-            // The job is already saved, so we're done
+            // Redirect to view page
+            if (formData.id) {
+              router.push(`/dashboard/freight/outbound/${formData.id}`)
+            }
           } else {
             toast.error(data.message || 'Failed to update job')
           }
@@ -722,10 +765,17 @@ export function MultistepOutboundForm({
         // Job doesn't exist yet, create it via onSave callback
         if (!onSave) {
           // Fallback to handleStepSave if onSave is not provided
-          await handleStepSave()
+          const savedId = await handleStepSave()
+          if (savedId) {
+            router.push(`/dashboard/freight/outbound/${savedId}`)
+          }
           return
         }
-        await onSave(dataToSave)
+        const savedData = await onSave(dataToSave)
+        // Redirect to view page if job was created
+        if (savedData?.id) {
+          router.push(`/dashboard/freight/outbound/${savedData.id}`)
+        }
       }
     } catch (error) {
       console.error('Error saving:', error)
@@ -735,7 +785,7 @@ export function MultistepOutboundForm({
     }
   }
 
-  const handleStepSave = async () => {
+  const handleStepSave = async (): Promise<number | undefined> => {
     setSaving(true)
     try {
       const url = formData.id ? `/api/outbound-inventory/${formData.id}` : '/api/outbound-inventory'
@@ -760,6 +810,7 @@ export function MultistepOutboundForm({
         if (data.success) {
           setFormData((prev) => ({ ...prev, id: data.job.id }))
           toast.success('Job saved successfully')
+          return data.job.id
         } else {
           toast.error(data.message || 'Failed to save job')
         }
@@ -773,6 +824,7 @@ export function MultistepOutboundForm({
     } finally {
       setSaving(false)
     }
+    return undefined
   }
 
   // Validate current step
@@ -1333,7 +1385,6 @@ export function MultistepOutboundForm({
                     />
                   </div>
                 </div>
-
               </div>
             </div>
           )}
@@ -1366,94 +1417,128 @@ export function MultistepOutboundForm({
               </div>
               {productLines.length > 0 ? (
                 <div className="space-y-2">
-                  {productLines.map((line, index) => (
-                    <div key={line.id || index} className="border rounded-lg p-4 space-y-3">
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Batch Number:
-                          </span>
-                          <p className="font-semibold">{line.batchNumber || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">SKU:</span>
-                          <p className="font-semibold">
-                            {typeof line.skuId === 'object' && line.skuId?.skuCode
-                              ? line.skuId.skuCode
-                              : 'N/A'}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Description:
-                          </span>
-                          <p className="text-sm">{line.skuDescription || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Container Number:
-                          </span>
-                          <p>{(line as { containerNumber?: string }).containerNumber || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Qty Required:
-                          </span>
-                          <p>{line.requiredQty || 0}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Weight Required (kg):
-                          </span>
-                          <p>{line.requiredWeight || 0}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Cubic Required (m³):
-                          </span>
-                          <p>{line.requiredCubicPerHU?.toFixed(6) || 'N/A'}</p>
-                        </div>
-                        {(line as { expiry?: string }).expiry && (
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Expiry Date:
-                            </span>
-                            <p>{(line as { expiry?: string }).expiry || 'N/A'}</p>
+                  {productLines.map((line, index) => {
+                    const canEditDelete = !line.allocatedQty || line.allocatedQty === 0
+                    return (
+                      <div key={line.id || index} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Batch Number:
+                                </span>
+                                <p className="font-semibold">{line.batchNumber || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  SKU:
+                                </span>
+                                <p className="font-semibold">
+                                  {typeof line.skuId === 'object' && line.skuId?.skuCode
+                                    ? line.skuId.skuCode
+                                    : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Description:
+                                </span>
+                                <p className="text-sm">{line.skuDescription || 'N/A'}</p>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Container Number:
+                                </span>
+                                <p>
+                                  {(line as { containerNumber?: string }).containerNumber || 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Qty Required:
+                                </span>
+                                <p>{line.requiredQty || 0}</p>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Weight Required (kg):
+                                </span>
+                                <p>{line.requiredWeight || 0}</p>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Cubic Required (m³):
+                                </span>
+                                <p>{line.requiredCubicPerHU?.toFixed(6) || 'N/A'}</p>
+                              </div>
+                              {(line as { expiry?: string }).expiry && (
+                                <div>
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    Expiry Date:
+                                  </span>
+                                  <p>{(line as { expiry?: string }).expiry || 'N/A'}</p>
+                                </div>
+                              )}
+                              {(line as { attribute1?: string }).attribute1 && (
+                                <div>
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    Attribute 1:
+                                  </span>
+                                  <p>{(line as { attribute1?: string }).attribute1 || 'N/A'}</p>
+                                </div>
+                              )}
+                              {(line as { attribute2?: string }).attribute2 && (
+                                <div>
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    Attribute 2:
+                                  </span>
+                                  <p>{(line as { attribute2?: string }).attribute2 || 'N/A'}</p>
+                                </div>
+                              )}
+                              {line.location && (
+                                <div>
+                                  <span className="text-sm font-medium text-muted-foreground">
+                                    Location:
+                                  </span>
+                                  <p>{line.location}</p>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  Allocated Qty:
+                                </span>
+                                <p className="font-medium">{line.allocatedQty || 0}</p>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                        {(line as { attribute1?: string }).attribute1 && (
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Attribute 1:
-                            </span>
-                            <p>{(line as { attribute1?: string }).attribute1 || 'N/A'}</p>
-                          </div>
-                        )}
-                        {(line as { attribute2?: string }).attribute2 && (
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Attribute 2:
-                            </span>
-                            <p>{(line as { attribute2?: string }).attribute2 || 'N/A'}</p>
-                          </div>
-                        )}
-                        {line.location && (
-                          <div>
-                            <span className="text-sm font-medium text-muted-foreground">
-                              Location:
-                            </span>
-                            <p>{line.location}</p>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            Allocated Qty:
-                          </span>
-                          <p className="font-medium">{line.allocatedQty || 0}</p>
+                          {formData.id && canEditDelete && (
+                            <div className="flex gap-2 ml-4">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingProductLine(line)
+                                  setShowProductLineDialog(true)
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => line.id && handleDeleteProductLine(line.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 border rounded-lg">
@@ -1470,7 +1555,44 @@ export function MultistepOutboundForm({
                   )}
                 </div>
               )}
-              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+              {/* Allocation, Pickup, and Save Buttons - Right Aligned */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t justify-end">
+                {formData.id && productLines.length > 0 && (
+                  <>
+                    {(() => {
+                      const allProductLinesAllocated =
+                        productLines.length > 0 &&
+                        productLines.every((line) => line.allocatedQty && line.allocatedQty > 0)
+                      const hasUnallocatedLines = productLines.some(
+                        (line) => !line.allocatedQty || line.allocatedQty === 0,
+                      )
+
+                      return (
+                        <>
+                          {hasUnallocatedLines && (
+                            <Button
+                              onClick={() => setShowAllocateStockDialog(true)}
+                              className="w-full sm:w-auto"
+                            >
+                              <PackageCheck className="h-4 w-4 mr-2" />
+                              Allocate Stock
+                            </Button>
+                          )}
+                          {allProductLinesAllocated && formData.status !== 'dispatched' && (
+                            <Button
+                              onClick={() => setShowPickupStockDialog(true)}
+                              variant="outline"
+                              className="w-full sm:w-auto"
+                            >
+                              <Truck className="h-4 w-4 mr-2" />
+                              Pickup Stock
+                            </Button>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </>
+                )}
                 <Button onClick={() => handleSave()} disabled={saving} className="w-full sm:w-auto">
                   <Save className="h-4 w-4 mr-2" />
                   {saving ? 'Saving...' : 'Save Job'}
@@ -1669,6 +1791,38 @@ export function MultistepOutboundForm({
             )}
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Allocate Stock Dialog */}
+      {formData.id && (
+        <AllocateStockDialog
+          open={showAllocateStockDialog}
+          onOpenChange={(open) => {
+            setShowAllocateStockDialog(open)
+            if (!open) {
+              loadProductLines()
+            }
+          }}
+          jobId={formData.id}
+          preventReload={true}
+          onAllocationComplete={() => {
+            loadProductLines()
+          }}
+        />
+      )}
+
+      {/* Pickup Stock Dialog */}
+      {formData.id && (
+        <PickupStockDialog
+          open={showPickupStockDialog}
+          onOpenChange={(open) => {
+            setShowPickupStockDialog(open)
+            if (!open) {
+              loadProductLines()
+            }
+          }}
+          jobId={formData.id}
+        />
       )}
     </div>
   )

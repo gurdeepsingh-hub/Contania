@@ -182,6 +182,7 @@ export async function GET(
 
       // Find available LPNs from PutAwayStock - fetch all pages
       // Query LPNs that match batch/SKU through either inbound-product-line OR container-stock-allocation
+      // Partially allocated pallets remain as "available" so they'll show up here
       const allAvailableLPNs = []
       let page = 1
       let hasMore = true
@@ -209,6 +210,11 @@ export async function GET(
                   equals: 'available',
                 },
               },
+              {
+                isLoosened: {
+                  not_equals: true,
+                },
+              },
               ...(warehouseId
                 ? [
                     {
@@ -229,8 +235,58 @@ export async function GET(
         page++
       }
 
+      // Also fetch loosened stock for this SKU+batch
+      const loosenedStock = await payload.find({
+        collection: 'put-away-stock',
+        where: {
+          and: [
+            {
+              tenantId: {
+                equals: tenant.id,
+              },
+            },
+            {
+              isLoosened: {
+                equals: true,
+              },
+            },
+            {
+              loosenedSkuId: {
+                equals: skuId,
+              },
+            },
+            {
+              loosenedBatchNumber: {
+                equals: batchNumber,
+              },
+            },
+            {
+              allocationStatus: {
+                equals: 'available',
+              },
+            },
+            ...(warehouseId
+              ? [
+                  {
+                    warehouseId: {
+                      equals: warehouseId,
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+        limit: 1,
+      })
+      
+      // Add loosened stock to available LPNs
+      if (loosenedStock.docs.length > 0) {
+        allAvailableLPNs.push(...loosenedStock.docs)
+      }
+
       // Find all LPNs (including allocated ones) for this batch/SKU to show in UI - fetch all pages
       // Query LPNs that match batch/SKU through either inbound-product-line OR container-stock-allocation
+      // Include available pallets and allocated LPNs (for display purposes)
       const allLPNsList = []
       page = 1
       hasMore = true
@@ -253,6 +309,34 @@ export async function GET(
               {
                 or: orConditions,
               },
+              {
+                or: [
+                  {
+                    allocationStatus: {
+                      equals: 'available',
+                    },
+                  },
+                  {
+                    and: [
+                      {
+                        allocationStatus: {
+                          equals: 'allocated',
+                        },
+                      },
+                      {
+                        outboundInventoryId: {
+                          equals: jobId,
+                        },
+                      },
+                      {
+                        outboundProductLineId: {
+                          equals: productLine.id,
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
               ...(warehouseId
                 ? [
                     {
@@ -273,8 +357,14 @@ export async function GET(
         page++
       }
 
-      // Calculate available quantity
-      const availableQty = allAvailableLPNs.reduce((sum, lpn) => sum + (lpn.huQty || 0), 0)
+      // Calculate available quantity - use remainingHuQty for opened pallets, loosenedQty for loosened stock
+      const availableQty = allAvailableLPNs.reduce((sum, lpn: any) => {
+        if (lpn.isLoosened) {
+          return sum + (lpn.loosenedQty || 0)
+        }
+        // Use remainingHuQty if available, otherwise use huQty
+        return sum + ((lpn.remainingHuQty ?? lpn.huQty) || 0)
+      }, 0)
 
       // Format LPN data - include both available and allocated LPNs
       const lpnData = allLPNsList.map((lpn) => {
@@ -325,11 +415,25 @@ export async function GET(
             ? lpn.containerStockAllocationId.id
             : lpn.containerStockAllocationId || null
 
+        // Determine quantity to show - use remainingHuQty for opened pallets, loosenedQty for loosened stock
+        let displayQty = 0
+        if (lpn.isLoosened) {
+          displayQty = lpn.loosenedQty || 0
+        } else if (lpn.remainingHuQty !== undefined && lpn.remainingHuQty !== null) {
+          displayQty = lpn.remainingHuQty
+        } else {
+          displayQty = lpn.huQty || 0
+        }
+
         return {
           id: lpn.id,
           lpnNumber: lpn.lpnNumber,
           location: lpn.location,
-          huQty: lpn.huQty,
+          huQty: displayQty,
+          originalHuQty: lpn.originalHuQty || lpn.huQty || 0,
+          remainingHuQty: lpn.remainingHuQty ?? (lpn.isLoosened ? lpn.loosenedQty : lpn.huQty) ?? 0,
+          isLoosened: lpn.isLoosened || false,
+          loosenedQty: lpn.loosenedQty || 0,
           inboundProductLineId: inboundProductLineIdValue,
           containerStockAllocationId: containerStockAllocationIdValue,
           isAllocatedToThisProductLine: isAllocatedToThisProductLine,

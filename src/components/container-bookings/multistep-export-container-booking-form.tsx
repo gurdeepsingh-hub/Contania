@@ -12,12 +12,10 @@ import {
   step4Schema,
   step5Schema,
   step6Schema,
-  step7Schema,
 } from '@/lib/validations/export-container-booking-schemas'
 import { useTenant } from '@/lib/tenant-context'
 import { Step1BasicInfoExport } from './steps/step1-basic-info-export'
-import { Step2VesselInfoExport } from './steps/step2-vessel-info-export'
-import { Step3Locations } from './steps/step3-locations'
+import { Step2VesselLocationsExport } from './steps/step2-vessel-locations-export'
 import { Step4RoutingExport } from './steps/step4-routing-export'
 import { Step5ContainerDetailsExport } from './steps/step5-container-details-export'
 import { Step6StockAllocationExport } from './steps/step6-stock-allocation-export'
@@ -89,7 +87,7 @@ interface MultistepExportContainerBookingFormProps {
   onCancel?: () => void
 }
 
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 6
 
 export function MultistepExportContainerBookingForm({
   initialData,
@@ -149,37 +147,52 @@ export function MultistepExportContainerBookingForm({
           break
         case 1:
           schema = step2Schema
+          // Normalize containerSizeIds to just numbers (handle populated objects)
+          const normalizedSizeIds = (formData.containerSizeIds || [])
+            .map((size: any) => {
+              if (typeof size === 'number') return size
+              if (typeof size === 'object' && size !== null && typeof size.id === 'number') {
+                return size.id
+              }
+              return Number(size)
+            })
+            .filter((id: any) => !isNaN(id) && id > 0)
+
+          // Ensure containerQuantities is an object (not undefined) and filter out invalid values
+          const quantities = formData.containerQuantities || {}
+          const cleanedQuantities: Record<string, number> = {}
+          Object.entries(quantities).forEach(([key, value]) => {
+            const numValue = typeof value === 'number' ? value : Number(value)
+            if (!isNaN(numValue) && numValue >= 1) {
+              cleanedQuantities[key] = numValue
+            }
+          })
           stepData = {
             vesselId: formData.vesselId,
             etd: formData.etd,
             receivalStart: formData.receivalStart,
             cutoff: formData.cutoff,
+            fromId: formData.fromId,
+            toId: formData.toId,
+            containerSizeIds: normalizedSizeIds,
+            containerQuantities: cleanedQuantities,
           }
           break
         case 2:
           schema = step3Schema
           stepData = {
-            fromId: formData.fromId,
-            toId: formData.toId,
-            containerSizeIds: formData.containerSizeIds,
-            containerQuantities: formData.containerQuantities,
+            emptyRouting: formData.emptyRouting,
+            fullRouting: formData.fullRouting,
           }
           break
         case 3:
           schema = step4Schema
           stepData = {
-            emptyRouting: formData.emptyRouting,
-            fullRouting: formData.fullRouting,
+            containerDetails: formData.containerDetails,
           }
           break
         case 4:
           schema = step5Schema
-          stepData = {
-            containerDetails: formData.containerDetails,
-          }
-          break
-        case 5:
-          schema = step6Schema
           // Normalize stockAllocations to match schema expectations
           // Step 6 is optional - stock allocations can be added later, so allow empty/undefined
           const stockAllocations = formData.stockAllocations
@@ -254,8 +267,8 @@ export function MultistepExportContainerBookingForm({
             }
           }
           break
-        case 6:
-          schema = step7Schema
+        case 5:
+          schema = step6Schema
           stepData = {
             driverAllocation: formData.driverAllocation,
           }
@@ -267,7 +280,9 @@ export function MultistepExportContainerBookingForm({
       const result = schema.safeParse(stepData)
       if (!result.success) {
         const errors: Record<string, string> = {}
-        const zodError = result.error as { errors?: Array<{ path?: (string | number)[]; message?: string }> }
+        const zodError = result.error as {
+          errors?: Array<{ path?: (string | number)[]; message?: string }>
+        }
         if (zodError.errors) {
           zodError.errors.forEach((err) => {
             if (err.path && err.path.length > 0) {
@@ -460,10 +475,10 @@ export function MultistepExportContainerBookingForm({
   const autoSave = async () => {
     // Only send fields relevant to completed steps to avoid validation errors
     const transformedData = transformFormDataForAPI(formData)
-    
+
     // Filter out step 4+ fields if user hasn't reached those steps yet
     const dataToSave: any = { ...transformedData }
-    
+
     // Step 0 (Basic Info) - always include
     // Step 1 (Vessel Info) - include if step >= 1
     if (step < 1) {
@@ -472,7 +487,7 @@ export function MultistepExportContainerBookingForm({
       delete dataToSave.receivalStart
       delete dataToSave.cutoff
     }
-    
+
     // Step 2 (Locations) - include if step >= 2
     if (step < 2) {
       delete dataToSave.fromId
@@ -490,7 +505,7 @@ export function MultistepExportContainerBookingForm({
       delete dataToSave.toState
       delete dataToSave.toPostcode
     }
-    
+
     // Step 3 (Routing) - include if step >= 3
     if (step < 3) {
       delete dataToSave.emptyRouting
@@ -500,17 +515,17 @@ export function MultistepExportContainerBookingForm({
       delete dataToSave.releaseNumber
       delete dataToSave.weight
     }
-    
+
     // Step 4 (Container Details) - include if step >= 4
     if (step < 4) {
       delete dataToSave.containerDetails
     }
-    
+
     // Step 5 (Stock Allocation) - include if step >= 5
     if (step < 5) {
       delete dataToSave.stockAllocations
     }
-    
+
     // Step 6 (Driver Allocation) - include if step >= 6
     if (step < 6) {
       delete dataToSave.driverAllocation
@@ -614,16 +629,15 @@ export function MultistepExportContainerBookingForm({
 
   const stepTitles = [
     'Basic Information',
-    'Vessel Information',
-    'Locations',
+    'Vessel & Locations',
     'Routing',
     'Container Details',
     'Stock Allocation',
     'Driver Allocation',
   ]
 
-  // Memoize props for Step 7 to prevent infinite re-renders
-  const step7RoutingData = useMemo(
+  // Memoize props for Step 6 to prevent infinite re-renders
+  const step6RoutingData = useMemo(
     () => ({
       emptyRouting: formData.emptyRouting,
       fullRouting: formData.fullRouting,
@@ -631,7 +645,7 @@ export function MultistepExportContainerBookingForm({
     [formData.emptyRouting, formData.fullRouting],
   )
 
-  const step7Step3Data = useMemo(
+  const step6Step2Data = useMemo(
     () => ({
       fromId: formData.fromId,
       toId: formData.toId,
@@ -639,7 +653,7 @@ export function MultistepExportContainerBookingForm({
     [formData.fromId, formData.toId],
   )
 
-  const step7OnUpdate = useCallback(
+  const step6OnUpdate = useCallback(
     (data: any) =>
       setFormData((prev) => ({
         ...prev,
@@ -699,20 +713,12 @@ export function MultistepExportContainerBookingForm({
               />
             )}
             {step === 1 && (
-              <Step2VesselInfoExport
+              <Step2VesselLocationsExport
                 formData={{
                   vesselId: formData.vesselId,
                   etd: formData.etd,
                   receivalStart: formData.receivalStart,
                   cutoff: formData.cutoff,
-                }}
-                onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[1]}
-              />
-            )}
-            {step === 2 && (
-              <Step3Locations
-                formData={{
                   fromId: formData.fromId,
                   toId: formData.toId,
                   containerSizeIds: formData.containerSizeIds,
@@ -727,10 +733,10 @@ export function MultistepExportContainerBookingForm({
                   toPostcode: formData.toPostcode,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[2]}
+                errors={validationErrors[1]}
               />
             )}
-            {step === 3 && (
+            {step === 2 && (
               <Step4RoutingExport
                 formData={{
                   emptyRouting: formData.emptyRouting,
@@ -745,10 +751,10 @@ export function MultistepExportContainerBookingForm({
                   toId: formData.toId,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[3]}
+                errors={validationErrors[2]}
               />
             )}
-            {step === 4 && (
+            {step === 3 && (
               <Step5ContainerDetailsExport
                 bookingId={formData.id}
                 formData={{
@@ -762,10 +768,10 @@ export function MultistepExportContainerBookingForm({
                   emptyRouting: formData.emptyRouting,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[4]}
+                errors={validationErrors[3]}
               />
             )}
-            {step === 5 && (
+            {step === 4 && (
               <Step6StockAllocationExport
                 bookingId={formData.id || 0}
                 bookingStatus={formData.status}
@@ -774,17 +780,17 @@ export function MultistepExportContainerBookingForm({
                   stockAllocations: formData.stockAllocations,
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
-                errors={validationErrors[5]}
+                errors={validationErrors[4]}
               />
             )}
-            {step === 6 && (
+            {step === 5 && (
               <Step7DriverAllocationExport
                 bookingId={formData.id || 0}
                 formData={formData.driverAllocation || {}}
-                routingData={step7RoutingData}
-                step3Data={step7Step3Data}
-                onUpdate={step7OnUpdate}
-                errors={validationErrors[6]}
+                routingData={step6RoutingData}
+                step3Data={step6Step2Data}
+                onUpdate={step6OnUpdate}
+                errors={validationErrors[5]}
               />
             )}
           </div>
