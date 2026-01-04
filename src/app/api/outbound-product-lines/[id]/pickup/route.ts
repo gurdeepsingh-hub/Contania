@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/api-helpers'
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'freight_edit')
     if ('error' in context) {
@@ -111,7 +108,7 @@ export async function POST(
         })
         continue
       }
-      
+
       // For loosened stock, verify it's allocated to this product line
       if ((lpn as any).isLoosened && lpnProductLineId !== productLineId) {
         warnings.push({
@@ -202,10 +199,10 @@ export async function POST(
 
         if (loosenedStock.docs.length > 0) {
           // Sum up all available loosened stock allocated to this product line
-          const totalAvailableLoosenedQty = loosenedStock.docs.reduce((sum, record) => {
+          const totalAvailableLoosenedQty = loosenedStock.docs.reduce((sum: any, record: any) => {
             return sum + (record.loosenedQty || 0)
           }, 0)
-          
+
           if (loosenedQty > totalAvailableLoosenedQty) {
             warnings.push({
               lpnNumber: 'LOOSENED',
@@ -215,13 +212,13 @@ export async function POST(
           } else {
             validatedLoosenedQty = loosenedQty
           }
-          
+
           // Add all loosened stock records to validatedLPNs so they get picked up
           // We'll distribute the picked quantity across them
           let remainingToPick = validatedLoosenedQty
           for (const loosenedRecord of loosenedStock.docs) {
             if (remainingToPick <= 0) break
-            
+
             const recordQty = loosenedRecord.loosenedQty || 0
             if (recordQty > 0) {
               // Add the record, we'll update quantities in the update loop
@@ -255,24 +252,32 @@ export async function POST(
     // For loosened stock, use validatedLoosenedQty (the requested amount, not the sum of all records)
     const regularLPNs = validatedLPNs.filter((lpn) => !(lpn as any).isLoosened)
     const regularLPNQty = regularLPNs.reduce((sum, lpn) => {
-        // Calculate the allocated quantity for this LPN
-        let qty = 0
-        if ((lpn as any).remainingHuQty !== undefined && (lpn as any).remainingHuQty !== null && (lpn as any).remainingHuQty > 0) {
-          // Partially allocated: calculate allocated quantity
-          if ((lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
-            qty = (lpn as any).originalHuQty - (lpn as any).remainingHuQty
-          } else {
-            qty = (lpn.huQty || 0) - (lpn as any).remainingHuQty
-          }
-        } else if ((lpn as any).remainingHuQty === 0 && (lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
-          // Fully allocated: use huQty which stores the allocated quantity
-          qty = lpn.huQty || (lpn as any).originalHuQty || 0
+      // Calculate the allocated quantity for this LPN
+      let qty = 0
+      if (
+        (lpn as any).remainingHuQty !== undefined &&
+        (lpn as any).remainingHuQty !== null &&
+        (lpn as any).remainingHuQty > 0
+      ) {
+        // Partially allocated: calculate allocated quantity
+        if ((lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
+          qty = (lpn as any).originalHuQty - (lpn as any).remainingHuQty
         } else {
-          // Fallback: use remainingHuQty or huQty
-          qty = (lpn as any).remainingHuQty ?? lpn.huQty ?? 0
+          qty = (lpn.huQty || 0) - (lpn as any).remainingHuQty
         }
-        return sum + qty
-      }, 0)
+      } else if (
+        (lpn as any).remainingHuQty === 0 &&
+        (lpn as any).originalHuQty !== undefined &&
+        (lpn as any).originalHuQty !== null
+      ) {
+        // Fully allocated: use huQty which stores the allocated quantity
+        qty = lpn.huQty || (lpn as any).originalHuQty || 0
+      } else {
+        // Fallback: use remainingHuQty or huQty
+        qty = (lpn as any).remainingHuQty ?? lpn.huQty ?? 0
+      }
+      return sum + qty
+    }, 0)
     const pickedUpQty = regularLPNQty + validatedLoosenedQty
     const bufferQty = body.bufferQty || 0
     const finalPickedUpQty = pickedUpQty + bufferQty
@@ -294,37 +299,45 @@ export async function POST(
 
     // Create pickup record
     const pickedUpLPNsMapped = validatedLPNs.map((lpn) => {
-          // Calculate the quantity to pick up
-          let qty = 0
-          if ((lpn as any).isLoosened) {
-            // For loosened stock, use the actual picked quantity from the map
-            qty = loosenedPickupMap.get(lpn.id) || 0
+      // Calculate the quantity to pick up
+      let qty = 0
+      if ((lpn as any).isLoosened) {
+        // For loosened stock, use the actual picked quantity from the map
+        qty = loosenedPickupMap.get(lpn.id) || 0
+      } else {
+        // For regular LPNs, determine the allocated quantity
+        if (
+          (lpn as any).remainingHuQty !== undefined &&
+          (lpn as any).remainingHuQty !== null &&
+          (lpn as any).remainingHuQty > 0
+        ) {
+          // Partially allocated: calculate allocated quantity
+          if ((lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
+            qty = (lpn as any).originalHuQty - (lpn as any).remainingHuQty
           } else {
-            // For regular LPNs, determine the allocated quantity
-            if ((lpn as any).remainingHuQty !== undefined && (lpn as any).remainingHuQty !== null && (lpn as any).remainingHuQty > 0) {
-              // Partially allocated: calculate allocated quantity
-              if ((lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
-                qty = (lpn as any).originalHuQty - (lpn as any).remainingHuQty
-              } else {
-                qty = (lpn.huQty || 0) - (lpn as any).remainingHuQty
-              }
-            } else if ((lpn as any).remainingHuQty === 0 && (lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
-              // Fully allocated: use huQty which stores the allocated quantity
-              // For opened pallets that were fully allocated, huQty contains the allocated quantity
-              qty = lpn.huQty || (lpn as any).originalHuQty || 0
-            } else {
-              // Fallback: use remainingHuQty or huQty
-              qty = (lpn as any).remainingHuQty ?? lpn.huQty ?? 0
-            }
+            qty = (lpn.huQty || 0) - (lpn as any).remainingHuQty
           }
-          return {
-            lpnId: lpn.id,
-            lpnNumber: lpn.lpnNumber,
-            huQty: qty,
-            location: lpn.location,
-            isLoosened: (lpn as any).isLoosened || false,
-          }
-        })
+        } else if (
+          (lpn as any).remainingHuQty === 0 &&
+          (lpn as any).originalHuQty !== undefined &&
+          (lpn as any).originalHuQty !== null
+        ) {
+          // Fully allocated: use huQty which stores the allocated quantity
+          // For opened pallets that were fully allocated, huQty contains the allocated quantity
+          qty = lpn.huQty || (lpn as any).originalHuQty || 0
+        } else {
+          // Fallback: use remainingHuQty or huQty
+          qty = (lpn as any).remainingHuQty ?? lpn.huQty ?? 0
+        }
+      }
+      return {
+        lpnId: lpn.id,
+        lpnNumber: lpn.lpnNumber,
+        huQty: qty,
+        location: lpn.location,
+        isLoosened: (lpn as any).isLoosened || false,
+      }
+    })
     const pickupRecord = await payload.create({
       collection: 'pickup-stock',
       data: {
@@ -346,7 +359,7 @@ export async function POST(
     // Track remaining loosened quantity to distribute across records
     // Use the same distribution logic as above
     let remainingLoosenedToPick = validatedLoosenedQty
-    
+
     for (const lpn of validatedLPNs) {
       const lpnData: any = {
         allocationStatus: 'picked',
@@ -357,9 +370,9 @@ export async function POST(
         const currentLoosenedQty = (lpn as any).loosenedQty || 0
         // Calculate how much to pick from this record
         const pickedFromThisRecord = Math.min(currentLoosenedQty, remainingLoosenedToPick)
-        
+
         const newLoosenedQty = currentLoosenedQty - pickedFromThisRecord
-        
+
         if (newLoosenedQty <= 0) {
           // All loosened quantity picked up from this record
           lpnData.allocationStatus = 'picked'
@@ -373,7 +386,7 @@ export async function POST(
           lpnData.remainingHuQty = 0
           lpnData.allocationStatus = 'allocated' // Keep as allocated since not fully picked
         }
-        
+
         // Reduce the remaining loosened quantity for next records
         remainingLoosenedToPick -= pickedFromThisRecord
       } else {
@@ -462,4 +475,3 @@ export async function POST(
     return NextResponse.json({ message: 'Failed to create pickup record' }, { status: 500 })
   }
 }
-

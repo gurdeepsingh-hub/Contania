@@ -778,10 +778,10 @@ export function MultistepOutboundForm({
           }
           return
         }
-        const savedData = await onSave(dataToSave)
-        // Redirect to view page if job was created
-        if (savedData?.id) {
-          router.push(`/dashboard/freight/outbound/${savedData.id}`)
+        await onSave(dataToSave)
+        // Redirect to view page if job was created (check formData.id which should be set after save)
+        if (formData.id) {
+          router.push(`/dashboard/freight/outbound/${formData.id}`)
         }
       }
     } catch (error) {

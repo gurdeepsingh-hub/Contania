@@ -286,23 +286,15 @@ export const ContainerStockAllocations: CollectionConfig = {
           type: 'date',
           admin: {
             description: 'Expiry date (required if SKU has expiry enabled)',
-            condition: async (data, siblingData, { req }) => {
+            condition: (data, siblingData) => {
               // Show only if SKU has expiry enabled
-              if (!siblingData.skuId || !req?.payload) return false
-              try {
-                const skuId =
-                  typeof siblingData.skuId === 'object'
-                    ? (siblingData.skuId as { id: number }).id
-                    : siblingData.skuId
-                if (!skuId) return false
-                const sku = await req.payload.findByID({
-                  collection: 'skus',
-                  id: skuId,
-                })
-                return (sku as { isExpriy?: boolean })?.isExpriy === true
-              } catch {
-                return false
+              // Check if SKU relation is populated and has expiry enabled
+              if (!siblingData.skuId) return false
+              if (typeof siblingData.skuId === 'object' && siblingData.skuId !== null) {
+                return (siblingData.skuId as { isExpriy?: boolean })?.isExpriy === true
               }
+              // If SKU is just an ID, we can't check synchronously, so hide the field
+              return false
             },
           },
         },
@@ -311,23 +303,15 @@ export const ContainerStockAllocations: CollectionConfig = {
           type: 'textarea',
           admin: {
             description: 'Attribute 1 (required if SKU has attribute1 enabled)',
-            condition: async (data, siblingData, { req }) => {
+            condition: (data, siblingData) => {
               // Show only if SKU has attribute1 enabled
-              if (!siblingData.skuId || !req?.payload) return false
-              try {
-                const skuId =
-                  typeof siblingData.skuId === 'object'
-                    ? (siblingData.skuId as { id: number }).id
-                    : siblingData.skuId
-                if (!skuId) return false
-                const sku = await req.payload.findByID({
-                  collection: 'skus',
-                  id: skuId,
-                })
-                return (sku as { isAttribute1?: boolean })?.isAttribute1 === true
-              } catch {
-                return false
+              // Check if SKU relation is populated and has attribute1 enabled
+              if (!siblingData.skuId) return false
+              if (typeof siblingData.skuId === 'object' && siblingData.skuId !== null) {
+                return (siblingData.skuId as { isAttribute1?: boolean })?.isAttribute1 === true
               }
+              // If SKU is just an ID, we can't check synchronously, so hide the field
+              return false
             },
           },
         },
@@ -336,23 +320,15 @@ export const ContainerStockAllocations: CollectionConfig = {
           type: 'textarea',
           admin: {
             description: 'Attribute 2 (required if SKU has attribute2 enabled)',
-            condition: async (data, siblingData, { req }) => {
+            condition: (data, siblingData) => {
               // Show only if SKU has attribute2 enabled
-              if (!siblingData.skuId || !req?.payload) return false
-              try {
-                const skuId =
-                  typeof siblingData.skuId === 'object'
-                    ? (siblingData.skuId as { id: number }).id
-                    : siblingData.skuId
-                if (!skuId) return false
-                const sku = await req.payload.findByID({
-                  collection: 'skus',
-                  id: skuId,
-                })
-                return (sku as { isAttribute2?: boolean })?.isAttribute2 === true
-              } catch {
-                return false
+              // Check if SKU relation is populated and has attribute2 enabled
+              if (!siblingData.skuId) return false
+              if (typeof siblingData.skuId === 'object' && siblingData.skuId !== null) {
+                return (siblingData.skuId as { isAttribute2?: boolean })?.isAttribute2 === true
               }
+              // If SKU is just an ID, we can't check synchronously, so hide the field
+              return false
             },
           },
         },

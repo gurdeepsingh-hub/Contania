@@ -141,11 +141,11 @@ export function VehicleFormDialog({
           regoExpiryDate: initialData.regoExpiryDate || '',
           gpsId: initialData.gpsId || '',
           description: initialData.description || '',
-          defaultDepotId: depotId ? depotId.toString() : '',
-          aTrailerId: aTrailerId ? aTrailerId.toString() : '',
-          bTrailerId: bTrailerId ? bTrailerId.toString() : '',
-          cTrailerId: cTrailerId ? cTrailerId.toString() : '',
-          defaultTrailerCombinationId: defaultTrailerCombinationId ? defaultTrailerCombinationId.toString() : '',
+          defaultDepotId: depotId ? depotId : undefined,
+          aTrailerId: aTrailerId ? aTrailerId : undefined,
+          bTrailerId: bTrailerId ? bTrailerId : undefined,
+          cTrailerId: cTrailerId ? cTrailerId : undefined,
+          defaultTrailerCombinationId: defaultTrailerCombinationId ? defaultTrailerCombinationId : undefined,
           sideloader: initialData.sideloader || false,
         })
       } else {

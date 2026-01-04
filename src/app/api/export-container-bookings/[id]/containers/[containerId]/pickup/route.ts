@@ -225,14 +225,22 @@ export async function POST(
         pickedUpLPNs = regularLPNs.map((lpn: any) => {
           // Calculate the allocated quantity for this LPN
           let qty = 0
-          if ((lpn as any).remainingHuQty !== undefined && (lpn as any).remainingHuQty !== null && (lpn as any).remainingHuQty > 0) {
+          if (
+            (lpn as any).remainingHuQty !== undefined &&
+            (lpn as any).remainingHuQty !== null &&
+            (lpn as any).remainingHuQty > 0
+          ) {
             // Partially allocated: calculate allocated quantity
             if ((lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
               qty = (lpn as any).originalHuQty - (lpn as any).remainingHuQty
             } else {
               qty = (lpn.huQty || 0) - (lpn as any).remainingHuQty
             }
-          } else if ((lpn as any).remainingHuQty === 0 && (lpn as any).originalHuQty !== undefined && (lpn as any).originalHuQty !== null) {
+          } else if (
+            (lpn as any).remainingHuQty === 0 &&
+            (lpn as any).originalHuQty !== undefined &&
+            (lpn as any).originalHuQty !== null
+          ) {
             // Fully allocated: use huQty which stores the allocated quantity
             qty = lpn.huQty || (lpn as any).originalHuQty || 0
           } else {
@@ -269,7 +277,8 @@ export async function POST(
 
       // Handle loosened stock if provided
       if (loosenedQty > 0) {
-        const productLineSkuId = typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
+        const productLineSkuId =
+          typeof productLine.skuId === 'object' ? productLine.skuId.id : productLine.skuId
         const productLineBatch = productLine.batchNumber
 
         if (productLineSkuId && productLineBatch) {
@@ -314,10 +323,10 @@ export async function POST(
 
           if (loosenedStock.docs.length > 0) {
             // Sum up all available loosened stock allocated to this allocation
-            const totalAvailableLoosenedQty = loosenedStock.docs.reduce((sum, record) => {
+            const totalAvailableLoosenedQty = loosenedStock.docs.reduce((sum: any, record: any) => {
               return sum + (record.loosenedQty || 0)
             }, 0)
-            
+
             if (loosenedQty > totalAvailableLoosenedQty) {
               errors.push({
                 allocationId: allocation.id,
@@ -328,13 +337,13 @@ export async function POST(
             } else {
               validatedLoosenedQty = loosenedQty
             }
-            
+
             // Add all loosened stock records to pickedUpLPNs so they get picked up
             // We'll distribute the picked quantity across them
             let remainingToPick = validatedLoosenedQty
             for (const loosenedRecord of loosenedStock.docs) {
               if (remainingToPick <= 0) break
-              
+
               const recordQty = loosenedRecord.loosenedQty || 0
               if (recordQty > 0) {
                 const pickedFromThisRecord = Math.min(recordQty, remainingToPick)
@@ -404,7 +413,10 @@ export async function POST(
         for (const lpn of pickedUpLPNs) {
           if ((lpn as any).isLoosened && remainingToDistribute > 0) {
             const pickedQty = lpn.huQty || 0
-            loosenedPickupMap.set(typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId, pickedQty)
+            loosenedPickupMap.set(
+              typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId,
+              pickedQty,
+            )
             remainingToDistribute -= pickedQty
           }
         }
@@ -450,7 +462,7 @@ export async function POST(
       // Update PutAwayStock allocation status to 'picked'
       // Track remaining loosened quantity to distribute across records
       let remainingLoosenedToPick = validatedLoosenedQty
-      
+
       for (const lpn of pickedUpLPNs) {
         const lpnId = typeof lpn.lpnId === 'object' ? lpn.lpnId.id : lpn.lpnId
         if (!lpnId) continue
@@ -468,12 +480,12 @@ export async function POST(
         // If this is a loosened stock record, reduce the quantity picked
         if ((lpn as any).isLoosened) {
           const currentLoosenedQty = (lpnRecord as any).loosenedQty || 0
-          
+
           // Calculate how much to pick from this record
           const pickedFromThisRecord = Math.min(currentLoosenedQty, remainingLoosenedToPick)
-          
+
           const newLoosenedQty = currentLoosenedQty - pickedFromThisRecord
-          
+
           if (newLoosenedQty <= 0) {
             // All loosened quantity picked up from this record
             lpnData.allocationStatus = 'picked'
@@ -487,7 +499,7 @@ export async function POST(
             lpnData.remainingHuQty = 0
             lpnData.allocationStatus = 'allocated' // Keep as allocated since not fully picked
           }
-          
+
           // Reduce the remaining loosened quantity for next records
           remainingLoosenedToPick -= pickedFromThisRecord
         } else {
