@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { X, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { valueAsNumberOrUndefined } from '@/lib/utils'
 
 const driverSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -346,7 +347,7 @@ export function DriverFormDialog({
                 })),
               ]}
               error={errors.vehicleId?.message}
-              {...register('vehicleId', { valueAsNumber: true })}
+              {...register('vehicleId', { setValueAs: valueAsNumberOrUndefined })}
             />
             <FormSelect
               label="Default Depot"
@@ -359,7 +360,7 @@ export function DriverFormDialog({
                 })),
               ]}
               error={errors.defaultDepotId?.message}
-              {...register('defaultDepotId', { valueAsNumber: true })}
+              {...register('defaultDepotId', { setValueAs: valueAsNumberOrUndefined })}
             />
             <FormInput
               label="ABN"

@@ -28,9 +28,10 @@ type VehicleItem = {
   gpsId?: string
   description?: string
   defaultDepotId?: number | { id: number; name?: string }
-  aTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
-  bTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
-  cTrailerId?: number | { id: number; fleetNumber?: string; rego?: string }
+  aTrailerId?: number | { id: number; name?: string }
+  bTrailerId?: number | { id: number; name?: string }
+  cTrailerId?: number | { id: number; name?: string }
+  defaultTrailerCombinationId?: number | { id: number; name?: string }
   sideloader?: boolean
 }
 
@@ -332,25 +333,22 @@ export default function VehiclesPage() {
                           const trailerParts = [
                             vehicle.aTrailerId &&
                               typeof vehicle.aTrailerId === 'object' &&
-                              vehicle.aTrailerId.fleetNumber &&
-                              vehicle.aTrailerId.rego
-                              ? `A: ${vehicle.aTrailerId.fleetNumber} (${vehicle.aTrailerId.rego})`
+                              vehicle.aTrailerId.name
+                              ? `A: ${vehicle.aTrailerId.name}`
                               : vehicle.aTrailerId
                                 ? 'A: N/A'
                                 : null,
                             vehicle.bTrailerId &&
                               typeof vehicle.bTrailerId === 'object' &&
-                              vehicle.bTrailerId.fleetNumber &&
-                              vehicle.bTrailerId.rego
-                              ? `B: ${vehicle.bTrailerId.fleetNumber} (${vehicle.bTrailerId.rego})`
+                              vehicle.bTrailerId.name
+                              ? `B: ${vehicle.bTrailerId.name}`
                               : vehicle.bTrailerId
                                 ? 'B: N/A'
                                 : null,
                             vehicle.cTrailerId &&
                               typeof vehicle.cTrailerId === 'object' &&
-                              vehicle.cTrailerId.fleetNumber &&
-                              vehicle.cTrailerId.rego
-                              ? `C: ${vehicle.cTrailerId.fleetNumber} (${vehicle.cTrailerId.rego})`
+                              vehicle.cTrailerId.name
+                              ? `C: ${vehicle.cTrailerId.name}`
                               : vehicle.cTrailerId
                                 ? 'C: N/A'
                                 : null,
@@ -363,6 +361,16 @@ export default function VehiclesPage() {
                             </div>
                           ) : null
                         })()}
+                        {vehicle.defaultTrailerCombinationId && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[100px]">Default Trailer Combination:</span>
+                            <span>
+                              {typeof vehicle.defaultTrailerCombinationId === 'object'
+                                ? vehicle.defaultTrailerCombinationId.name
+                                : 'N/A'}
+                            </span>
+                          </div>
+                        )}
                         {vehicle.sideloader && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[100px]">Sideloader:</span>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { Save, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { valueAsNumberOrUndefined } from '@/lib/utils'
 
 const phoneRegex = /^[\d\s\-\+\(\)]+$/
 
@@ -193,7 +194,7 @@ export function ShippingLineForm({
             type="number"
             error={errors.importFreeDays?.message}
             placeholder="Number of import free days"
-            {...register('importFreeDays', { valueAsNumber: true })}
+            {...register('importFreeDays', { setValueAs: valueAsNumberOrUndefined })}
           />
           <FormSelect
             label="Calculate Import Free Days Using"

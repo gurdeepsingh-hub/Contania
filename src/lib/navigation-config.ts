@@ -70,7 +70,6 @@ export const createNavigationItems = (activePage?: string): NavigationItem[] => 
       activePage === 'warehouse-zones' ||
       activePage === 'delay-points' ||
       activePage === 'container-sizes' ||
-      activePage === 'container-weights' ||
       activePage === 'damage-codes' ||
       activePage === 'detention-control',
   },

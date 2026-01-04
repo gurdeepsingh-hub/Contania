@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -91,9 +92,187 @@ export default function SKUsPage() {
   const [storageUnits, setStorageUnits] = useState<StorageUnit[]>([])
   const [handlingUnits, setHandlingUnits] = useState<HandlingUnit[]>([])
   const [loadingSkus, setLoadingSkus] = useState(false)
-  const [loadingRelations, setLoadingRelations] = useState(false)
+  const [_loadingRelations, setLoadingRelations] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingSku, setEditingSku] = useState<SKU | null>(null)
+
+  // Store focusin handler and observer for cleanup
+  const focusInHandlerRef = useRef<((e: FocusEvent) => void) | null>(null)
+  const focusTrapObserverRef = useRef<MutationObserver | null>(null)
+  const mutationTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // Track when quick create dialog just closed to prevent SKU dialog from closing
+  const quickCreateJustClosedRef = useRef(false)
+
+  // Helper function to disable Dialog focus trap synchronously
+  const disableDialogFocusTrap = () => {
+    const dialogContent = document.querySelector('[role="dialog"]')
+    if (dialogContent) {
+      dialogContent.setAttribute('aria-modal', 'false')
+      // DO NOT disable pointer events on dialog content - this causes clicks to go through to overlay
+      // Only disable overlay pointer events (done above)
+
+      // Make all inputs in Dialog non-focusable to prevent focus trap
+      const dialogInputs = dialogContent.querySelectorAll('input, select, textarea, button')
+      dialogInputs.forEach((el) => {
+        const htmlEl = el as HTMLElement
+        // Only disable if not in quick create dialog
+        const quickCreateDialog = htmlEl.closest('[data-quick-create-dialog="true"]')
+        if (!quickCreateDialog) {
+          htmlEl.setAttribute('tabindex', '-1')
+          htmlEl.setAttribute('inert', '')
+        }
+      })
+    }
+    const overlayByClass = document.querySelector('.fixed.inset-0.z-50.bg-black\\/80')
+    if (overlayByClass) {
+      ;(overlayByClass as HTMLElement).style.pointerEvents = 'none'
+    }
+
+    // Intercept focusin events to prevent Dialog from trapping focus
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement
+
+      // Check if focus is going to a quick create dialog element using data attribute
+      const quickCreateDialog = target?.closest('[data-quick-create-dialog="true"]')
+      if (quickCreateDialog) {
+        // Allow focus to go to quick create dialog - don't interfere
+        return
+      }
+      // If focus is going to Dialog (but not quick create), prevent Dialog's focus trap
+      const dialogElement = target?.closest('[role="dialog"]')
+      if (
+        dialogElement &&
+        !quickCreateDialog &&
+        dialogElement.getAttribute('aria-modal') === 'false'
+      ) {
+        // Dialog focus trap is disabled, but Radix might still try to trap
+        // Prevent focus from being moved away from quick create
+        const activeElement = document.activeElement as HTMLElement
+        const activeQuickCreate = activeElement?.closest('[data-quick-create-dialog="true"]')
+        if (activeQuickCreate) {
+          e.stopImmediatePropagation()
+          e.preventDefault()
+          // Restore focus to quick create element
+          setTimeout(() => {
+            activeElement?.focus()
+          }, 0)
+        }
+      }
+    }
+
+    // Store handler for cleanup
+    focusInHandlerRef.current = handleFocusIn
+
+    // Remove existing listener if any and add new one with capture phase
+    if (focusInHandlerRef.current) {
+      document.removeEventListener('focusin', focusInHandlerRef.current as EventListener, true)
+    }
+    document.addEventListener('focusin', handleFocusIn as EventListener, true)
+
+    // Also add a focusout handler to track when focus leaves quick create
+    const handleFocusOut = (e: FocusEvent) => {
+      const target = e.target as HTMLElement
+      const quickCreateDialog = target?.closest('[data-quick-create-dialog="true"]')
+      if (quickCreateDialog) {
+        // Focus left quick create dialog
+      }
+    }
+    document.addEventListener('focusout', handleFocusOut as EventListener, true)
+
+    // Find and disable Radix's focus trap elements
+    // Radix Dialog creates focus trap elements with tabindex="-1" to trap focus
+    const disableFocusTrapElements = () => {
+      const dialogContent = document.querySelector('[role="dialog"]')
+      if (dialogContent) {
+        // Find all focus trap elements (Radix uses elements with tabindex="-1" for trapping)
+        const focusTrapElements = dialogContent.querySelectorAll('[tabindex="-1"]')
+        focusTrapElements.forEach((el) => {
+          const htmlEl = el as HTMLElement
+          // Only disable if it's not inside a quick create dialog
+          const quickCreateDialog = htmlEl.closest('[data-quick-create-dialog="true"]')
+          if (!quickCreateDialog) {
+            // Remove tabindex to disable focus trap
+            htmlEl.removeAttribute('tabindex')
+          }
+        })
+      }
+    }
+
+    // Only disable focus trap and set up observer when quick create dialog is actually open
+    // This prevents unnecessary DOM mutations that might trigger hot reloads
+    const hasQuickCreateOpen =
+      showQuickCreateCustomer || showQuickCreateStorageUnit || showQuickCreateHandlingUnit
+    if (hasQuickCreateOpen) {
+      // Disable focus trap elements immediately
+      disableFocusTrapElements()
+
+      // Use MutationObserver to watch for Radix creating new focus trap elements
+      // Only react when tabindex="-1" is ADDED, not when removed (to prevent infinite loop)
+      let isProcessing = false
+      const observer = new MutationObserver((mutations) => {
+        // Prevent re-entrancy
+        if (isProcessing) return
+
+        // Debounce mutations to prevent rapid-fire DOM changes that might trigger hot reloads
+        if (mutationTimeoutRef.current) {
+          clearTimeout(mutationTimeoutRef.current)
+        }
+        mutationTimeoutRef.current = setTimeout(() => {
+          // Only process mutations where tabindex="-1" was added
+          const hasNewFocusTrap = mutations.some((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'tabindex') {
+              const target = mutation.target as HTMLElement
+              return target.getAttribute('tabindex') === '-1'
+            }
+            if (mutation.type === 'childList') {
+              // Check if any added node has tabindex="-1"
+              return Array.from(mutation.addedNodes).some((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                  const el = node as HTMLElement
+                  return el.getAttribute('tabindex') === '-1' || el.querySelector('[tabindex="-1"]')
+                }
+                return false
+              })
+            }
+            return false
+          })
+
+          if (hasNewFocusTrap) {
+            isProcessing = true
+            disableFocusTrapElements()
+            // Reset flag after a short delay
+            setTimeout(() => {
+              isProcessing = false
+            }, 100)
+          }
+        }, 100) // Increased debounce to 100ms to further reduce DOM mutation frequency
+      })
+
+      const dialogContentForObserver = document.querySelector('[role="dialog"]')
+      if (dialogContentForObserver) {
+        observer.observe(dialogContentForObserver, {
+          attributes: true,
+          attributeFilter: ['tabindex'],
+          childList: true,
+          subtree: true,
+        })
+      }
+
+      // Store observer for cleanup
+      focusTrapObserverRef.current = observer
+    } else {
+      // When quick create dialogs are closed, ensure observer is disconnected
+      if (focusTrapObserverRef.current) {
+        focusTrapObserverRef.current.disconnect()
+        focusTrapObserverRef.current = null
+      }
+      // Clear any pending mutation timeouts
+      if (mutationTimeoutRef.current) {
+        clearTimeout(mutationTimeoutRef.current)
+        mutationTimeoutRef.current = null
+      }
+    }
+  }
 
   // Quick-create modal states
   const [showQuickCreateCustomer, setShowQuickCreateCustomer] = useState(false)
@@ -233,6 +412,108 @@ export default function SKUsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authChecked, page, limit, searchQuery])
+
+  // Disable Dialog focus trap and pointer events when quick create dialogs are open
+  useEffect(() => {
+    const hasQuickCreateOpen =
+      showQuickCreateCustomer || showQuickCreateStorageUnit || showQuickCreateHandlingUnit
+
+    if (hasQuickCreateOpen && showAddForm) {
+      // Disable pointer events on Dialog overlay
+      const overlayByClass = document.querySelector('.fixed.inset-0.z-50.bg-black\\/80')
+      if (overlayByClass) {
+        ;(overlayByClass as HTMLElement).style.pointerEvents = 'none'
+      }
+
+      // Disable focus trap on Dialog content
+      const dialogContent = document.querySelector('[role="dialog"]')
+      if (dialogContent) {
+        // Remove aria-modal to disable focus trap
+        dialogContent.setAttribute('aria-modal', 'false')
+        // DO NOT disable pointer events on dialog content - only disable overlay
+        // Disabling pointer events on content causes clicks to go through to overlay
+        // ;(dialogContent as HTMLElement).style.pointerEvents = 'none'
+      }
+    } else {
+      // Temporarily disable overlay clicks to prevent accidental closure
+      // Keep overlay pointer-events disabled for a bit longer to prevent clicks from propagating
+      const overlayByClass = document.querySelector('.fixed.inset-0.z-50.bg-black\\/80')
+
+      // Re-enable pointer events on dialog content immediately
+      const dialogContent = document.querySelector('[role="dialog"]') as HTMLElement
+      if (dialogContent) {
+        dialogContent.setAttribute('aria-modal', 'true')
+        // Ensure pointer events are enabled
+        dialogContent.style.pointerEvents = 'auto'
+        // Remove any pointer-events-none class that might be blocking interactions
+        dialogContent.classList.remove('pointer-events-none')
+
+        // Re-enable focus on all inputs, selects, textareas, and buttons inside the dialog
+        // Remove any tabindex="-1" that might have been set by the focus trap
+        const focusableElements = dialogContent.querySelectorAll(
+          'input, select, textarea, button, [tabindex]',
+        )
+        focusableElements.forEach((el) => {
+          const htmlEl = el as HTMLElement
+          if (htmlEl.hasAttribute('tabindex') && htmlEl.getAttribute('tabindex') === '-1') {
+            htmlEl.removeAttribute('tabindex')
+          }
+          // Ensure elements are focusable
+          if (htmlEl.hasAttribute('inert')) {
+            htmlEl.removeAttribute('inert')
+          }
+        })
+      }
+
+      // Keep overlay disabled for longer to prevent accidental clicks
+      setTimeout(() => {
+        if (overlayByClass) {
+          ;(overlayByClass as HTMLElement).style.pointerEvents = ''
+        }
+      }, 300) // Longer delay to ensure click events from closing quick create have finished
+
+      // Remove focusin listener when quick create dialogs close
+      if (focusInHandlerRef.current) {
+        document.removeEventListener('focusin', focusInHandlerRef.current as EventListener, true)
+        focusInHandlerRef.current = null
+      }
+      if (focusTrapObserverRef.current) {
+        focusTrapObserverRef.current.disconnect()
+        focusTrapObserverRef.current = null
+      }
+      // Clear any pending mutation timeouts
+      if (mutationTimeoutRef.current) {
+        clearTimeout(mutationTimeoutRef.current)
+        mutationTimeoutRef.current = null
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      const overlayByClass = document.querySelector('.fixed.inset-0.z-50.bg-black\\/80')
+      if (overlayByClass) {
+        ;(overlayByClass as HTMLElement).style.pointerEvents = ''
+      }
+      const dialogContent = document.querySelector('[role="dialog"]')
+      if (dialogContent) {
+        dialogContent.setAttribute('aria-modal', 'true')
+        ;(dialogContent as HTMLElement).style.pointerEvents = ''
+      }
+      if (focusInHandlerRef.current) {
+        document.removeEventListener('focusin', focusInHandlerRef.current as EventListener, true)
+        focusInHandlerRef.current = null
+      }
+      if (focusTrapObserverRef.current) {
+        focusTrapObserverRef.current.disconnect()
+        focusTrapObserverRef.current = null
+      }
+    }
+  }, [
+    showQuickCreateCustomer,
+    showQuickCreateStorageUnit,
+    showQuickCreateHandlingUnit,
+    showAddForm,
+  ])
 
   // Auto-calculate casesPerPallet when casesPerLayer or layersPerPallet changes
   useEffect(() => {
@@ -735,13 +1016,64 @@ export default function SKUsPage() {
         </Button>
       </div>
 
-      <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
+      <Dialog
+        open={showAddForm}
+        onOpenChange={(open) => {
+          // Don't close the SKU dialog if a quick create dialog is open
+          if (
+            !open &&
+            (showQuickCreateCustomer || showQuickCreateStorageUnit || showQuickCreateHandlingUnit)
+          ) {
+            return
+          }
+
+          // Normal close - handleCancel will be called for intentional closes
+          // Overlay clicks are prevented by the temporary click handler above
+          if (!open) {
+            handleCancel()
+          }
+        }}
+      >
         <DialogContent
-          className={`max-w-4xl max-h-[90vh] overflow-y-auto ${
-            showQuickCreateCustomer || showQuickCreateStorageUnit || showQuickCreateHandlingUnit
-              ? 'pointer-events-none'
-              : ''
-          }`}
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement
+            const dialogContent = document.querySelector('[role="dialog"]') as HTMLElement
+
+            // Check if any element in the event path is inside the dialog content
+            // This handles cases where the event bubbles up to HTML/BODY
+            const eventPath = e.composedPath()
+            const isInsideDialog =
+              dialogContent &&
+              eventPath.some((el) => {
+                // Only check Element nodes (not Text, Comment, etc.)
+                if (!el || typeof (el as Element).closest !== 'function') {
+                  return false
+                }
+                const htmlEl = el as HTMLElement
+                return (
+                  dialogContent.contains(htmlEl) ||
+                  htmlEl === dialogContent ||
+                  htmlEl.closest('[role="dialog"]') === dialogContent
+                )
+              })
+
+            // Prevent closing if clicking inside the dialog content
+            if (isInsideDialog) {
+              e.preventDefault()
+              return
+            }
+            // Prevent closing if clicking on quick create dialog
+            if (target?.closest('[data-quick-create-dialog="true"]')) {
+              e.preventDefault()
+              return
+            }
+            // Prevent closing if quick create just closed (grace period)
+            if (quickCreateJustClosedRef.current) {
+              e.preventDefault()
+              return
+            }
+          }}
         >
           <DialogHeader>
             <DialogTitle>{editingSku ? 'Edit SKU' : 'Add New SKU'}</DialogTitle>
@@ -765,7 +1097,10 @@ export default function SKUsPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowQuickCreateCustomer(true)}
+                    onClick={() => {
+                      disableDialogFocusTrap()
+                      setShowQuickCreateCustomer(true)
+                    }}
                     className="h-7 text-xs"
                   >
                     <Plus className="h-3 w-3 mr-1" />
@@ -783,12 +1118,17 @@ export default function SKUsPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <Label htmlFor="storageUnitId">Storage Unit *</Label>
+                  <Label htmlFor="storageUnitId" required>
+                    Storage Unit
+                  </Label>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowQuickCreateStorageUnit(true)}
+                    onClick={() => {
+                      disableDialogFocusTrap()
+                      setShowQuickCreateStorageUnit(true)
+                    }}
                     className="h-7 text-xs"
                   >
                     <Plus className="h-3 w-3 mr-1" />
@@ -807,12 +1147,17 @@ export default function SKUsPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <Label htmlFor="handlingUnitId">Handling Unit *</Label>
+                  <Label htmlFor="handlingUnitId" required>
+                    Handling Unit
+                  </Label>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => setShowQuickCreateHandlingUnit(true)}
+                    onClick={() => {
+                      disableDialogFocusTrap()
+                      setShowQuickCreateHandlingUnit(true)
+                    }}
                     className="h-7 text-xs"
                   >
                     <Plus className="h-3 w-3 mr-1" />
@@ -1049,73 +1394,15 @@ export default function SKUsPage() {
       </Dialog>
 
       {/* Quick-create Customer Modal */}
-      {showQuickCreateCustomer && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowQuickCreateCustomer(false)
-              setQuickCreateData({
-                name: '',
-                abbreviation: '',
-                palletSpaces: '',
-                lengthPerSU_mm: '',
-                widthPerSU_mm: '',
-                whstoChargeBy: '',
-              })
-            }
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <Card
-            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <CardHeader>
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <CardTitle>Quick Create Customer</CardTitle>
-                  <CardDescription>Create a new customer quickly</CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setShowQuickCreateCustomer(false)
-                    setQuickCreateData({
-                      name: '',
-                      abbreviation: '',
-                      palletSpaces: '',
-                      lengthPerSU_mm: '',
-                      widthPerSU_mm: '',
-                      whstoChargeBy: '',
-                    })
-                  }}
-                  className="shrink-0 min-h-[44px] min-w-[44px]"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="quickCustomerName">Customer Name *</Label>
-                  <Input
-                    id="quickCustomerName"
-                    value={quickCreateData.name}
-                    onChange={(e) =>
-                      setQuickCreateData({ ...quickCreateData, name: e.target.value })
-                    }
-                    placeholder="Customer name"
-                    required
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
+      {showQuickCreateCustomer &&
+        (typeof window !== 'undefined'
+          ? createPortal(
+              <div
+                data-quick-create-dialog="true"
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+                onClick={(e) => {
+                  try {
+                    if (e.target === e.currentTarget) {
                       setShowQuickCreateCustomer(false)
                       setQuickCreateData({
                         name: '',
@@ -1125,52 +1412,170 @@ export default function SKUsPage() {
                         widthPerSU_mm: '',
                         whstoChargeBy: '',
                       })
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleQuickCreateCustomer}>Create</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                      // Only stop propagation when clicking backdrop itself
+                      e.stopPropagation()
+                    }
+                    // Don't stop propagation for clicks inside Card - let them bubble normally
+                  } catch (_err) {
+                    // Silently ignore errors
+                  }
+                }}
+                onMouseDown={(e) => {
+                  try {
+                    // Only stop propagation when clicking backdrop itself
+                    if (e.target === e.currentTarget) {
+                      e.stopPropagation()
+                    }
+                  } catch (_err) {
+                    // Silently ignore errors
+                  }
+                }}
+                onFocus={(e) => {
+                  // Prevent Dialog from capturing focus
+                  e.stopPropagation()
+                }}
+                tabIndex={-1}
+              >
+                <Card
+                  className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
+                  onFocus={(e) => {
+                    // Ensure focus stays within the quick create dialog
+                    e.stopPropagation()
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                  }}
+                  tabIndex={0}
+                >
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle>Quick Create Customer</CardTitle>
+                        <CardDescription>Create a new customer quickly</CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setShowQuickCreateCustomer(false)
+                          setQuickCreateData({
+                            name: '',
+                            abbreviation: '',
+                            palletSpaces: '',
+                            lengthPerSU_mm: '',
+                            widthPerSU_mm: '',
+                            whstoChargeBy: '',
+                          })
+                        }}
+                        className="shrink-0 min-h-[44px] min-w-[44px]"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="quickCustomerName" required>
+                          Customer Name
+                        </Label>
+                        <Input
+                          id="quickCustomerName"
+                          value={quickCreateData.name}
+                          onChange={(e) =>
+                            setQuickCreateData({ ...quickCreateData, name: e.target.value })
+                          }
+                          onFocus={(e) => {
+                            e.stopPropagation()
+                          }}
+                          onClick={(e) => {
+                            try {
+                              e.stopPropagation()
+                              e.preventDefault() // Prevent default to stop Radix from interfering
+                              // Manually focus the input using setTimeout
+                              const input = e.target as HTMLInputElement
+                              if (input) {
+                                setTimeout(() => {
+                                  try {
+                                    // Remove any tabindex restrictions
+                                    input.removeAttribute('tabindex')
+                                    input.removeAttribute('inert')
+                                    // Force focus
+                                    input.focus({ preventScroll: true })
+                                  } catch (_err) {
+                                    // Silently ignore focus errors
+                                  }
+                                }, 100)
+                              }
+                            } catch (_err) {
+                              // Silently ignore errors
+                            }
+                          }}
+                          onMouseDown={(e) => {
+                            try {
+                              e.stopPropagation()
+                              e.preventDefault() // Prevent default to stop Radix from interfering
+                              // Focus using setTimeout with longer delay to ensure it happens after Radix's handlers
+                              const input = e.target as HTMLInputElement
+                              if (input) {
+                                setTimeout(() => {
+                                  try {
+                                    // Remove any tabindex restrictions
+                                    input.removeAttribute('tabindex')
+                                    input.removeAttribute('inert')
+                                    // Force focus
+                                    input.focus({ preventScroll: true })
+                                  } catch (_err) {
+                                    // Silently ignore focus errors
+                                  }
+                                }, 100)
+                              }
+                            } catch (_err) {
+                              // Silently ignore errors
+                            }
+                          }}
+                          tabIndex={0}
+                          autoFocus={false}
+                          placeholder="Customer name"
+                          required
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowQuickCreateCustomer(false)
+                            setQuickCreateData({
+                              name: '',
+                              abbreviation: '',
+                              palletSpaces: '',
+                              lengthPerSU_mm: '',
+                              widthPerSU_mm: '',
+                              whstoChargeBy: '',
+                            })
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleQuickCreateCustomer}>Create</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>,
+              document.body,
+            )
+          : null)}
 
       {/* Quick-create Storage Unit Modal */}
-      {showQuickCreateStorageUnit && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowQuickCreateStorageUnit(false)
-              setQuickCreateData({
-                name: '',
-                abbreviation: '',
-                palletSpaces: '',
-                lengthPerSU_mm: '',
-                widthPerSU_mm: '',
-                whstoChargeBy: '',
-              })
-            }
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <Card
-            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <CardHeader>
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <CardTitle>Quick Create Storage Unit</CardTitle>
-                  <CardDescription>Create a new storage unit quickly</CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
+      {showQuickCreateStorageUnit &&
+        (typeof window !== 'undefined'
+          ? createPortal(
+              <div
+                data-quick-create-dialog="true"
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
                     setShowQuickCreateStorageUnit(false)
                     setQuickCreateData({
                       name: '',
@@ -1180,97 +1585,120 @@ export default function SKUsPage() {
                       widthPerSU_mm: '',
                       whstoChargeBy: '',
                     })
+                  }
+                  // Stop propagation to prevent closing the parent SKU dialog
+                  e.stopPropagation()
+                }}
+                onMouseDown={(e) => {
+                  // Stop propagation to prevent Dialog from capturing events
+                  e.stopPropagation()
+                }}
+                onFocus={(e) => {
+                  // Prevent Dialog from capturing focus
+                  e.stopPropagation()
+                }}
+                tabIndex={-1}
+              >
+                <Card
+                  className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
+                  onFocus={(e) => {
+                    // Ensure focus stays within the quick create dialog
+                    e.stopPropagation()
                   }}
-                  className="shrink-0 min-h-[44px] min-w-[44px]"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                  }}
+                  tabIndex={0}
                 >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="quickStorageUnitName">Name *</Label>
-                  <Input
-                    id="quickStorageUnitName"
-                    value={quickCreateData.name}
-                    onChange={(e) =>
-                      setQuickCreateData({ ...quickCreateData, name: e.target.value })
-                    }
-                    placeholder="Storage unit name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="quickStorageUnitAbbreviation">Abbreviation</Label>
-                  <Input
-                    id="quickStorageUnitAbbreviation"
-                    value={quickCreateData.abbreviation}
-                    onChange={(e) =>
-                      setQuickCreateData({ ...quickCreateData, abbreviation: e.target.value })
-                    }
-                    placeholder="e.g. PAL"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowQuickCreateStorageUnit(false)
-                      setQuickCreateData({
-                        name: '',
-                        abbreviation: '',
-                        palletSpaces: '',
-                        lengthPerSU_mm: '',
-                        widthPerSU_mm: '',
-                        whstoChargeBy: '',
-                      })
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleQuickCreateStorageUnit}>Create</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle>Quick Create Storage Unit</CardTitle>
+                        <CardDescription>Create a new storage unit quickly</CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setShowQuickCreateStorageUnit(false)
+                          setQuickCreateData({
+                            name: '',
+                            abbreviation: '',
+                            palletSpaces: '',
+                            lengthPerSU_mm: '',
+                            widthPerSU_mm: '',
+                            whstoChargeBy: '',
+                          })
+                        }}
+                        className="shrink-0 min-h-[44px] min-w-[44px]"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="quickStorageUnitName" required>
+                          Name
+                        </Label>
+                        <Input
+                          id="quickStorageUnitName"
+                          value={quickCreateData.name}
+                          onChange={(e) =>
+                            setQuickCreateData({ ...quickCreateData, name: e.target.value })
+                          }
+                          placeholder="Storage unit name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="quickStorageUnitAbbreviation">Abbreviation</Label>
+                        <Input
+                          id="quickStorageUnitAbbreviation"
+                          value={quickCreateData.abbreviation}
+                          onChange={(e) =>
+                            setQuickCreateData({ ...quickCreateData, abbreviation: e.target.value })
+                          }
+                          placeholder="e.g. PAL"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowQuickCreateStorageUnit(false)
+                            setQuickCreateData({
+                              name: '',
+                              abbreviation: '',
+                              palletSpaces: '',
+                              lengthPerSU_mm: '',
+                              widthPerSU_mm: '',
+                              whstoChargeBy: '',
+                            })
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleQuickCreateStorageUnit}>Create</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>,
+              document.body,
+            )
+          : null)}
 
       {/* Quick-create Handling Unit Modal */}
-      {showQuickCreateHandlingUnit && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowQuickCreateHandlingUnit(false)
-              setQuickCreateData({
-                name: '',
-                abbreviation: '',
-                palletSpaces: '',
-                lengthPerSU_mm: '',
-                widthPerSU_mm: '',
-                whstoChargeBy: '',
-              })
-            }
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <Card
-            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <CardHeader>
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1 min-w-0">
-                  <CardTitle>Quick Create Handling Unit</CardTitle>
-                  <CardDescription>Create a new handling unit quickly</CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
+      {showQuickCreateHandlingUnit &&
+        (typeof window !== 'undefined'
+          ? createPortal(
+              <div
+                data-quick-create-dialog="true"
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
                     setShowQuickCreateHandlingUnit(false)
                     setQuickCreateData({
                       name: '',
@@ -1280,62 +1708,110 @@ export default function SKUsPage() {
                       widthPerSU_mm: '',
                       whstoChargeBy: '',
                     })
+                  }
+                  // Stop propagation to prevent closing the parent SKU dialog
+                  e.stopPropagation()
+                }}
+                onMouseDown={(e) => {
+                  // Stop propagation to prevent Dialog from capturing events
+                  e.stopPropagation()
+                }}
+                onFocus={(e) => {
+                  // Prevent Dialog from capturing focus
+                  e.stopPropagation()
+                }}
+                tabIndex={-1}
+              >
+                <Card
+                  className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
+                  onFocus={(e) => {
+                    // Ensure focus stays within the quick create dialog
+                    e.stopPropagation()
                   }}
-                  className="shrink-0 min-h-[44px] min-w-[44px]"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                  }}
+                  tabIndex={0}
                 >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="quickHandlingUnitName">Name *</Label>
-                  <Input
-                    id="quickHandlingUnitName"
-                    value={quickCreateData.name}
-                    onChange={(e) =>
-                      setQuickCreateData({ ...quickCreateData, name: e.target.value })
-                    }
-                    placeholder="Handling unit name"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="quickHandlingUnitAbbreviation">Abbreviation</Label>
-                  <Input
-                    id="quickHandlingUnitAbbreviation"
-                    value={quickCreateData.abbreviation}
-                    onChange={(e) =>
-                      setQuickCreateData({ ...quickCreateData, abbreviation: e.target.value })
-                    }
-                    placeholder="e.g. CTN"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowQuickCreateHandlingUnit(false)
-                      setQuickCreateData({
-                        name: '',
-                        abbreviation: '',
-                        palletSpaces: '',
-                        lengthPerSU_mm: '',
-                        widthPerSU_mm: '',
-                        whstoChargeBy: '',
-                      })
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleQuickCreateHandlingUnit}>Create</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                  <CardHeader>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle>Quick Create Handling Unit</CardTitle>
+                        <CardDescription>Create a new handling unit quickly</CardDescription>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setShowQuickCreateHandlingUnit(false)
+                          setQuickCreateData({
+                            name: '',
+                            abbreviation: '',
+                            palletSpaces: '',
+                            lengthPerSU_mm: '',
+                            widthPerSU_mm: '',
+                            whstoChargeBy: '',
+                          })
+                        }}
+                        className="shrink-0 min-h-[44px] min-w-[44px]"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="quickHandlingUnitName" required>
+                          Name
+                        </Label>
+                        <Input
+                          id="quickHandlingUnitName"
+                          value={quickCreateData.name}
+                          onChange={(e) =>
+                            setQuickCreateData({ ...quickCreateData, name: e.target.value })
+                          }
+                          placeholder="Handling unit name"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="quickHandlingUnitAbbreviation">Abbreviation</Label>
+                        <Input
+                          id="quickHandlingUnitAbbreviation"
+                          value={quickCreateData.abbreviation}
+                          onChange={(e) =>
+                            setQuickCreateData({ ...quickCreateData, abbreviation: e.target.value })
+                          }
+                          placeholder="e.g. CTN"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowQuickCreateHandlingUnit(false)
+                            setQuickCreateData({
+                              name: '',
+                              abbreviation: '',
+                              palletSpaces: '',
+                              lengthPerSU_mm: '',
+                              widthPerSU_mm: '',
+                              whstoChargeBy: '',
+                            })
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button onClick={handleQuickCreateHandlingUnit}>Create</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>,
+              document.body,
+            )
+          : null)}
 
       <Card>
         <CardHeader>

@@ -96,7 +96,6 @@ export interface Config {
     'shipping-lines': ShippingLine;
     wharves: Wharf;
     'container-sizes': ContainerSize;
-    'container-weights': ContainerWeight;
     'damage-codes': DamageCode;
     'detention-control': DetentionControl;
     vessels: Vessel;
@@ -139,7 +138,6 @@ export interface Config {
     'shipping-lines': ShippingLinesSelect<false> | ShippingLinesSelect<true>;
     wharves: WharvesSelect<false> | WharvesSelect<true>;
     'container-sizes': ContainerSizesSelect<false> | ContainerSizesSelect<true>;
-    'container-weights': ContainerWeightsSelect<false> | ContainerWeightsSelect<true>;
     'damage-codes': DamageCodesSelect<false> | DamageCodesSelect<true>;
     'detention-control': DetentionControlSelect<false> | DetentionControlSelect<true>;
     vessels: VesselsSelect<false> | VesselsSelect<true>;
@@ -2000,13 +1998,17 @@ export interface ContainerSize {
    */
   size: string;
   /**
-   * Unique code for container size
-   */
-  code?: string | null;
-  /**
    * Description of container size
    */
   description?: string | null;
+  /**
+   * Container attribute type
+   */
+  attribute?: ('HC' | 'RF' | 'GP' | 'TK' | 'OT') | null;
+  /**
+   * Weight in kg
+   */
+  weight?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -3225,31 +3227,6 @@ export interface DelayPoint {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "container-weights".
- */
-export interface ContainerWeight {
-  id: number;
-  /**
-   * Links container weight to their company (tenant)
-   */
-  tenantId: number | Tenant;
-  /**
-   * Container size
-   */
-  size: string;
-  /**
-   * Container attribute type
-   */
-  attribute: 'HC' | 'RF' | 'GP' | 'TK' | 'OT';
-  /**
-   * Weight in kg
-   */
-  weight: number;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "damage-codes".
  */
 export interface DamageCode {
@@ -3465,10 +3442,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'container-sizes';
         value: number | ContainerSize;
-      } | null)
-    | ({
-        relationTo: 'container-weights';
-        value: number | ContainerWeight;
       } | null)
     | ({
         relationTo: 'damage-codes';
@@ -4250,18 +4223,7 @@ export interface WharvesSelect<T extends boolean = true> {
 export interface ContainerSizesSelect<T extends boolean = true> {
   tenantId?: T;
   size?: T;
-  code?: T;
   description?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "container-weights_select".
- */
-export interface ContainerWeightsSelect<T extends boolean = true> {
-  tenantId?: T;
-  size?: T;
   attribute?: T;
   weight?: T;
   updatedAt?: T;

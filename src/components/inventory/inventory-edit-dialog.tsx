@@ -569,7 +569,7 @@ export function InventoryEditDialog({
             {(allocationStatus === 'allocated' || allocationStatus === 'picked') && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="outboundInventoryId">Outbound Job *</Label>
+                  <Label htmlFor="outboundInventoryId" required>Outbound Job</Label>
                   {loadingJobs ? (
                     <div className="text-sm text-muted-foreground">Loading jobs...</div>
                   ) : (
@@ -613,7 +613,7 @@ export function InventoryEditDialog({
 
                 {selectedJobId && (
                   <div className="space-y-2">
-                    <Label htmlFor="outboundProductLineId">Outbound Product Line *</Label>
+                    <Label htmlFor="outboundProductLineId" required>Outbound Product Line</Label>
                     {loadingProductLines ? (
                       <div className="text-sm text-muted-foreground">Loading product lines...</div>
                     ) : (

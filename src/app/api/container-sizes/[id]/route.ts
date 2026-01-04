@@ -82,8 +82,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const updateData: Record<string, unknown> = {}
     if (body.size !== undefined) updateData.size = body.size
-    if (body.code !== undefined) updateData.code = body.code || undefined
     if (body.description !== undefined) updateData.description = body.description || undefined
+    if (body.attribute !== undefined) updateData.attribute = body.attribute || undefined
+    if (body.weight !== undefined) updateData.weight = body.weight || undefined
 
     const updatedContainerSize = await payload.update({
       collection: 'container-sizes',

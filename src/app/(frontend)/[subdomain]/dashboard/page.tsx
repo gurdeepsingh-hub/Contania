@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, Users, Mail, Phone, MapPin, Container, Package, Truck, Plus } from 'lucide-react'
+import {
+  Building2,
+  Users,
+  Mail,
+  Phone,
+  MapPin,
+  Container,
+  Package,
+  Truck,
+  Plus,
+} from 'lucide-react'
 import { hasViewPermission } from '@/lib/permissions'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -35,7 +45,10 @@ export default function TenantDashboard() {
   const [recentBookings, setRecentBookings] = useState<any[]>([])
   const [loadingBookings, setLoadingBookings] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<{ id?: number; role?: number | string | { id: number; permissions?: Record<string, boolean> } } | null>(null)
+  const [currentUser, setCurrentUser] = useState<{
+    id?: number
+    role?: number | string | { id: number; permissions?: Record<string, boolean> }
+  } | null>(null)
 
   // Check tenant-user authentication and permissions
   useEffect(() => {
@@ -96,21 +109,30 @@ export default function TenantDashboard() {
       if (importRes.ok && exportRes.ok) {
         const importData = await importRes.json()
         const exportData = await exportRes.json()
-        
-        const totalBookings = (importData.totalDocs || 0) + (exportData.totalDocs || 0)
-        
-        // Get active and pending bookings
-        const [activeImportRes, activeExportRes, pendingImportRes, pendingExportRes] = await Promise.all([
-          fetch('/api/import-container-bookings?status=in_progress&limit=1'),
-          fetch('/api/export-container-bookings?status=in_progress&limit=1'),
-          fetch('/api/import-container-bookings?status=confirmed&limit=1'),
-          fetch('/api/export-container-bookings?status=confirmed&limit=1'),
-        ])
 
-        const activeImportData = activeImportRes.ok ? await activeImportRes.json() : { totalDocs: 0 }
-        const activeExportData = activeExportRes.ok ? await activeExportRes.json() : { totalDocs: 0 }
-        const pendingImportData = pendingImportRes.ok ? await pendingImportRes.json() : { totalDocs: 0 }
-        const pendingExportData = pendingExportRes.ok ? await pendingExportRes.json() : { totalDocs: 0 }
+        const totalBookings = (importData.totalDocs || 0) + (exportData.totalDocs || 0)
+
+        // Get active and pending bookings
+        const [activeImportRes, activeExportRes, pendingImportRes, pendingExportRes] =
+          await Promise.all([
+            fetch('/api/import-container-bookings?status=in_progress&limit=1'),
+            fetch('/api/export-container-bookings?status=in_progress&limit=1'),
+            fetch('/api/import-container-bookings?status=confirmed&limit=1'),
+            fetch('/api/export-container-bookings?status=confirmed&limit=1'),
+          ])
+
+        const activeImportData = activeImportRes.ok
+          ? await activeImportRes.json()
+          : { totalDocs: 0 }
+        const activeExportData = activeExportRes.ok
+          ? await activeExportRes.json()
+          : { totalDocs: 0 }
+        const pendingImportData = pendingImportRes.ok
+          ? await pendingImportRes.json()
+          : { totalDocs: 0 }
+        const pendingExportData = pendingExportRes.ok
+          ? await pendingExportRes.json()
+          : { totalDocs: 0 }
 
         setStats((prev) => ({
           ...prev,
@@ -332,7 +354,7 @@ export default function TenantDashboard() {
       {/* Tenant Users List */}
       <Card>
         <CardHeader>
-          <CardTitle>Tenant Users</CardTitle>
+          <CardTitle>Users</CardTitle>
           <CardDescription>Users associated with this tenant</CardDescription>
         </CardHeader>
         <CardContent>

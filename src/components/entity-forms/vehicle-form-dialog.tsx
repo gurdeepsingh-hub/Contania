@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { X, Save } from 'lucide-react'
 import { toast } from 'sonner'
+import { valueAsNumberOrUndefined } from '@/lib/utils'
 
 const vehicleSchema = z.object({
   fleetNumber: z.string().min(1, 'Fleet number is required'),
@@ -29,6 +30,7 @@ const vehicleSchema = z.object({
   aTrailerId: z.number().optional(),
   bTrailerId: z.number().optional(),
   cTrailerId: z.number().optional(),
+  defaultTrailerCombinationId: z.number().optional(),
   sideloader: z.boolean().optional(),
 })
 
@@ -45,6 +47,7 @@ type Vehicle = {
   aTrailerId?: number | { id: number; name?: string }
   bTrailerId?: number | { id: number; name?: string }
   cTrailerId?: number | { id: number; name?: string }
+  defaultTrailerCombinationId?: number | { id: number; name?: string }
   sideloader?: boolean
 }
 
@@ -99,6 +102,7 @@ export function VehicleFormDialog({
       aTrailerId: undefined,
       bTrailerId: undefined,
       cTrailerId: undefined,
+      defaultTrailerCombinationId: undefined,
       sideloader: false,
     },
   })
@@ -111,21 +115,25 @@ export function VehicleFormDialog({
       loadWarehouses()
       if (initialData) {
         const depotId =
-          typeof initialData.defaultDepotId === 'object'
+          initialData.defaultDepotId && typeof initialData.defaultDepotId === 'object'
             ? initialData.defaultDepotId.id
             : initialData.defaultDepotId
         const aTrailerId =
-          typeof initialData.aTrailerId === 'object'
+          initialData.aTrailerId && typeof initialData.aTrailerId === 'object'
             ? initialData.aTrailerId.id
             : initialData.aTrailerId
         const bTrailerId =
-          typeof initialData.bTrailerId === 'object'
+          initialData.bTrailerId && typeof initialData.bTrailerId === 'object'
             ? initialData.bTrailerId.id
             : initialData.bTrailerId
         const cTrailerId =
-          typeof initialData.cTrailerId === 'object'
+          initialData.cTrailerId && typeof initialData.cTrailerId === 'object'
             ? initialData.cTrailerId.id
             : initialData.cTrailerId
+        const defaultTrailerCombinationId =
+          initialData.defaultTrailerCombinationId && typeof initialData.defaultTrailerCombinationId === 'object'
+            ? initialData.defaultTrailerCombinationId.id
+            : initialData.defaultTrailerCombinationId
 
         reset({
           fleetNumber: initialData.fleetNumber || '',
@@ -133,10 +141,11 @@ export function VehicleFormDialog({
           regoExpiryDate: initialData.regoExpiryDate || '',
           gpsId: initialData.gpsId || '',
           description: initialData.description || '',
-          defaultDepotId: depotId || undefined,
-          aTrailerId: aTrailerId || undefined,
-          bTrailerId: bTrailerId || undefined,
-          cTrailerId: cTrailerId || undefined,
+          defaultDepotId: depotId ? depotId.toString() : '',
+          aTrailerId: aTrailerId ? aTrailerId.toString() : '',
+          bTrailerId: bTrailerId ? bTrailerId.toString() : '',
+          cTrailerId: cTrailerId ? cTrailerId.toString() : '',
+          defaultTrailerCombinationId: defaultTrailerCombinationId ? defaultTrailerCombinationId.toString() : '',
           sideloader: initialData.sideloader || false,
         })
       } else {
@@ -150,6 +159,7 @@ export function VehicleFormDialog({
           aTrailerId: undefined,
           bTrailerId: undefined,
           cTrailerId: undefined,
+          defaultTrailerCombinationId: undefined,
           sideloader: false,
         })
       }
@@ -317,7 +327,7 @@ export function VehicleFormDialog({
                 })),
               ]}
               error={errors.defaultDepotId?.message}
-              {...register('defaultDepotId', { valueAsNumber: true })}
+              {...register('defaultDepotId', { setValueAs: valueAsNumberOrUndefined })}
             />
             <FormInput
               label="Description"
@@ -331,14 +341,14 @@ export function VehicleFormDialog({
               options={[
                 { value: '', label: 'None' },
                 ...(trailerTypes || [])
-                  .filter((trailerType) => trailerType?.trailerA === true)
+                  .filter((trailerType) => trailerType && trailerType.trailerA === true)
                   .map((trailerType) => ({
                     value: trailerType.id.toString(),
                     label: trailerType.name || 'Unnamed',
                   })),
               ]}
               error={errors.aTrailerId?.message}
-              {...register('aTrailerId', { valueAsNumber: true })}
+              {...register('aTrailerId', { setValueAs: valueAsNumberOrUndefined })}
             />
             <FormSelect
               label="B Trailer"
@@ -346,14 +356,14 @@ export function VehicleFormDialog({
               options={[
                 { value: '', label: 'None' },
                 ...(trailerTypes || [])
-                  .filter((trailerType) => trailerType?.trailerB === true)
+                  .filter((trailerType) => trailerType && trailerType.trailerB === true)
                   .map((trailerType) => ({
                     value: trailerType.id.toString(),
                     label: trailerType.name || 'Unnamed',
                   })),
               ]}
               error={errors.bTrailerId?.message}
-              {...register('bTrailerId', { valueAsNumber: true })}
+              {...register('bTrailerId', { setValueAs: valueAsNumberOrUndefined })}
             />
             <FormSelect
               label="C Trailer"
@@ -361,14 +371,27 @@ export function VehicleFormDialog({
               options={[
                 { value: '', label: 'None' },
                 ...(trailerTypes || [])
-                  .filter((trailerType) => trailerType?.trailerC === true)
+                  .filter((trailerType) => trailerType && trailerType.trailerC === true)
                   .map((trailerType) => ({
                     value: trailerType.id.toString(),
                     label: trailerType.name || 'Unnamed',
                   })),
               ]}
               error={errors.cTrailerId?.message}
-              {...register('cTrailerId', { valueAsNumber: true })}
+              {...register('cTrailerId', { setValueAs: valueAsNumberOrUndefined })}
+            />
+            <FormSelect
+              label="Default Trailer Combination"
+              placeholder="Select trailer type"
+              options={[
+                { value: '', label: 'None' },
+                ...(trailerTypes || []).map((trailerType) => ({
+                  value: trailerType.id.toString(),
+                  label: trailerType.name || 'Unnamed',
+                })),
+              ]}
+              error={errors.defaultTrailerCombinationId?.message}
+              {...register('defaultTrailerCombinationId', { setValueAs: valueAsNumberOrUndefined })}
             />
           </div>
 

@@ -86,7 +86,9 @@ export default function SettingsPage() {
       href: '/dashboard/settings/company-settings',
       enabled:
         hasViewPermission(currentUser, 'settings') &&
-        (canManageRoles(currentUser) || (currentUser as { role?: string; collection?: string }).role === 'superadmin' || (currentUser as { collection?: string }).collection === 'users'),
+        (canManageRoles(currentUser) ||
+          (currentUser as { role?: string; collection?: string }).role === 'superadmin' ||
+          (currentUser as { collection?: string }).collection === 'users'),
     },
     {
       id: 'entity-settings',
@@ -110,7 +112,7 @@ export default function SettingsPage() {
     },
     {
       id: 'tenant-users',
-      title: 'Tenant Users',
+      title: 'Users',
       description: 'Manage users and their access to the platform',
       icon: Users,
       href: '/dashboard/settings/tenant-users',

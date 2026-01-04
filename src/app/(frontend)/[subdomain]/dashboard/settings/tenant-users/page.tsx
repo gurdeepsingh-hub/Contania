@@ -58,6 +58,7 @@ export default function TenantUsersPage() {
   const [editingUser, setEditingUser] = useState<TenantUser | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState({
@@ -176,12 +177,18 @@ export default function TenantUsersPage() {
   }
 
   const handleAddUser = () => {
+    if (isSubmitting) {
+      return // Prevent opening form while submitting
+    }
     resetForm()
     setShowAddForm(true)
     setEditingUser(null)
   }
 
   const handleEditUser = (user: TenantUser) => {
+    if (isSubmitting) {
+      return // Prevent opening edit form while submitting
+    }
     const roleId =
       typeof user.role === 'object' && user.role && 'id' in user.role
         ? String(user.role.id)
@@ -206,13 +213,23 @@ export default function TenantUsersPage() {
   }
 
   const handleCancel = () => {
+    if (isSubmitting) {
+      return // Prevent canceling while submitting
+    }
     setShowAddForm(false)
     setEditingUser(null)
     resetForm()
+    setIsSubmitting(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return
+    }
+
     setError(null)
     setSuccess(null)
 
@@ -220,6 +237,8 @@ export default function TenantUsersPage() {
       setError('Email, full name, and role are required')
       return
     }
+
+    setIsSubmitting(true)
 
     try {
       if (editingUser) {
@@ -287,6 +306,8 @@ export default function TenantUsersPage() {
     } catch (error) {
       console.error('Error saving user:', error)
       setError('An error occurred while saving the user')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -405,7 +426,7 @@ export default function TenantUsersPage() {
           <p className="text-muted-foreground">Manage users for {tenant.companyName}</p>
         </div>
         {!showAddForm && (
-          <Button onClick={handleAddUser} className="min-h-[44px]">
+          <Button onClick={handleAddUser} className="min-h-[44px]" disabled={isSubmitting}>
             <Plus className="h-4 w-4 mr-2" />
             Add User
           </Button>
@@ -435,7 +456,9 @@ export default function TenantUsersPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email" required>
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -446,7 +469,9 @@ export default function TenantUsersPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Label htmlFor="fullName" required>
+                    Full Name
+                  </Label>
                   <Input
                     id="fullName"
                     value={formData.fullName}
@@ -456,7 +481,9 @@ export default function TenantUsersPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="role">Role *</Label>
+                  <Label htmlFor="role" required>
+                    Role
+                  </Label>
                   {loadingRoles ? (
                     <div className="text-sm text-muted-foreground py-2">Loading roles...</div>
                   ) : (
@@ -530,13 +557,24 @@ export default function TenantUsersPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={handleCancel}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isSubmitting}
+                >
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" disabled={isSubmitting}>
                   <Save className="h-4 w-4 mr-2" />
-                  {editingUser ? 'Update User' : 'Create User'}
+                  {isSubmitting
+                    ? editingUser
+                      ? 'Updating...'
+                      : 'Creating...'
+                    : editingUser
+                      ? 'Update User'
+                      : 'Create User'}
                 </Button>
               </div>
             </form>
@@ -665,6 +703,7 @@ export default function TenantUsersPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditUser(user)}
+                          disabled={isSubmitting}
                           className="min-h-[44px] flex-1 sm:flex-initial"
                         >
                           <Edit className="h-4 w-4 sm:mr-2" />

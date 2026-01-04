@@ -35,7 +35,6 @@ import { EmptyParks } from './collections/EmptyParks'
 import { ShippingLines } from './collections/ShippingLines'
 import { Wharves } from './collections/Wharves'
 import { ContainerSizes } from './collections/ContainerSizes'
-import { ContainerWeights } from './collections/ContainerWeights'
 import { DamageCodes } from './collections/DamageCodes'
 import { DetentionControl } from './collections/DetentionControl'
 import { Vessels } from './collections/Vessels'
@@ -85,7 +84,6 @@ export default buildConfig({
     ShippingLines,
     Wharves,
     ContainerSizes,
-    ContainerWeights,
     DamageCodes,
     DetentionControl,
     Vessels,

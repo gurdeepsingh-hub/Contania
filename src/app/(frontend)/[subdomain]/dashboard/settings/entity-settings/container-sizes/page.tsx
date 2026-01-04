@@ -30,8 +30,9 @@ import { ContainerSizeForm } from '@/components/entity-forms/container-size-form
 type ContainerSizeItem = {
   id: number
   size: string
-  code?: string
   description?: string
+  attribute?: 'HC' | 'RF' | 'GP' | 'TK' | 'OT'
+  weight?: number
 }
 
 type TenantUser = {
@@ -314,10 +315,16 @@ export default function ContainerSizesPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        {containerSize.code && (
+                        {containerSize.attribute && (
                           <div className="flex items-start gap-2">
-                            <span className="font-medium min-w-[80px]">Code:</span>
-                            <span>{containerSize.code}</span>
+                            <span className="font-medium min-w-[80px]">Attribute:</span>
+                            <span>{containerSize.attribute}</span>
+                          </div>
+                        )}
+                        {containerSize.weight && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[80px]">Weight:</span>
+                            <span>{containerSize.weight} kg</span>
                           </div>
                         )}
                         {containerSize.description && (

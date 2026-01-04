@@ -351,7 +351,7 @@ export default function UsersManagementPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email" required>Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -362,7 +362,7 @@ export default function UsersManagementPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Label htmlFor="fullName" required>Full Name</Label>
                   <Input
                     id="fullName"
                     value={formData.fullName}
@@ -372,7 +372,7 @@ export default function UsersManagementPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="userGroup">User Group *</Label>
+                  <Label htmlFor="userGroup" required>User Group</Label>
                   <select
                     id="userGroup"
                     value={formData.userGroup}

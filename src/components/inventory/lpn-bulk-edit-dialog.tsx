@@ -353,7 +353,7 @@ export function LPNBulkEditDialog({
             {(allocationStatus === 'allocated' || allocationStatus === 'picked') && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="outboundInventoryId">Outbound Job *</Label>
+                  <Label htmlFor="outboundInventoryId" required>Outbound Job</Label>
                   {fetching ? (
                     <div className="text-sm text-muted-foreground">Loading jobs...</div>
                   ) : (
@@ -390,7 +390,7 @@ export function LPNBulkEditDialog({
 
                 {selectedJobId && (
                   <div className="space-y-2">
-                    <Label htmlFor="outboundProductLineId">Outbound Product Line *</Label>
+                    <Label htmlFor="outboundProductLineId" required>Outbound Product Line</Label>
                     {fetching ? (
                       <div className="text-sm text-muted-foreground">Loading product lines...</div>
                     ) : (

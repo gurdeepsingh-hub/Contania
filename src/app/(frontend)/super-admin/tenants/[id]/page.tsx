@@ -656,7 +656,7 @@ export default function TenantDetailsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Users className="h-5 w-5" />
-            Tenant Users ({tenantUsers.length})
+            Users ({tenantUsers.length})
           </CardTitle>
           <CardDescription>Users associated with this tenant</CardDescription>
         </CardHeader>
@@ -873,7 +873,9 @@ export default function TenantDetailsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label htmlFor="companyName">Company Name *</Label>
+              <Label htmlFor="companyName" required>
+                Company Name
+              </Label>
               <Input
                 id="companyName"
                 value={editFormData.companyName || ''}
@@ -891,7 +893,9 @@ export default function TenantDetailsPage() {
               />
             </div>
             <div>
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email" required>
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"

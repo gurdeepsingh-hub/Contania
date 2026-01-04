@@ -79,18 +79,31 @@ export const ContainerSizes: CollectionConfig = {
       },
     },
     {
-      name: 'code',
-      type: 'text',
-      unique: true,
-      admin: {
-        description: 'Unique code for container size',
-      },
-    },
-    {
       name: 'description',
       type: 'textarea',
       admin: {
         description: 'Description of container size',
+      },
+    },
+    {
+      name: 'attribute',
+      type: 'select',
+      options: [
+        { label: 'HC', value: 'HC' },
+        { label: 'RF', value: 'RF' },
+        { label: 'GP', value: 'GP' },
+        { label: 'TK', value: 'TK' },
+        { label: 'OT', value: 'OT' },
+      ],
+      admin: {
+        description: 'Container attribute type',
+      },
+    },
+    {
+      name: 'weight',
+      type: 'number',
+      admin: {
+        description: 'Weight in kg',
       },
     },
   ],

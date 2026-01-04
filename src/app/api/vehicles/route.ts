@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
         aTrailerId: body.aTrailerId || undefined,
         bTrailerId: body.bTrailerId || undefined,
         cTrailerId: body.cTrailerId || undefined,
+        defaultTrailerCombinationId: body.defaultTrailerCombinationId || undefined,
         sideloader: body.sideloader || false,
       },
     })

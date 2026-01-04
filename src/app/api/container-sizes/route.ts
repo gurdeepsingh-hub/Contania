@@ -29,18 +29,9 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.and.push({
-        or: [
-          {
-            size: {
-              contains: search,
-            },
-          },
-          {
-            code: {
-              contains: search,
-            },
-          },
-        ],
+        size: {
+          contains: search,
+        },
       })
     }
 
@@ -90,8 +81,9 @@ export async function POST(request: NextRequest) {
       data: {
         tenantId: tenant.id,
         size: body.size,
-        code: body.code || undefined,
         description: body.description || undefined,
+        attribute: body.attribute || undefined,
+        weight: body.weight || undefined,
       },
     })
 

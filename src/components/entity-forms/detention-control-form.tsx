@@ -16,6 +16,7 @@ import {
 import { Save, X, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { ShippingLineForm } from './shipping-line-form'
+import { valueAsNumberOrUndefined } from '@/lib/utils'
 
 const detentionControlSchema = z.object({
   shippingLineId: z.number().min(1, 'Shipping line is required'),
@@ -211,7 +212,7 @@ export function DetentionControlForm({
           type="number"
           error={errors.importFreeDays?.message}
           placeholder="Number of import free days"
-          {...register('importFreeDays', { valueAsNumber: true })}
+          {...register('importFreeDays', { setValueAs: valueAsNumberOrUndefined })}
         />
       </div>
 

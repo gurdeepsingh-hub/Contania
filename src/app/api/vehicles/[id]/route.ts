@@ -103,6 +103,7 @@ export async function PATCH(
     if (body.aTrailerId !== undefined) updateData.aTrailerId = body.aTrailerId || undefined
     if (body.bTrailerId !== undefined) updateData.bTrailerId = body.bTrailerId || undefined
     if (body.cTrailerId !== undefined) updateData.cTrailerId = body.cTrailerId || undefined
+    if (body.defaultTrailerCombinationId !== undefined) updateData.defaultTrailerCombinationId = body.defaultTrailerCombinationId || undefined
     if (body.sideloader !== undefined) updateData.sideloader = body.sideloader
 
     // Update vehicle

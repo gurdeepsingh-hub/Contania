@@ -227,7 +227,7 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Label htmlFor="vehicle">Vehicle *</Label>
+                    <Label htmlFor="vehicle" required>Vehicle</Label>
                     <Button
                       type="button"
                       variant="ghost"
@@ -286,7 +286,7 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Label htmlFor="driver">Driver *</Label>
+                    <Label htmlFor="driver" required>Driver</Label>
                     <Button
                       type="button"
                       variant="ghost"
@@ -320,7 +320,7 @@ export function DispatchDialog({ open, onOpenChange, jobId }: DispatchDialogProp
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Label htmlFor="vehicle">Vehicle *</Label>
+                    <Label htmlFor="vehicle" required>Vehicle</Label>
                     <Button
                       type="button"
                       variant="ghost"

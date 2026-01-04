@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
+import { valueAsNumberOrUndefined } from '@/lib/utils'
 import { toast } from 'sonner'
 
 type TrailerItem = {
@@ -470,7 +471,7 @@ export default function TrailersPage() {
                   })),
                 ]}
                 error={errors.trailerTypeId?.message}
-                {...register('trailerTypeId', { valueAsNumber: true })}
+                {...register('trailerTypeId', { setValueAs: valueAsNumberOrUndefined })}
               />
               <FormInput
                 label="Max Weight (kg) (optional)"
@@ -528,7 +529,7 @@ export default function TrailersPage() {
                   })),
                 ]}
                 error={errors.defaultWarehouseId?.message}
-                {...register('defaultWarehouseId', { valueAsNumber: true })}
+                {...register('defaultWarehouseId', { setValueAs: valueAsNumberOrUndefined })}
               />
               <FormInput
                 label="Dangerous Goods Cert Number"

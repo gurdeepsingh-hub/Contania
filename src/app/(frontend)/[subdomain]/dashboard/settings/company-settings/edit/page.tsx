@@ -212,7 +212,7 @@ export default function EditCompanyInfoPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="companyName">Company Name *</Label>
+              <Label htmlFor="companyName" required>Company Name</Label>
               <Input
                 id="companyName"
                 value={companyName}
@@ -231,7 +231,7 @@ export default function EditCompanyInfoPage() {
               />
             </div>
             <div>
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email" required>Email</Label>
               <Input
                 id="email"
                 type="email"

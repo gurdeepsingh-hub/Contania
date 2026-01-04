@@ -31,7 +31,7 @@ export function FormField({
       {label && (
         <Label
           htmlFor={htmlFor}
-          className={cn(required && 'after:content-["*"] after:ml-0.5 after:text-destructive')}
+          required={required}
         >
           {label}
         </Label>

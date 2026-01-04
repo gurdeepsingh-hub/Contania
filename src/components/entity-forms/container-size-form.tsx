@@ -4,14 +4,16 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { FormInput } from '@/components/ui/form-field'
+import { FormInput, FormSelect } from '@/components/ui/form-field'
 import { Save, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { valueAsNumberOrUndefined } from '@/lib/utils'
 
 const containerSizeSchema = z.object({
   size: z.string().min(1, 'Container size is required'),
-  code: z.string().optional(),
   description: z.string().optional(),
+  attribute: z.enum(['HC', 'RF', 'GP', 'TK', 'OT']).optional(),
+  weight: z.number().min(0, 'Weight must be a positive number').optional(),
 })
 
 type ContainerSizeFormData = z.infer<typeof containerSizeSchema>
@@ -19,8 +21,9 @@ type ContainerSizeFormData = z.infer<typeof containerSizeSchema>
 type ContainerSize = {
   id?: number
   size?: string
-  code?: string
   description?: string
+  attribute?: 'HC' | 'RF' | 'GP' | 'TK' | 'OT'
+  weight?: number
 }
 
 interface ContainerSizeFormProps {
@@ -44,8 +47,9 @@ export function ContainerSizeForm({
     resolver: zodResolver(containerSizeSchema),
     defaultValues: {
       size: initialData?.size || '',
-      code: initialData?.code || '',
       description: initialData?.description || '',
+      attribute: initialData?.attribute || undefined,
+      weight: initialData?.weight || undefined,
     },
   })
 
@@ -90,18 +94,32 @@ export function ContainerSizeForm({
           placeholder="e.g., 20ft, 40ft"
           {...register('size')}
         />
-        <FormInput
-          label="Code"
-          error={errors.code?.message}
-          placeholder="Unique code"
-          {...register('code')}
-        />
       </div>
       <FormInput
         label="Description"
         error={errors.description?.message}
         placeholder="Description"
         {...register('description')}
+      />
+      <FormSelect
+        label="Attribute"
+        error={errors.attribute?.message}
+        placeholder="Select attribute"
+        options={[
+          { value: 'HC', label: 'HC' },
+          { value: 'RF', label: 'RF' },
+          { value: 'GP', label: 'GP' },
+          { value: 'TK', label: 'TK' },
+          { value: 'OT', label: 'OT' },
+        ]}
+        {...register('attribute')}
+      />
+      <FormInput
+        label="Weight (kg)"
+        type="number"
+        error={errors.weight?.message}
+        placeholder="Weight in kg"
+        {...register('weight', { setValueAs: valueAsNumberOrUndefined })}
       />
 
       <div className="flex justify-end gap-2 pt-4 border-t">

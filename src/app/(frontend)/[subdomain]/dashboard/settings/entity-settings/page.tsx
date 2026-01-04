@@ -22,7 +22,6 @@ import {
   Ship,
   Anchor,
   Container,
-  Weight,
   AlertTriangle,
   Clock,
 } from 'lucide-react'
@@ -673,34 +672,6 @@ export default function EntitySettingsPage() {
             </CardContent>
           </Card>
 
-          <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => router.push('/dashboard/settings/entity-settings/container-weights')}
-          >
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Weight className="h-6 w-6 text-primary" />
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <CardTitle className="mt-4">Container Weights</CardTitle>
-              <CardDescription>Manage container weight specifications</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  router.push('/dashboard/settings/entity-settings/container-weights')
-                }}
-              >
-                Manage Container Weights
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
 
           <Card
             className="hover:shadow-lg transition-shadow cursor-pointer"
