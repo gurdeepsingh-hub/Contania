@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import config from '@/payload.config'
-import { getAuthCookieOptions } from '@/lib/cookie-config'
 
 // Helper to check if user is super admin
 async function isSuperAdmin(req: NextRequest): Promise<{ payload: any; user: any } | null> {
@@ -62,6 +61,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     let tenantUser
     let loginPassword: string
+    let originalPasswordHash: string | null = null
+    let originalPasswordSalt: string | null = null
+    let needsPasswordRestore = false
 
     // If userId is provided, use that specific user
     if (userId) {
@@ -82,6 +84,50 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             { message: 'User does not belong to this tenant' },
             { status: 403 },
           )
+        }
+
+        // Store original password hash before changing it
+        // Use raw SQL query to access password hash directly (Payload filters it from normal queries)
+        try {
+          const dbAdapter = payload.db as {
+            pool?: { query: (sql: string, params: any[]) => Promise<{ rows: any[] }> }
+          }
+          if (dbAdapter.pool) {
+            // Query ALL columns in table to find hash and salt columns
+            const allColumnsResult = await dbAdapter.pool.query(
+              `SELECT column_name FROM information_schema.columns WHERE table_name = 'tenant_users' ORDER BY column_name`,
+              [],
+            )
+
+            // Payload CMS stores password as hash + salt, not a single password column
+            // Find both hash and salt columns
+            const hashColumn = allColumnsResult.rows.find(
+              (r: { column_name: string }) => r.column_name === 'hash',
+            )?.column_name
+            const saltColumn = allColumnsResult.rows.find(
+              (r: { column_name: string }) => r.column_name === 'salt',
+            )?.column_name
+
+            if (hashColumn && saltColumn) {
+              const result = await dbAdapter.pool.query(
+                `SELECT ${hashColumn} as hash, ${saltColumn} as salt FROM tenant_users WHERE id = $1`,
+                [userId],
+              )
+              if (
+                result.rows &&
+                result.rows.length > 0 &&
+                result.rows[0].hash &&
+                result.rows[0].salt
+              ) {
+                originalPasswordHash = result.rows[0].hash
+                originalPasswordSalt = result.rows[0].salt
+                needsPasswordRestore = true
+              }
+            }
+          }
+        } catch (dbError) {
+          console.error('Error fetching original password hash:', dbError)
+          // Continue anyway - worst case is password won't be restored
         }
 
         // Reset password temporarily to login
@@ -116,6 +162,48 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       if (adminUsers.docs.length > 0) {
         // Use existing admin user - need to reset password to login
         tenantUser = adminUsers.docs[0]
+
+        // Store original password hash before changing it
+        // Use raw SQL query to access password hash directly (Payload filters it from normal queries)
+        try {
+          const dbAdapter = payload.db as {
+            pool?: { query: (sql: string, params: any[]) => Promise<{ rows: any[] }> }
+          }
+          if (dbAdapter.pool) {
+            // Query ALL columns to find hash and salt columns
+            const allColumnsResult = await dbAdapter.pool.query(
+              `SELECT column_name FROM information_schema.columns WHERE table_name = 'tenant_users' ORDER BY column_name`,
+              [],
+            )
+            const hashColumn = allColumnsResult.rows.find(
+              (r: { column_name: string }) => r.column_name === 'hash',
+            )?.column_name
+            const saltColumn = allColumnsResult.rows.find(
+              (r: { column_name: string }) => r.column_name === 'salt',
+            )?.column_name
+
+            if (hashColumn && saltColumn) {
+              const result = await dbAdapter.pool.query(
+                `SELECT ${hashColumn} as hash, ${saltColumn} as salt FROM tenant_users WHERE id = $1`,
+                [tenantUser.id],
+              )
+              if (
+                result.rows &&
+                result.rows.length > 0 &&
+                result.rows[0].hash &&
+                result.rows[0].salt
+              ) {
+                originalPasswordHash = result.rows[0].hash
+                originalPasswordSalt = result.rows[0].salt
+                needsPasswordRestore = true
+              }
+            }
+          }
+        } catch (dbError) {
+          console.error('Error fetching original password hash:', dbError)
+          // Continue anyway - worst case is password won't be restored
+        }
+
         loginPassword = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`
         await payload.update({
           collection: 'tenant-users',
@@ -185,16 +273,46 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Generate token for tenant user using the password we know
-    const result = await payload.login({
-      collection: 'tenant-users',
-      data: {
-        email: tenantUser.email,
-        password: loginPassword,
-      },
-    })
+    // Use try/finally to ensure password is restored even if token generation fails
+    let result
+    try {
+      result = await payload.login({
+        collection: 'tenant-users',
+        data: {
+          email: tenantUser.email,
+          password: loginPassword,
+        },
+      })
 
-    if (!result.token) {
-      return NextResponse.json({ message: 'Failed to create tenant user session' }, { status: 500 })
+      if (!result.token) {
+        return NextResponse.json(
+          { message: 'Failed to create tenant user session' },
+          { status: 500 },
+        )
+      }
+    } catch (loginError) {
+      throw loginError
+    } finally {
+      // Always restore original password hash and salt after token generation (success or failure)
+      // This ensures the user's original password is never permanently lost
+      if (needsPasswordRestore && originalPasswordHash && originalPasswordSalt) {
+        try {
+          // Use raw SQL update to restore password hash and salt directly
+          // This bypasses Payload's password hashing since we're restoring the original hash/salt
+          const dbAdapter = payload.db as {
+            pool?: { query: (sql: string, params: any[]) => Promise<any> }
+          }
+          if (dbAdapter.pool) {
+            await dbAdapter.pool.query(
+              `UPDATE tenant_users SET hash = $1, salt = $2 WHERE id = $3`,
+              [originalPasswordHash, originalPasswordSalt, tenantUser.id],
+            )
+          }
+        } catch (restoreError) {
+          console.error('Error restoring password after token generation:', restoreError)
+          // Log error but don't fail the request - token may already be generated
+        }
+      }
     }
 
     // Generate URL based on environment

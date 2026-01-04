@@ -79,52 +79,8 @@ export async function POST(request: NextRequest) {
         user: result.user,
       })
 
-      // #region agent log
       const cookieOptions = getAuthCookieOptions(request)
-      fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'tenant-users/login/route.ts:88',
-          message: 'Setting cookie before',
-          data: {
-            hostname: request.headers.get('host'),
-            subdomain,
-            hasToken: !!result.token,
-            cookieDomain: cookieOptions.domain || 'NOT_SET',
-            sameSite: cookieOptions.sameSite,
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'post-fix',
-          hypothesisId: 'A',
-        }),
-      }).catch(() => {})
-      // #endregion
-
       response.cookies.set('payload-token', result.token, cookieOptions)
-
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/19ea95ca-f91f-42cf-bdc2-ddbb2f0588ad', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'tenant-users/login/route.ts:96',
-          message: 'Setting cookie after',
-          data: {
-            hostname: request.headers.get('host'),
-            subdomain,
-            hasToken: !!result.token,
-            cookieDomain: cookieOptions.domain || 'NOT_SET',
-            sameSite: cookieOptions.sameSite,
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'post-fix',
-          hypothesisId: 'A',
-        }),
-      }).catch(() => {})
-      // #endregion
 
       return response
     } else {
