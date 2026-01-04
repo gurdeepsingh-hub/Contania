@@ -285,24 +285,75 @@ export const ContainerStockAllocations: CollectionConfig = {
           name: 'expiryDate',
           type: 'date',
           admin: {
-            description: 'Expiry date (auto-fetched from SKU if enabled)',
-            readOnly: true,
+            description: 'Expiry date (required if SKU has expiry enabled)',
+            condition: async (data, siblingData, { req }) => {
+              // Show only if SKU has expiry enabled
+              if (!siblingData.skuId || !req?.payload) return false
+              try {
+                const skuId =
+                  typeof siblingData.skuId === 'object'
+                    ? (siblingData.skuId as { id: number }).id
+                    : siblingData.skuId
+                if (!skuId) return false
+                const sku = await req.payload.findByID({
+                  collection: 'skus',
+                  id: skuId,
+                })
+                return (sku as { isExpriy?: boolean })?.isExpriy === true
+              } catch {
+                return false
+              }
+            },
           },
         },
         {
           name: 'attribute1',
           type: 'textarea',
           admin: {
-            description: 'Attribute 1 (auto-fetched from SKU if enabled)',
-            readOnly: true,
+            description: 'Attribute 1 (required if SKU has attribute1 enabled)',
+            condition: async (data, siblingData, { req }) => {
+              // Show only if SKU has attribute1 enabled
+              if (!siblingData.skuId || !req?.payload) return false
+              try {
+                const skuId =
+                  typeof siblingData.skuId === 'object'
+                    ? (siblingData.skuId as { id: number }).id
+                    : siblingData.skuId
+                if (!skuId) return false
+                const sku = await req.payload.findByID({
+                  collection: 'skus',
+                  id: skuId,
+                })
+                return (sku as { isAttribute1?: boolean })?.isAttribute1 === true
+              } catch {
+                return false
+              }
+            },
           },
         },
         {
           name: 'attribute2',
           type: 'textarea',
           admin: {
-            description: 'Attribute 2 (auto-fetched from SKU if enabled)',
-            readOnly: true,
+            description: 'Attribute 2 (required if SKU has attribute2 enabled)',
+            condition: async (data, siblingData, { req }) => {
+              // Show only if SKU has attribute2 enabled
+              if (!siblingData.skuId || !req?.payload) return false
+              try {
+                const skuId =
+                  typeof siblingData.skuId === 'object'
+                    ? (siblingData.skuId as { id: number }).id
+                    : siblingData.skuId
+                if (!skuId) return false
+                const sku = await req.payload.findByID({
+                  collection: 'skus',
+                  id: skuId,
+                })
+                return (sku as { isAttribute2?: boolean })?.isAttribute2 === true
+              } catch {
+                return false
+              }
+            },
           },
         },
       ],
@@ -355,9 +406,7 @@ export const ContainerStockAllocations: CollectionConfig = {
               })
 
               // Create a map for quick lookup
-              const skuMap = new Map(
-                skus.docs.map((sku: any) => [sku.id, sku])
-              )
+              const skuMap = new Map(skus.docs.map((sku: any) => [sku.id, sku]))
 
               // Process each product line with its SKU data
               for (const productLine of data.productLines) {
@@ -382,25 +431,14 @@ export const ContainerStockAllocations: CollectionConfig = {
                           isExpriy?: boolean
                           isAttribute1?: boolean
                           isAttribute2?: boolean
-                          expiryDate?: string
-                          attribute1?: string
-                          attribute2?: string
                         }
 
                         productLine.skuDescription = skuData.description || ''
                         productLine.lpnQty = skuData.huPerSu?.toString() || ''
                         productLine.weightPerHU = skuData.weightPerHU_kg || undefined
 
-                        // Auto-populate expiry, attribute1, attribute2 if SKU has them enabled
-                        if (skuData.isExpriy && skuData.expiryDate) {
-                          productLine.expiryDate = skuData.expiryDate
-                        }
-                        if (skuData.isAttribute1 && skuData.attribute1) {
-                          productLine.attribute1 = skuData.attribute1
-                        }
-                        if (skuData.isAttribute2 && skuData.attribute2) {
-                          productLine.attribute2 = skuData.attribute2
-                        }
+                        // Note: expiryDate, attribute1, and attribute2 are filled by user in product line
+                        // They are only shown if the corresponding checkbox is enabled in SKU
 
                         // Auto-calculate cubic from SKU dimensions
                         if (
@@ -440,8 +478,7 @@ export const ContainerStockAllocations: CollectionConfig = {
                         if (productLine.allocatedQty && productLine.lpnQty) {
                           const lpnQtyNum = parseFloat(productLine.lpnQty as string)
                           if (lpnQtyNum > 0) {
-                            productLine.pltQty =
-                              (productLine.allocatedQty as number) / lpnQtyNum
+                            productLine.pltQty = (productLine.allocatedQty as number) / lpnQtyNum
                           }
                         }
                       } catch (error) {
@@ -473,9 +510,7 @@ export const ContainerStockAllocations: CollectionConfig = {
                     limit: 1000,
                   })
 
-                  const suMap = new Map(
-                    storageUnits.docs.map((su: any) => [su.id, su])
-                  )
+                  const suMap = new Map(storageUnits.docs.map((su: any) => [su.id, su]))
 
                   // Apply storage unit data to product lines
                   for (const productLine of data.productLines) {
@@ -489,8 +524,7 @@ export const ContainerStockAllocations: CollectionConfig = {
                         }
 
                         if (su.lengthPerSU_mm && su.widthPerSU_mm) {
-                          const sqmPerSU =
-                            (su.lengthPerSU_mm * su.widthPerSU_mm) / 1_000_000
+                          const sqmPerSU = (su.lengthPerSU_mm * su.widthPerSU_mm) / 1_000_000
                           productLine.sqmPerSU = sqmPerSU
                         }
                       }
@@ -535,25 +569,14 @@ export const ContainerStockAllocations: CollectionConfig = {
                           isExpriy?: boolean
                           isAttribute1?: boolean
                           isAttribute2?: boolean
-                          expiryDate?: string
-                          attribute1?: string
-                          attribute2?: string
                         }
 
                         productLine.skuDescription = skuData.description || ''
                         productLine.lpnQty = skuData.huPerSu?.toString() || ''
                         productLine.weightPerHU = skuData.weightPerHU_kg || undefined
 
-                        // Auto-populate expiry, attribute1, attribute2 if SKU has them enabled
-                        if (skuData.isExpriy && skuData.expiryDate) {
-                          productLine.expiryDate = skuData.expiryDate
-                        }
-                        if (skuData.isAttribute1 && skuData.attribute1) {
-                          productLine.attribute1 = skuData.attribute1
-                        }
-                        if (skuData.isAttribute2 && skuData.attribute2) {
-                          productLine.attribute2 = skuData.attribute2
-                        }
+                        // Note: expiryDate, attribute1, and attribute2 are filled by user in product line
+                        // They are only shown if the corresponding checkbox is enabled in SKU
 
                         // Auto-calculate cubic from SKU dimensions
                         if (
@@ -589,8 +612,7 @@ export const ContainerStockAllocations: CollectionConfig = {
                               }
 
                               if (su.lengthPerSU_mm && su.widthPerSU_mm) {
-                                const sqmPerSU =
-                                  (su.lengthPerSU_mm * su.widthPerSU_mm) / 1_000_000
+                                const sqmPerSU = (su.lengthPerSU_mm * su.widthPerSU_mm) / 1_000_000
                                 productLine.sqmPerSU = sqmPerSU
                               }
                             }
@@ -612,8 +634,7 @@ export const ContainerStockAllocations: CollectionConfig = {
                         if (productLine.allocatedQty && productLine.lpnQty) {
                           const lpnQtyNum = parseFloat(productLine.lpnQty as string)
                           if (lpnQtyNum > 0) {
-                            productLine.pltQty =
-                              (productLine.allocatedQty as number) / lpnQtyNum
+                            productLine.pltQty = (productLine.allocatedQty as number) / lpnQtyNum
                           }
                         }
                       }

@@ -328,35 +328,41 @@ export default function VehiclesPage() {
                             </span>
                           </div>
                         )}
-                        {(vehicle.aTrailerId || vehicle.bTrailerId || vehicle.cTrailerId) && (
-                          <div className="flex items-start gap-2">
-                            <span className="font-medium min-w-[100px]">Trailers:</span>
-                            <span>
-                              {[
-                                vehicle.aTrailerId &&
-                                  `A: ${
-                                    typeof vehicle.aTrailerId === 'object'
-                                      ? `${vehicle.aTrailerId.fleetNumber} (${vehicle.aTrailerId.rego})`
-                                      : 'N/A'
-                                  }`,
-                                vehicle.bTrailerId &&
-                                  `B: ${
-                                    typeof vehicle.bTrailerId === 'object'
-                                      ? `${vehicle.bTrailerId.fleetNumber} (${vehicle.bTrailerId.rego})`
-                                      : 'N/A'
-                                  }`,
-                                vehicle.cTrailerId &&
-                                  `C: ${
-                                    typeof vehicle.cTrailerId === 'object'
-                                      ? `${vehicle.cTrailerId.fleetNumber} (${vehicle.cTrailerId.rego})`
-                                      : 'N/A'
-                                  }`,
-                              ]
-                                .filter(Boolean)
-                                .join(', ')}
-                            </span>
-                          </div>
-                        )}
+                        {(() => {
+                          const trailerParts = [
+                            vehicle.aTrailerId &&
+                              typeof vehicle.aTrailerId === 'object' &&
+                              vehicle.aTrailerId.fleetNumber &&
+                              vehicle.aTrailerId.rego
+                              ? `A: ${vehicle.aTrailerId.fleetNumber} (${vehicle.aTrailerId.rego})`
+                              : vehicle.aTrailerId
+                                ? 'A: N/A'
+                                : null,
+                            vehicle.bTrailerId &&
+                              typeof vehicle.bTrailerId === 'object' &&
+                              vehicle.bTrailerId.fleetNumber &&
+                              vehicle.bTrailerId.rego
+                              ? `B: ${vehicle.bTrailerId.fleetNumber} (${vehicle.bTrailerId.rego})`
+                              : vehicle.bTrailerId
+                                ? 'B: N/A'
+                                : null,
+                            vehicle.cTrailerId &&
+                              typeof vehicle.cTrailerId === 'object' &&
+                              vehicle.cTrailerId.fleetNumber &&
+                              vehicle.cTrailerId.rego
+                              ? `C: ${vehicle.cTrailerId.fleetNumber} (${vehicle.cTrailerId.rego})`
+                              : vehicle.cTrailerId
+                                ? 'C: N/A'
+                                : null,
+                          ].filter(Boolean)
+                          
+                          return trailerParts.length > 0 ? (
+                            <div className="flex items-start gap-2">
+                              <span className="font-medium min-w-[100px]">Trailers:</span>
+                              <span>{trailerParts.join(', ')}</span>
+                            </div>
+                          ) : null
+                        })()}
                         {vehicle.sideloader && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[100px]">Sideloader:</span>

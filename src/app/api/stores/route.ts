@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const limit = url.searchParams.get('limit') ? Number(url.searchParams.get('limit')) : 20
     const depth = url.searchParams.get('depth') ? Number(url.searchParams.get('depth')) : 0
     const search = url.searchParams.get('search') || ''
+    const warehouseId = url.searchParams.get('warehouseId')
     const sort = url.searchParams.get('sort') || '-createdAt'
 
     // Build where clause
@@ -32,6 +33,15 @@ export async function GET(request: NextRequest) {
           },
         },
       ],
+    }
+
+    // Add warehouse filter if provided
+    if (warehouseId) {
+      where.and.push({
+        warehouseId: {
+          equals: Number(warehouseId),
+        },
+      })
     }
 
     // Add search if provided
@@ -78,7 +88,18 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching stores:', error)
-    return NextResponse.json({ message: 'Failed to fetch stores' }, { status: 500 })
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
+    return NextResponse.json(
+      {
+        message: 'Failed to fetch stores',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    )
   }
 }
 

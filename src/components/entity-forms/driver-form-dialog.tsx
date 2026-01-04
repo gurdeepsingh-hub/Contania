@@ -136,13 +136,15 @@ export function DriverFormDialog({
             ? initialData.defaultDepotId.id
             : initialData.defaultDepotId
         const licencePhotoId =
+          initialData.licencePhotoUrl &&
           typeof initialData.licencePhotoUrl === 'object'
             ? initialData.licencePhotoUrl.id
-            : initialData.licencePhotoUrl
+            : initialData.licencePhotoUrl || undefined
         const msicPhotoId =
+          initialData.msicPhotoUrl &&
           typeof initialData.msicPhotoUrl === 'object'
             ? initialData.msicPhotoUrl.id
-            : initialData.msicPhotoUrl
+            : initialData.msicPhotoUrl || undefined
 
         reset({
           name: initialData.name || '',

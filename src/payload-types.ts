@@ -837,18 +837,6 @@ export interface Skus {
    * Whether attribute 2 is enabled
    */
   isAttribute2?: boolean | null;
-  /**
-   * Expiry date (optional)
-   */
-  expiryDate?: string | null;
-  /**
-   * Extra notes for attribute 1 (optional)
-   */
-  attribute1?: string | null;
-  /**
-   * Extra notes for attribute 2 (optional)
-   */
-  attribute2?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1208,15 +1196,15 @@ export interface InboundProductLine {
    */
   recievedCubicPerHU?: number | null;
   /**
-   * Expiry date (auto-fetched from SKU if enabled)
+   * Expiry date (required if SKU has expiry enabled)
    */
   expiryDate?: string | null;
   /**
-   * Attribute 1 (auto-fetched from SKU if enabled)
+   * Attribute 1 (required if SKU has attribute1 enabled)
    */
   attribute1?: string | null;
   /**
-   * Attribute 2 (auto-fetched from SKU if enabled)
+   * Attribute 2 (required if SKU has attribute2 enabled)
    */
   attribute2?: string | null;
   updatedAt: string;
@@ -2590,15 +2578,15 @@ export interface ContainerStockAllocation {
          */
         palletSpaces?: number | null;
         /**
-         * Expiry date (auto-fetched from SKU if enabled)
+         * Expiry date (required if SKU has expiry enabled)
          */
         expiryDate?: string | null;
         /**
-         * Attribute 1 (auto-fetched from SKU if enabled)
+         * Attribute 1 (required if SKU has attribute1 enabled)
          */
         attribute1?: string | null;
         /**
-         * Attribute 2 (auto-fetched from SKU if enabled)
+         * Attribute 2 (required if SKU has attribute2 enabled)
          */
         attribute2?: string | null;
         id?: string | null;
@@ -2823,15 +2811,15 @@ export interface OutboundProductLine {
    */
   location?: string | null;
   /**
-   * Expiry date (auto-fetched from SKU if enabled)
+   * Expiry date (required if SKU has expiry enabled)
    */
   expiryDate?: string | null;
   /**
-   * Attribute 1 (auto-fetched from SKU if enabled)
+   * Attribute 1 (required if SKU has attribute1 enabled)
    */
   attribute1?: string | null;
   /**
-   * Attribute 2 (auto-fetched from SKU if enabled)
+   * Attribute 2 (required if SKU has attribute2 enabled)
    */
   attribute2?: string | null;
   updatedAt: string;
@@ -3816,9 +3804,6 @@ export interface SkusSelect<T extends boolean = true> {
   isExpriy?: T;
   isAttribute1?: T;
   isAttribute2?: T;
-  expiryDate?: T;
-  attribute1?: T;
-  attribute2?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTenantContext } from '@/lib/api-helpers'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'freight_view')
     if ('error' in context) {
@@ -31,16 +28,18 @@ export async function GET(
     })
 
     // Verify tenant ownership through inbound inventory
-    const inventoryId = typeof productLine.inboundInventoryId === 'object' 
-      ? productLine.inboundInventoryId.id 
-      : productLine.inboundInventoryId
+    const inventoryId =
+      typeof productLine.inboundInventoryId === 'object'
+        ? productLine.inboundInventoryId.id
+        : productLine.inboundInventoryId
 
     const inventory = await payload.findByID({
       collection: 'inbound-inventory',
       id: inventoryId,
     })
 
-    const inventoryTenantId = typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
+    const inventoryTenantId =
+      typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
     if (inventoryTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Product line not found' }, { status: 404 })
     }
@@ -51,17 +50,11 @@ export async function GET(
     })
   } catch (error) {
     console.error('Error fetching product line:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch product line' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch product line' }, { status: 500 })
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await getTenantContext(request, 'freight_edit')
     if ('error' in context) {
@@ -83,16 +76,18 @@ export async function PUT(
       id: lineId,
     })
 
-    const inventoryId = typeof existingLine.inboundInventoryId === 'object' 
-      ? existingLine.inboundInventoryId.id 
-      : existingLine.inboundInventoryId
+    const inventoryId =
+      typeof existingLine.inboundInventoryId === 'object'
+        ? existingLine.inboundInventoryId.id
+        : existingLine.inboundInventoryId
 
     const inventory = await payload.findByID({
       collection: 'inbound-inventory',
       id: inventoryId,
     })
 
-    const inventoryTenantId = typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
+    const inventoryTenantId =
+      typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
     if (inventoryTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Product line not found' }, { status: 404 })
     }
@@ -107,11 +102,22 @@ export async function PUT(
         sqmPerSU: body.sqmPerSU !== undefined ? body.sqmPerSU : existingLine.sqmPerSU,
         expectedQty: body.expectedQty !== undefined ? body.expectedQty : existingLine.expectedQty,
         recievedQty: body.recievedQty !== undefined ? body.recievedQty : existingLine.recievedQty,
-        expectedWeight: body.expectedWeight !== undefined ? body.expectedWeight : existingLine.expectedWeight,
-        recievedWeight: body.recievedWeight !== undefined ? body.recievedWeight : existingLine.recievedWeight,
+        expectedWeight:
+          body.expectedWeight !== undefined ? body.expectedWeight : existingLine.expectedWeight,
+        recievedWeight:
+          body.recievedWeight !== undefined ? body.recievedWeight : existingLine.recievedWeight,
         weightPerHU: body.weightPerHU !== undefined ? body.weightPerHU : existingLine.weightPerHU,
-        expectedCubicPerHU: body.expectedCubicPerHU !== undefined ? body.expectedCubicPerHU : existingLine.expectedCubicPerHU,
-        recievedCubicPerHU: body.recievedCubicPerHU !== undefined ? body.recievedCubicPerHU : existingLine.recievedCubicPerHU,
+        expectedCubicPerHU:
+          body.expectedCubicPerHU !== undefined
+            ? body.expectedCubicPerHU
+            : existingLine.expectedCubicPerHU,
+        recievedCubicPerHU:
+          body.recievedCubicPerHU !== undefined
+            ? body.recievedCubicPerHU
+            : existingLine.recievedCubicPerHU,
+        expiryDate: body.expiryDate !== undefined ? body.expiryDate : existingLine.expiryDate,
+        attribute1: body.attribute1 !== undefined ? body.attribute1 : existingLine.attribute1,
+        attribute2: body.attribute2 !== undefined ? body.attribute2 : existingLine.attribute2,
       },
     })
 
@@ -121,16 +127,13 @@ export async function PUT(
     })
   } catch (error) {
     console.error('Error updating product line:', error)
-    return NextResponse.json(
-      { message: 'Failed to update product line' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to update product line' }, { status: 500 })
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const context = await getTenantContext(request, 'freight_delete')
@@ -152,16 +155,18 @@ export async function DELETE(
       id: lineId,
     })
 
-    const inventoryId = typeof existingLine.inboundInventoryId === 'object' 
-      ? existingLine.inboundInventoryId.id 
-      : existingLine.inboundInventoryId
+    const inventoryId =
+      typeof existingLine.inboundInventoryId === 'object'
+        ? existingLine.inboundInventoryId.id
+        : existingLine.inboundInventoryId
 
     const inventory = await payload.findByID({
       collection: 'inbound-inventory',
       id: inventoryId,
     })
 
-    const inventoryTenantId = typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
+    const inventoryTenantId =
+      typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
     if (inventoryTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Product line not found' }, { status: 404 })
     }
@@ -178,10 +183,6 @@ export async function DELETE(
     })
   } catch (error) {
     console.error('Error deleting product line:', error)
-    return NextResponse.json(
-      { message: 'Failed to delete product line' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to delete product line' }, { status: 500 })
   }
 }
-

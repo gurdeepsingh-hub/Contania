@@ -796,35 +796,6 @@ export default function OutboundJobDetailPage() {
           </CardContent>
         </Card>
 
-        {job.customerToName && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Delivery To</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <span className="text-sm font-medium text-muted-foreground">Name:</span>
-                <p>{job.customerToName}</p>
-              </div>
-              {job.customerToLocation && (
-                <div>
-                  <span className="text-sm font-medium text-muted-foreground">Location:</span>
-                  <p>
-                    {job.customerToLocation}
-                    {job.customerToState && `, ${job.customerToState}`}
-                  </p>
-                </div>
-              )}
-              {job.customerToContact && (
-                <div>
-                  <span className="text-sm font-medium text-muted-foreground">Contact:</span>
-                  <p>{job.customerToContact}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
         {job.customerFromName && (
           <Card>
             <CardHeader>
@@ -848,6 +819,35 @@ export default function OutboundJobDetailPage() {
                 <div>
                   <span className="text-sm font-medium text-muted-foreground">Contact:</span>
                   <p>{job.customerFromContact}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {job.customerToName && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Delivery To</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div>
+                <span className="text-sm font-medium text-muted-foreground">Name:</span>
+                <p>{job.customerToName}</p>
+              </div>
+              {job.customerToLocation && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Location:</span>
+                  <p>
+                    {job.customerToLocation}
+                    {job.customerToState && `, ${job.customerToState}`}
+                  </p>
+                </div>
+              )}
+              {job.customerToContact && (
+                <div>
+                  <span className="text-sm font-medium text-muted-foreground">Contact:</span>
+                  <p>{job.customerToContact}</p>
                 </div>
               )}
             </CardContent>

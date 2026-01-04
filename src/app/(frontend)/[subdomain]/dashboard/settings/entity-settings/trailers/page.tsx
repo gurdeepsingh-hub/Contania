@@ -223,6 +223,30 @@ export default function TrailersPage() {
     }
   }
 
+  // Auto-select warehouse if only one option and not editing
+  useEffect(() => {
+    if (warehouses.length === 1 && !editingTrailer && !showAddForm) {
+      const currentValues = {
+        fleetNumber: '',
+        rego: '',
+        regoExpiryDate: '',
+        trailerTypeId: undefined,
+        maxWeightKg: undefined,
+        maxCubeM3: undefined,
+        maxPallet: undefined,
+        defaultWarehouseId: undefined,
+        dangerousCertNumber: '',
+        dangerousCertExpiry: '',
+        description: '',
+      }
+      // Only reset if defaultWarehouseId is not already set
+      reset({
+        ...currentValues,
+        defaultWarehouseId: warehouses[0].id,
+      })
+    }
+  }, [warehouses, editingTrailer, showAddForm, reset])
+
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     setPage(1)

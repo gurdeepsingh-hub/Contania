@@ -7,7 +7,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Users, Plus, Edit, Trash2, X, Save, Mail, Phone, Briefcase, UserX, UserCheck, ArrowLeft } from 'lucide-react'
+import {
+  Users,
+  Plus,
+  Edit,
+  Trash2,
+  X,
+  Save,
+  Mail,
+  Phone,
+  Briefcase,
+  UserX,
+  UserCheck,
+  ArrowLeft,
+} from 'lucide-react'
 import { canManageUsers } from '@/lib/permissions'
 
 type TenantUser = {
@@ -169,12 +182,13 @@ export default function TenantUsersPage() {
   }
 
   const handleEditUser = (user: TenantUser) => {
-    const roleId = typeof user.role === 'object' && user.role && 'id' in user.role
-      ? String(user.role.id)
-      : typeof user.role === 'number' || typeof user.role === 'string'
-      ? String(user.role)
-      : ''
-    
+    const roleId =
+      typeof user.role === 'object' && user.role && 'id' in user.role
+        ? String(user.role.id)
+        : typeof user.role === 'number' || typeof user.role === 'string'
+          ? String(user.role)
+          : ''
+
     setFormData({
       email: user.email,
       fullName: user.fullName,
@@ -258,7 +272,9 @@ export default function TenantUsersPage() {
 
         if (res.ok) {
           const data = await res.json()
-          setSuccess(`User created successfully${data.password ? `. Temporary password: ${data.password}` : ''}`)
+          setSuccess(
+            `User created successfully${data.password ? `. Temporary password: ${data.password}` : ''}`,
+          )
           await loadTenantUsers()
           setTimeout(() => {
             handleCancel()
@@ -275,7 +291,9 @@ export default function TenantUsersPage() {
   }
 
   const handleDeleteUser = async (user: TenantUser) => {
-    if (!confirm(`Are you sure you want to delete ${user.fullName}? This action cannot be undone.`)) {
+    if (
+      !confirm(`Are you sure you want to delete ${user.fullName}? This action cannot be undone.`)
+    ) {
       return
     }
 
@@ -299,12 +317,13 @@ export default function TenantUsersPage() {
   }
 
   const handleQuickRoleChange = async (user: TenantUser, newRoleId: string) => {
-    const currentRoleId = typeof user.role === 'object' && user.role && 'id' in user.role
-      ? String(user.role.id)
-      : typeof user.role === 'number' || typeof user.role === 'string'
-      ? String(user.role)
-      : ''
-    
+    const currentRoleId =
+      typeof user.role === 'object' && user.role && 'id' in user.role
+        ? String(user.role.id)
+        : typeof user.role === 'number' || typeof user.role === 'string'
+          ? String(user.role)
+          : ''
+
     if (currentRoleId === newRoleId) return
 
     try {
@@ -332,7 +351,7 @@ export default function TenantUsersPage() {
   const handleSuspendToggle = async (user: TenantUser) => {
     const newStatus = user.status === 'suspended' ? 'active' : 'suspended'
     const action = newStatus === 'suspended' ? 'suspend' : 'unsuspend'
-    
+
     if (!confirm(`Are you sure you want to ${action} ${user.fullName}?`)) {
       return
     }
@@ -378,15 +397,11 @@ export default function TenantUsersPage() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => router.push('/dashboard/settings')}
-        >
+        <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard/settings')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Tenant Users</h1>
+          <h1 className="text-3xl font-bold">Users</h1>
           <p className="text-muted-foreground">Manage users for {tenant.companyName}</p>
         </div>
         {!showAddForm && (
@@ -404,9 +419,7 @@ export default function TenantUsersPage() {
         </div>
       )}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          {error}
-        </div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">{error}</div>
       )}
 
       {/* Add/Edit User Form */}
@@ -474,7 +487,9 @@ export default function TenantUsersPage() {
                 </div>
                 <div>
                   <Label htmlFor="password">
-                    {editingUser ? 'New Password (leave blank to keep current)' : 'Password (leave blank to auto-generate)'}
+                    {editingUser
+                      ? 'New Password (leave blank to keep current)'
+                      : 'Password (leave blank to auto-generate)'}
                   </Label>
                   <Input
                     id="password"
@@ -546,12 +561,13 @@ export default function TenantUsersPage() {
           ) : (
             <div className="space-y-4">
               {tenantUsers.map((user) => {
-                const currentRoleId = typeof user.role === 'object' && user.role && 'id' in user.role
-                  ? String(user.role.id)
-                  : typeof user.role === 'number' || typeof user.role === 'string'
-                  ? String(user.role)
-                  : ''
-                
+                const currentRoleId =
+                  typeof user.role === 'object' && user.role && 'id' in user.role
+                    ? String(user.role.id)
+                    : typeof user.role === 'number' || typeof user.role === 'string'
+                      ? String(user.role)
+                      : ''
+
                 return (
                   <div
                     key={user.id}
@@ -559,22 +575,28 @@ export default function TenantUsersPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className={`flex justify-center items-center rounded-full w-10 h-10 flex-shrink-0 ${
-                          user.status === 'suspended' 
-                            ? 'bg-gray-300' 
-                            : 'bg-primary'
-                        }`}>
-                          <Users className={`w-5 h-5 ${
-                            user.status === 'suspended' 
-                              ? 'text-gray-600' 
-                              : 'text-primary-foreground'
-                          }`} />
+                        <div
+                          className={`flex justify-center items-center rounded-full w-10 h-10 flex-shrink-0 ${
+                            user.status === 'suspended' ? 'bg-gray-300' : 'bg-primary'
+                          }`}
+                        >
+                          <Users
+                            className={`w-5 h-5 ${
+                              user.status === 'suspended'
+                                ? 'text-gray-600'
+                                : 'text-primary-foreground'
+                            }`}
+                          />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <h3 className={`font-semibold text-lg truncate ${
-                              user.status === 'suspended' ? 'text-muted-foreground line-through' : ''
-                            }`}>
+                            <h3
+                              className={`font-semibold text-lg truncate ${
+                                user.status === 'suspended'
+                                  ? 'text-muted-foreground line-through'
+                                  : ''
+                              }`}
+                            >
                               {user.fullName}
                             </h3>
                             {user.status === 'suspended' && (
@@ -636,7 +658,7 @@ export default function TenantUsersPage() {
                           </select>
                         )}
                       </div>
-                      
+
                       {/* Action Buttons */}
                       <div className="flex gap-2">
                         <Button
@@ -648,7 +670,7 @@ export default function TenantUsersPage() {
                           <Edit className="h-4 w-4 sm:mr-2" />
                           <span className="hidden sm:inline">Edit</span>
                         </Button>
-                        
+
                         {/* Suspend/Unsuspend Button */}
                         {currentUser?.id !== user.id && (
                           <Button
@@ -656,9 +678,7 @@ export default function TenantUsersPage() {
                             size="sm"
                             onClick={() => handleSuspendToggle(user)}
                             className={`min-h-[44px] ${
-                              user.status === 'suspended' 
-                                ? 'bg-green-600 hover:bg-green-700' 
-                                : ''
+                              user.status === 'suspended' ? 'bg-green-600 hover:bg-green-700' : ''
                             }`}
                           >
                             {user.status === 'suspended' ? (
@@ -669,12 +689,12 @@ export default function TenantUsersPage() {
                             ) : (
                               <>
                                 <UserX className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Suspend</span>
+                                <span className="hidden sm:inline">Deactivate</span>
                               </>
                             )}
                           </Button>
                         )}
-                        
+
                         {/* Delete Button */}
                         {currentUser?.id !== user.id && (
                           <Button
@@ -699,4 +719,3 @@ export default function TenantUsersPage() {
     </div>
   )
 }
-

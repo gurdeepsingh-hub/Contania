@@ -12,7 +12,11 @@ export const SKUs: CollectionConfig = {
       return !!user?.tenantId
     },
     read: ({ req }) => {
-      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
       if (user?.tenantId) {
         return {
@@ -24,7 +28,11 @@ export const SKUs: CollectionConfig = {
       return false
     },
     update: ({ req }) => {
-      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
       if (user?.tenantId) {
         return {
@@ -36,7 +44,11 @@ export const SKUs: CollectionConfig = {
       return false
     },
     delete: ({ req }) => {
-      const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+      const user = (
+        req as unknown as {
+          user?: { role?: string; tenantId?: number | string; collection?: string }
+        }
+      ).user
       if (user?.role === 'superadmin' || user?.collection === 'users') return true
       if (user?.tenantId) {
         return {
@@ -233,42 +245,16 @@ export const SKUs: CollectionConfig = {
         description: 'Whether attribute 2 is enabled',
       },
     },
-    {
-      name: 'expiryDate',
-      type: 'date',
-      admin: {
-        description: 'Expiry date (optional)',
-        condition: (data) => {
-          return (data as { isExpriy?: boolean }).isExpriy === true
-        },
-      },
-    },
-    {
-      name: 'attribute1',
-      type: 'textarea',
-      admin: {
-        description: 'Extra notes for attribute 1 (optional)',
-        condition: (data) => {
-          return (data as { isAttribute1?: boolean }).isAttribute1 === true
-        },
-      },
-    },
-    {
-      name: 'attribute2',
-      type: 'textarea',
-      admin: {
-        description: 'Extra notes for attribute 2 (optional)',
-        condition: (data) => {
-          return (data as { isAttribute2?: boolean }).isAttribute2 === true
-        },
-      },
-    },
   ],
   timestamps: true,
   hooks: {
     beforeChange: [
       ({ req, data }) => {
-        const user = (req as unknown as { user?: { role?: string; tenantId?: number | string; collection?: string } }).user
+        const user = (
+          req as unknown as {
+            user?: { role?: string; tenantId?: number | string; collection?: string }
+          }
+        ).user
         // If creating/updating and user has tenantId, ensure it matches
         if (user?.tenantId && data.tenantId !== user.tenantId) {
           // Super admins can set any tenantId, but regular users cannot
@@ -282,19 +268,24 @@ export const SKUs: CollectionConfig = {
         // Auto-fetch palletSpacesOfStorageUnit from selected storage unit
         if (data.storageUnitId && req?.payload) {
           try {
-            const storageUnitId = typeof data.storageUnitId === 'object' 
-              ? (data.storageUnitId as { id: number }).id 
-              : data.storageUnitId
-            
+            const storageUnitId =
+              typeof data.storageUnitId === 'object'
+                ? (data.storageUnitId as { id: number }).id
+                : data.storageUnitId
+
             if (storageUnitId) {
               const storageUnit = await req.payload.findByID({
                 collection: 'storage-units',
                 id: storageUnitId,
               })
-              
+
               if (storageUnit) {
-                const su = storageUnit as { palletSpaces?: number; lengthPerSU_mm?: number; widthPerSU_mm?: number }
-                
+                const su = storageUnit as {
+                  palletSpaces?: number
+                  lengthPerSU_mm?: number
+                  widthPerSU_mm?: number
+                }
+
                 // Auto-fill palletSpacesOfStorageUnit
                 if (su.palletSpaces) {
                   data.palletSpacesOfStorageUnit = su.palletSpaces
@@ -307,10 +298,14 @@ export const SKUs: CollectionConfig = {
                 const widthPerSU = su.widthPerSU_mm
 
                 // Only auto-calculate if field is empty or dependencies changed
-                const shouldCalculateCasesPerLayer = 
-                  lengthPerHU && widthPerHU && lengthPerSU && widthPerSU &&
-                  (!(data as { casesPerLayer?: number }).casesPerLayer || 
-                   (data as { _casesPerLayerCalculated?: boolean })._casesPerLayerCalculated === true)
+                const shouldCalculateCasesPerLayer =
+                  lengthPerHU &&
+                  widthPerHU &&
+                  lengthPerSU &&
+                  widthPerSU &&
+                  (!(data as { casesPerLayer?: number }).casesPerLayer ||
+                    (data as { _casesPerLayerCalculated?: boolean })._casesPerLayerCalculated ===
+                      true)
 
                 if (shouldCalculateCasesPerLayer) {
                   // Calculate cases per layer based on dimensions
@@ -318,11 +313,12 @@ export const SKUs: CollectionConfig = {
                   const casesPerLength = Math.floor((lengthPerSU || 0) / (lengthPerHU || 1))
                   const casesPerWidth = Math.floor((widthPerSU || 0) / (widthPerHU || 1))
                   const calculatedCasesPerLayer: number = casesPerLength * casesPerWidth
-                  
+
                   if (calculatedCasesPerLayer > 0) {
                     ;(data as { casesPerLayer?: number }).casesPerLayer = calculatedCasesPerLayer
                     // Mark as auto-calculated so user can still edit
-                    ;(data as { _casesPerLayerCalculated?: boolean })._casesPerLayerCalculated = true
+                    ;(data as { _casesPerLayerCalculated?: boolean })._casesPerLayerCalculated =
+                      true
                   }
                 }
 
@@ -331,17 +327,24 @@ export const SKUs: CollectionConfig = {
                 const huPerSu = (data as { huPerSu?: number }).huPerSu
 
                 const shouldCalculateLayersPerPallet =
-                  casesPerLayer && huPerSu && casesPerLayer > 0 &&
+                  casesPerLayer &&
+                  huPerSu &&
+                  casesPerLayer > 0 &&
                   (!(data as { layersPerPallet?: number }).layersPerPallet ||
-                   (data as { _layersPerPalletCalculated?: boolean })._layersPerPalletCalculated === true)
+                    (data as { _layersPerPalletCalculated?: boolean })
+                      ._layersPerPalletCalculated === true)
 
                 if (shouldCalculateLayersPerPallet) {
                   // Calculate layers per pallet: huPerSu / casesPerLayer
-                  const calculatedLayersPerPallet: number = Math.floor((huPerSu || 0) / (casesPerLayer || 1))
-                  
+                  const calculatedLayersPerPallet: number = Math.floor(
+                    (huPerSu || 0) / (casesPerLayer || 1),
+                  )
+
                   if (calculatedLayersPerPallet > 0) {
-                    ;(data as { layersPerPallet?: number }).layersPerPallet = calculatedLayersPerPallet
-                    ;(data as { _layersPerPalletCalculated?: boolean })._layersPerPalletCalculated = true
+                    ;(data as { layersPerPallet?: number }).layersPerPallet =
+                      calculatedLayersPerPallet
+                    ;(data as { _layersPerPalletCalculated?: boolean })._layersPerPalletCalculated =
+                      true
                   }
                 }
 
@@ -349,17 +352,21 @@ export const SKUs: CollectionConfig = {
                 const layersPerPallet = (data as { layersPerPallet?: number }).layersPerPallet
 
                 const shouldCalculateCasesPerPallet =
-                  casesPerLayer && layersPerPallet &&
+                  casesPerLayer &&
+                  layersPerPallet &&
                   (!(data as { casesPerPallet?: number }).casesPerPallet ||
-                   (data as { _casesPerPalletCalculated?: boolean })._casesPerPalletCalculated === true)
+                    (data as { _casesPerPalletCalculated?: boolean })._casesPerPalletCalculated ===
+                      true)
 
                 if (shouldCalculateCasesPerPallet) {
                   // Calculate cases per pallet: casesPerLayer × layersPerPallet
-                  const calculatedCasesPerPallet: number = (casesPerLayer || 0) * (layersPerPallet || 0)
-                  
+                  const calculatedCasesPerPallet: number =
+                    (casesPerLayer || 0) * (layersPerPallet || 0)
+
                   if (calculatedCasesPerPallet > 0) {
                     ;(data as { casesPerPallet?: number }).casesPerPallet = calculatedCasesPerPallet
-                    ;(data as { _casesPerPalletCalculated?: boolean })._casesPerPalletCalculated = true
+                    ;(data as { _casesPerPalletCalculated?: boolean })._casesPerPalletCalculated =
+                      true
                   }
                 }
               }
@@ -370,10 +377,8 @@ export const SKUs: CollectionConfig = {
           }
         }
 
-
         return data
       },
     ],
   },
 }
-

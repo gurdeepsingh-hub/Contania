@@ -34,6 +34,9 @@ type ProductLine = {
   weightPerHU?: number
   expectedCubicPerHU?: number
   recievedCubicPerHU?: number
+  expiryDate?: string
+  attribute1?: string
+  attribute2?: string
 }
 
 type InboundJob = {
@@ -550,6 +553,32 @@ export default function InboundJobDetailPage() {
                                 Pallet Spaces:
                               </span>
                               <p className="text-sm">{line.palletSpaces.toFixed(2)}</p>
+                            </div>
+                          )}
+                          {line.expiryDate && (
+                            <div className="min-w-[100px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Expiry Date:
+                              </span>
+                              <p className="text-sm">
+                                {new Date(line.expiryDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          )}
+                          {line.attribute1 && (
+                            <div className="min-w-[100px] max-w-[200px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Attribute 1:
+                              </span>
+                              <p className="text-sm line-clamp-2">{line.attribute1}</p>
+                            </div>
+                          )}
+                          {line.attribute2 && (
+                            <div className="min-w-[100px] max-w-[200px]">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                Attribute 2:
+                              </span>
+                              <p className="text-sm line-clamp-2">{line.attribute2}</p>
                             </div>
                           )}
                         </div>

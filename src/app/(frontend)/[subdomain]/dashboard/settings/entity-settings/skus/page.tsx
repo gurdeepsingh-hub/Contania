@@ -57,9 +57,6 @@ type SKU = {
   isExpriy?: boolean
   isAttribute1?: boolean
   isAttribute2?: boolean
-  expiryDate?: string
-  attribute1?: string
-  attribute2?: string
 }
 
 type Customer = {
@@ -141,9 +138,6 @@ export default function SKUsPage() {
     isExpriy: z.boolean(),
     isAttribute1: z.boolean(),
     isAttribute2: z.boolean(),
-    expiryDate: z.string().optional(),
-    attribute1: z.string().optional(),
-    attribute2: z.string().optional(),
   })
 
   type SKUFormData = z.infer<typeof skuSchema>
@@ -178,9 +172,6 @@ export default function SKUsPage() {
       isExpriy: false,
       isAttribute1: false,
       isAttribute2: false,
-      expiryDate: '',
-      attribute1: '',
-      attribute2: '',
     },
   })
 
@@ -198,9 +189,6 @@ export default function SKUsPage() {
   const watchedLayersPerPallet = watch('layersPerPallet')
   const watchedHuPerSu = watch('huPerSu')
   const watchedCasesPerPallet = watch('casesPerPallet')
-  const watchedIsExpriy = watch('isExpriy')
-  const watchedIsAttribute1 = watch('isAttribute1')
-  const watchedIsAttribute2 = watch('isAttribute2')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -524,9 +512,6 @@ export default function SKUsPage() {
       isExpriy: false,
       isAttribute1: false,
       isAttribute2: false,
-      expiryDate: '',
-      attribute1: '',
-      attribute2: '',
     })
     setAutoCalculatedFields(new Set())
   }
@@ -580,9 +565,6 @@ export default function SKUsPage() {
       isExpriy: sku.isExpriy || false,
       isAttribute1: sku.isAttribute1 || false,
       isAttribute2: sku.isAttribute2 || false,
-      expiryDate: sku.expiryDate ? sku.expiryDate.split('T')[0] : '',
-      attribute1: sku.attribute1 || '',
-      attribute2: sku.attribute2 || '',
     })
     setEditingSku(sku)
     setShowAddForm(true)
@@ -595,7 +577,6 @@ export default function SKUsPage() {
   }
 
   const onSubmit = async (data: SKUFormData) => {
-
     try {
       const submitData: Record<string, unknown> = {
         skuCode: data.skuCode,
@@ -618,9 +599,6 @@ export default function SKUsPage() {
         isExpriy: data.isExpriy,
         isAttribute1: data.isAttribute1,
         isAttribute2: data.isAttribute2,
-        expiryDate: data.expiryDate || undefined,
-        attribute1: data.attribute1 || undefined,
-        attribute2: data.attribute2 || undefined,
       }
 
       if (editingSku) {
@@ -758,7 +736,7 @@ export default function SKUsPage() {
       </div>
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent 
+        <DialogContent
           className={`max-w-4xl max-h-[90vh] overflow-y-auto ${
             showQuickCreateCustomer || showQuickCreateStorageUnit || showQuickCreateHandlingUnit
               ? 'pointer-events-none'
@@ -1018,15 +996,10 @@ export default function SKUsPage() {
                   />
                   <Label htmlFor="isExpriy">Enable Expiry Date</Label>
                 </div>
+                <p className="text-sm text-muted-foreground mt-1 ml-6">
+                  When enabled, expiry date field will appear in product lines
+                </p>
               </div>
-              {watchedIsExpriy && (
-                <FormInput
-                  label="Expiry Date"
-                  type="date"
-                  error={errors.expiryDate?.message}
-                  {...register('expiryDate')}
-                />
-              )}
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -1037,17 +1010,10 @@ export default function SKUsPage() {
                   />
                   <Label htmlFor="isAttribute1">Enable Attribute 1</Label>
                 </div>
+                <p className="text-sm text-muted-foreground mt-1 ml-6">
+                  When enabled, attribute 1 field will appear in product lines
+                </p>
               </div>
-              {watchedIsAttribute1 && (
-                <div className="md:col-span-2">
-                  <FormTextarea
-                    label="Attribute 1"
-                    error={errors.attribute1?.message}
-                    placeholder="Extra notes"
-                    {...register('attribute1')}
-                  />
-                </div>
-              )}
               <div className="md:col-span-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -1058,17 +1024,10 @@ export default function SKUsPage() {
                   />
                   <Label htmlFor="isAttribute2">Enable Attribute 2</Label>
                 </div>
+                <p className="text-sm text-muted-foreground mt-1 ml-6">
+                  When enabled, attribute 2 field will appear in product lines
+                </p>
               </div>
-              {watchedIsAttribute2 && (
-                <div className="md:col-span-2">
-                  <FormTextarea
-                    label="Attribute 2"
-                    error={errors.attribute2?.message}
-                    placeholder="Extra notes"
-                    {...register('attribute2')}
-                  />
-                </div>
-              )}
             </div>
             <DialogFooter className="flex flex-col sm:flex-row gap-2">
               <Button
@@ -1108,7 +1067,7 @@ export default function SKUsPage() {
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <Card 
+          <Card
             className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -1197,7 +1156,7 @@ export default function SKUsPage() {
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <Card 
+          <Card
             className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -1297,7 +1256,7 @@ export default function SKUsPage() {
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <Card 
+          <Card
             className="relative w-full max-w-md max-h-[90vh] overflow-y-auto pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}

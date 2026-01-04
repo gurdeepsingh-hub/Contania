@@ -278,6 +278,13 @@ export function MultistepOutboundForm({
     loadOptions()
   }, [])
 
+  // Auto-select warehouse if only one option
+  useEffect(() => {
+    if (warehouses.length === 1 && !formData.warehouseId) {
+      setFormData((prev) => ({ ...prev, warehouseId: warehouses[0].id }))
+    }
+  }, [warehouses, formData.warehouseId])
+
   useEffect(() => {
     if (initialData) {
       const data = { ...initialData }

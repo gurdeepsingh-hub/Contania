@@ -141,7 +141,8 @@ export function Step5ContainerDetailsImport({
       }
       if (warehousesRes.ok) {
         const data = await warehousesRes.json()
-        setWarehouses(data.warehouses || [])
+        const warehousesData = data.warehouses || []
+        setWarehouses(warehousesData)
       }
     } catch (error) {
       console.error('Error loading options:', error)
@@ -153,6 +154,26 @@ export function Step5ContainerDetailsImport({
   useEffect(() => {
     loadOptions()
   }, [loadOptions])
+
+  // Auto-select warehouse if only one option and container doesn't have warehouseId
+  useEffect(() => {
+    if (warehouses.length === 1) {
+      const updatedContainers = containers.map((container) => {
+        if (!container.warehouseId) {
+          return { ...container, warehouseId: warehouses[0].id }
+        }
+        return container
+      })
+      // Only update if there were changes
+      const hasChanges = updatedContainers.some(
+        (container, index) => container.warehouseId !== containers[index]?.warehouseId,
+      )
+      if (hasChanges) {
+        setContainers(updatedContainers)
+        onUpdate({ containerDetails: updatedContainers })
+      }
+    }
+  }, [warehouses, containers, onUpdate])
 
   // Fetch existing container details when editing (bookingId is available)
   // This runs when bookingId exists and we don't have containers loaded yet

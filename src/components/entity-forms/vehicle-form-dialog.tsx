@@ -380,7 +380,7 @@ export function VehicleFormDialog({
                 onCheckedChange={(checked) => setValue('sideloader', checked === true)}
               />
               <Label htmlFor="sideloader" className="cursor-pointer">
-                Equipped with sideloader
+                Is this a sideloader?
               </Label>
             </div>
           </div>

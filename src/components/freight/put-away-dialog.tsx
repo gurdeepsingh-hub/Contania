@@ -32,9 +32,10 @@ interface PutAwayDialogProps {
   onOpenChange: (open: boolean) => void
   jobId?: number
   productLineId?: number // Optional: if provided, only show this product line
+  onComplete?: () => void // Optional: callback when putaway is successfully completed
 }
 
-export function PutAwayDialog({ open, onOpenChange, jobId, productLineId }: PutAwayDialogProps) {
+export function PutAwayDialog({ open, onOpenChange, jobId, productLineId, onComplete }: PutAwayDialogProps) {
   const [job, setJob] = useState<InboundJob | null>(null)
   const [loading, setLoading] = useState(false)
   const [existingPutAwayRecords, setExistingPutAwayRecords] = useState<any[]>([])
@@ -93,8 +94,11 @@ export function PutAwayDialog({ open, onOpenChange, jobId, productLineId }: PutA
 
   const handleComplete = () => {
     onOpenChange(false)
-    // Optionally reload the page or refresh data
-    if (typeof window !== 'undefined') {
+    // If onComplete callback is provided, use it (e.g., for redirecting)
+    // Otherwise, reload the page as before
+    if (onComplete) {
+      onComplete()
+    } else if (typeof window !== 'undefined') {
       window.location.reload()
     }
   }

@@ -91,7 +91,7 @@ export const createNavigationItemsWithPath = (pathname: string): NavigationItem[
 // Tenant navigation configuration
 export const createTenantNavigationItems = (
   activePage?: string,
-  permissions?: string[]
+  permissions?: string[],
 ): NavigationItem[] => {
   const items: NavigationItem[] = []
 
@@ -132,7 +132,7 @@ export const createTenantNavigationItems = (
   if (!permissions || permissions.includes('containers_view')) {
     items.push({
       id: 'container-bookings',
-      label: 'Container Bookings',
+      label: 'Containers',
       iconName: 'Container',
       href: '/dashboard/container-bookings',
       active:
@@ -186,14 +186,20 @@ export const getActiveTenantPageFromPath = (pathname: string): string => {
     if (segments[1] === 'container-bookings') {
       // Handle /dashboard/container-bookings and sub-routes
       if (segments.length >= 3) {
-        if (segments[2] === 'import-container-bookings' || segments[2] === 'export-container-bookings') {
+        if (
+          segments[2] === 'import-container-bookings' ||
+          segments[2] === 'export-container-bookings'
+        ) {
           return `container-bookings-${segments[2].replace('container-bookings', '').replace('-', '')}`
         }
         return `container-bookings-${segments[2]}`
       }
       return 'container-bookings'
     }
-    if (segments[1] === 'import-container-bookings' || segments[1] === 'export-container-bookings') {
+    if (
+      segments[1] === 'import-container-bookings' ||
+      segments[1] === 'export-container-bookings'
+    ) {
       return `container-bookings-${segments[1].replace('container-bookings', '').replace('-', '')}`
     }
     return segments[1] || 'dashboard'

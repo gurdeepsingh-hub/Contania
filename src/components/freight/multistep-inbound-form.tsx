@@ -263,6 +263,13 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
     loadOptions()
   }, [])
 
+  // Auto-select warehouse if only one option
+  useEffect(() => {
+    if (warehouses.length === 1 && !formData.warehouseId) {
+      setFormData((prev) => ({ ...prev, warehouseId: warehouses[0].id }))
+    }
+  }, [warehouses, formData.warehouseId])
+
   useEffect(() => {
     if (initialData) {
       const data = { ...initialData }
@@ -356,7 +363,12 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
       }
       if (warehousesRes.ok) {
         const data = await warehousesRes.json()
-        setWarehouses(data.warehouses || [])
+        const warehousesData = data.warehouses || []
+        setWarehouses(warehousesData)
+        // Auto-select warehouse if only one option
+        if (warehousesData.length === 1 && !formData.warehouseId) {
+          setFormData((prev) => ({ ...prev, warehouseId: warehousesData[0].id }))
+        }
       }
       if (transportRes.ok) {
         const data = await transportRes.json()
@@ -1315,7 +1327,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
                   )}
                 </div>
               )}
-              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
+              <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t justify-end">
                 <Button
                   onClick={() => handleSave('save')}
                   disabled={saving}

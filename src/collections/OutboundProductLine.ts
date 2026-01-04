@@ -209,24 +209,75 @@ export const OutboundProductLine: CollectionConfig = {
       name: 'expiryDate',
       type: 'date',
       admin: {
-        description: 'Expiry date (auto-fetched from SKU if enabled)',
-        readOnly: true,
+        description: 'Expiry date (required if SKU has expiry enabled)',
+        condition: async (data, siblingData, { req }) => {
+          // Show only if SKU has expiry enabled
+          if (!siblingData.skuId || !req?.payload) return false
+          try {
+            const skuId =
+              typeof siblingData.skuId === 'object'
+                ? (siblingData.skuId as { id: number }).id
+                : siblingData.skuId
+            if (!skuId) return false
+            const sku = await req.payload.findByID({
+              collection: 'skus',
+              id: skuId,
+            })
+            return (sku as { isExpriy?: boolean })?.isExpriy === true
+          } catch {
+            return false
+          }
+        },
       },
     },
     {
       name: 'attribute1',
       type: 'textarea',
       admin: {
-        description: 'Attribute 1 (auto-fetched from SKU if enabled)',
-        readOnly: true,
+        description: 'Attribute 1 (required if SKU has attribute1 enabled)',
+        condition: async (data, siblingData, { req }) => {
+          // Show only if SKU has attribute1 enabled
+          if (!siblingData.skuId || !req?.payload) return false
+          try {
+            const skuId =
+              typeof siblingData.skuId === 'object'
+                ? (siblingData.skuId as { id: number }).id
+                : siblingData.skuId
+            if (!skuId) return false
+            const sku = await req.payload.findByID({
+              collection: 'skus',
+              id: skuId,
+            })
+            return (sku as { isAttribute1?: boolean })?.isAttribute1 === true
+          } catch {
+            return false
+          }
+        },
       },
     },
     {
       name: 'attribute2',
       type: 'textarea',
       admin: {
-        description: 'Attribute 2 (auto-fetched from SKU if enabled)',
-        readOnly: true,
+        description: 'Attribute 2 (required if SKU has attribute2 enabled)',
+        condition: async (data, siblingData, { req }) => {
+          // Show only if SKU has attribute2 enabled
+          if (!siblingData.skuId || !req?.payload) return false
+          try {
+            const skuId =
+              typeof siblingData.skuId === 'object'
+                ? (siblingData.skuId as { id: number }).id
+                : siblingData.skuId
+            if (!skuId) return false
+            const sku = await req.payload.findByID({
+              collection: 'skus',
+              id: skuId,
+            })
+            return (sku as { isAttribute2?: boolean })?.isAttribute2 === true
+          } catch {
+            return false
+          }
+        },
       },
     },
   ],
@@ -258,24 +309,13 @@ export const OutboundProductLine: CollectionConfig = {
                   isExpriy?: boolean
                   isAttribute1?: boolean
                   isAttribute2?: boolean
-                  expiryDate?: string
-                  attribute1?: string
-                  attribute2?: string
                 }
                 data.skuDescription = skuData.description || ''
                 data.lpnQty = skuData.huPerSu?.toString() || ''
                 data.weightPerHU = skuData.weightPerHU_kg || undefined
 
-                // Auto-populate expiry, attribute1, attribute2 if SKU has them enabled
-                if (skuData.isExpriy && skuData.expiryDate) {
-                  data.expiryDate = skuData.expiryDate
-                }
-                if (skuData.isAttribute1 && skuData.attribute1) {
-                  data.attribute1 = skuData.attribute1
-                }
-                if (skuData.isAttribute2 && skuData.attribute2) {
-                  data.attribute2 = skuData.attribute2
-                }
+                // Note: expiryDate, attribute1, and attribute2 are filled by user in product line
+                // They are only shown if the corresponding checkbox is enabled in SKU
 
                 // Auto-calculate cubic from SKU dimensions (length × width × height in m³)
                 if (skuData.lengthPerHU_mm && skuData.widthPerHU_mm && skuData.heightPerHU_mm) {

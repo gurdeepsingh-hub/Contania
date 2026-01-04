@@ -29,6 +29,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Store,
+  AlertTriangle,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
@@ -45,6 +47,14 @@ type WarehouseItem = {
   state?: string
   postcode?: string
   type?: string
+  storeCount?: number
+}
+
+type StoreItem = {
+  id: number
+  storeName: string
+  zoneType: 'Indock' | 'Outdock' | 'Storage'
+  countable?: boolean
 }
 
 type TenantUser = {
@@ -65,6 +75,11 @@ export default function WarehousesPage() {
   const [showStoreForm, setShowStoreForm] = useState(false)
   const [creatingStore, setCreatingStore] = useState(false)
   const [currentWarehouseId, setCurrentWarehouseId] = useState<number | null>(null)
+  const [warehouseStores, setWarehouseStores] = useState<StoreItem[]>([])
+  const [loadingStores, setLoadingStores] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [warehouseToDelete, setWarehouseToDelete] = useState<WarehouseItem | null>(null)
+  const [storesToDelete, setStoresToDelete] = useState<StoreItem[]>([])
 
   // Pagination state
   const [page, setPage] = useState(1)
@@ -185,7 +200,58 @@ export default function WarehousesPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.warehouses) {
-          setWarehouses(data.warehouses)
+          // Fetch store counts for each warehouse
+          // Use Promise.allSettled to handle errors gracefully
+          const warehousePromises = data.warehouses.map(async (warehouse: WarehouseItem) => {
+            try {
+              const storesRes = await fetch(
+                `/api/stores?warehouseId=${warehouse.id}&limit=1`
+              )
+              if (storesRes.ok) {
+                const storesData = await storesRes.json()
+                return {
+                  ...warehouse,
+                  storeCount: storesData.totalDocs || 0,
+                }
+              } else {
+                // Log error but don't fail the whole operation
+                console.warn(
+                  `Failed to fetch store count for warehouse ${warehouse.id}:`,
+                  storesRes.status
+                )
+                return { ...warehouse, storeCount: 0 }
+              }
+            } catch (error) {
+              // Log error but don't fail the whole operation
+              console.warn(
+                `Error fetching store count for warehouse ${warehouse.id}:`,
+                error
+              )
+              return { ...warehouse, storeCount: 0 }
+            }
+          })
+
+          // Try to fetch store counts, but don't fail if it doesn't work
+          try {
+            const results = await Promise.allSettled(warehousePromises)
+            const warehousesWithCounts = results.map((result, index) => {
+              if (result.status === 'fulfilled') {
+                return result.value
+              } else {
+                // If promise rejected, return warehouse with 0 count
+                console.warn(
+                  `Failed to get store count for warehouse ${data.warehouses[index]?.id}:`,
+                  result.reason
+                )
+                return { ...data.warehouses[index], storeCount: 0 }
+              }
+            })
+            setWarehouses(warehousesWithCounts)
+          } catch (error) {
+            // If store count fetching completely fails, just show warehouses without counts
+            console.error('Error fetching store counts:', error)
+            setWarehouses(data.warehouses.map((w: WarehouseItem) => ({ ...w, storeCount: 0 })))
+          }
           setTotalDocs(data.totalDocs || 0)
           setTotalPages(data.totalPages || 0)
           setHasPrevPage(data.hasPrevPage || false)
@@ -196,6 +262,23 @@ export default function WarehousesPage() {
       console.error('Error loading warehouses:', error)
     } finally {
       setLoadingWarehouses(false)
+    }
+  }
+
+  const loadWarehouseStores = async (warehouseId: number) => {
+    try {
+      setLoadingStores(true)
+      const res = await fetch(`/api/stores?warehouseId=${warehouseId}&limit=100`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.stores) {
+          setWarehouseStores(data.stores)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading warehouse stores:', error)
+    } finally {
+      setLoadingStores(false)
     }
   }
 
@@ -246,6 +329,8 @@ export default function WarehousesPage() {
     setEditingWarehouse(warehouse)
     setCurrentWarehouseId(warehouse.id)
     setShowAddForm(true)
+    // Load stores for this warehouse
+    loadWarehouseStores(warehouse.id)
   }
 
   const handleCancel = () => {
@@ -253,6 +338,7 @@ export default function WarehousesPage() {
     setEditingWarehouse(null)
     setCurrentWarehouseId(null)
     setShowStoreForm(false)
+    setWarehouseStores([])
     resetForm()
     resetStore()
   }
@@ -280,6 +366,11 @@ export default function WarehousesPage() {
         toast.success('Store created successfully')
         resetStore()
         setShowStoreForm(false)
+        // Reload stores list and warehouses
+        if (currentWarehouseId || editingWarehouse?.id) {
+          await loadWarehouseStores(currentWarehouseId || editingWarehouse!.id)
+        }
+        await loadWarehouses()
       } else {
         const errorData = await res.json()
         toast.error(errorData.message || 'Failed to create store')
@@ -306,6 +397,8 @@ export default function WarehousesPage() {
           const warehouse = responseData.warehouse || responseData
           if (warehouse.id) {
             setCurrentWarehouseId(warehouse.id)
+            // Reload stores for the updated warehouse
+            await loadWarehouseStores(warehouse.id)
           }
           toast.success('Warehouse updated successfully')
           await loadWarehouses()
@@ -328,6 +421,8 @@ export default function WarehousesPage() {
           const warehouse = responseData.warehouse || responseData
           if (warehouse.id) {
             setCurrentWarehouseId(warehouse.id)
+            // Load stores for the newly created warehouse (will be empty initially)
+            await loadWarehouseStores(warehouse.id)
           }
           toast.success('Warehouse created successfully')
           await loadWarehouses()
@@ -345,20 +440,49 @@ export default function WarehousesPage() {
     }
   }
 
-  const handleDeleteWarehouse = async (warehouse: WarehouseItem) => {
-    if (
-      !confirm(`Are you sure you want to delete ${warehouse.name}? This action cannot be undone.`)
-    ) {
-      return
+  const handleDeleteClick = async (warehouse: WarehouseItem) => {
+    // Fetch stores for this warehouse
+    try {
+      const storesRes = await fetch(`/api/stores?warehouseId=${warehouse.id}&limit=100`)
+      if (storesRes.ok) {
+        const storesData = await storesRes.json()
+        setStoresToDelete(storesData.stores || [])
+      }
+    } catch (error) {
+      console.error('Error fetching stores:', error)
     }
+    setWarehouseToDelete(warehouse)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDeleteWarehouse = async (deleteStores: boolean) => {
+    if (!warehouseToDelete) return
 
     try {
-      const res = await fetch(`/api/warehouses/${warehouse.id}`, {
+      // If there are stores and user wants to delete them, delete stores first
+      if (deleteStores && storesToDelete.length > 0) {
+        for (const store of storesToDelete) {
+          try {
+            await fetch(`/api/stores/${store.id}`, {
+              method: 'DELETE',
+            })
+          } catch (error) {
+            console.error(`Error deleting store ${store.id}:`, error)
+          }
+        }
+      }
+
+      // Delete warehouse
+      const res = await fetch(`/api/warehouses/${warehouseToDelete.id}`, {
         method: 'DELETE',
       })
 
       if (res.ok) {
-        toast.success('Warehouse deleted successfully')
+        toast.success(
+          deleteStores && storesToDelete.length > 0
+            ? 'Warehouse and stores deleted successfully'
+            : 'Warehouse deleted successfully'
+        )
         await loadWarehouses()
       } else {
         const data = await res.json()
@@ -367,6 +491,10 @@ export default function WarehousesPage() {
     } catch (error) {
       console.error('Error deleting warehouse:', error)
       toast.error('An error occurred while deleting the warehouse')
+    } finally {
+      setShowDeleteDialog(false)
+      setWarehouseToDelete(null)
+      setStoresToDelete([])
     }
   }
 
@@ -485,11 +613,14 @@ export default function WarehousesPage() {
               />
             </div>
 
-            {/* Quick Create Store Section */}
+            {/* Stores List Section */}
             {(editingWarehouse?.id || currentWarehouseId) && (
               <div className="border-t pt-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Stores</Label>
+                  <Label className="flex items-center gap-2">
+                    <Store className="h-4 w-4" />
+                    Stores ({warehouseStores.length})
+                  </Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -501,6 +632,31 @@ export default function WarehousesPage() {
                     {showStoreForm ? 'Hide' : 'Quick Create Store'}
                   </Button>
                 </div>
+
+                {/* Display existing stores */}
+                {loadingStores ? (
+                  <div className="text-sm text-muted-foreground py-2">Loading stores...</div>
+                ) : warehouseStores.length > 0 ? (
+                  <div className="space-y-2">
+                    {warehouseStores.map((store) => (
+                      <div
+                        key={store.id}
+                        className="flex items-center justify-between p-3 bg-muted rounded-lg text-sm"
+                      >
+                        <div className="flex-1">
+                          <div className="font-medium">{store.storeName}</div>
+                          <div className="text-muted-foreground text-xs">
+                            {store.zoneType} {store.countable ? '• Countable' : ''}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground py-2">
+                    No stores found for this warehouse
+                  </div>
+                )}
 
                 {showStoreForm && (
                   <div className="p-4 bg-muted rounded-lg space-y-4">
@@ -632,7 +788,7 @@ export default function WarehousesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteWarehouse(warehouse)}
+                            onClick={() => handleDeleteClick(warehouse)}
                             className="h-8 w-8 text-destructive hover:text-destructive"
                             title="Delete Warehouse"
                           >
@@ -643,6 +799,15 @@ export default function WarehousesPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
+                        {warehouse.storeCount !== undefined && (
+                          <div className="flex items-start gap-2">
+                            <span className="font-medium min-w-[60px]">Stores:</span>
+                            <span className="flex items-center gap-1">
+                              <Store className="h-3 w-3" />
+                              {warehouse.storeCount}
+                            </span>
+                          </div>
+                        )}
                         {warehouse.type && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[60px]">Type:</span>
@@ -752,6 +917,100 @@ export default function WarehousesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Warehouse
+            </DialogTitle>
+            <DialogDescription>
+              {warehouseToDelete && (
+                <>
+                  {storesToDelete.length > 0 ? (
+                    <div className="space-y-3 mt-2">
+                      <p>
+                        Are you sure you want to delete <strong>{warehouseToDelete.name}</strong>?
+                      </p>
+                      <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+                        <p className="text-sm font-medium text-destructive mb-2">
+                          ⚠️ Warning: This warehouse has {storesToDelete.length} store
+                          {storesToDelete.length !== 1 ? 's' : ''} attached to it.
+                        </p>
+                        <p className="text-sm">
+                          Do you want to delete the warehouse and all its stores? This action
+                          cannot be undone.
+                        </p>
+                        {storesToDelete.length > 0 && (
+                          <div className="mt-2 text-xs space-y-1">
+                            <p className="font-medium">Stores that will be deleted:</p>
+                            <ul className="list-disc list-inside space-y-0.5 max-h-32 overflow-y-auto">
+                              {storesToDelete.slice(0, 10).map((store) => (
+                                <li key={store.id}>{store.storeName}</li>
+                              ))}
+                              {storesToDelete.length > 10 && (
+                                <li className="text-muted-foreground">
+                                  ... and {storesToDelete.length - 10} more
+                                </li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p>
+                      Are you sure you want to delete <strong>{warehouseToDelete.name}</strong>? This
+                      action cannot be undone.
+                    </p>
+                  )}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false)
+                setWarehouseToDelete(null)
+                setStoresToDelete([])
+              }}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            {storesToDelete.length > 0 ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleDeleteWarehouse(false)}
+                  className="w-full sm:w-auto"
+                >
+                  Delete Warehouse Only
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => handleDeleteWarehouse(true)}
+                  className="w-full sm:w-auto"
+                >
+                  Delete Warehouse & Stores
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={() => handleDeleteWarehouse(false)}
+                className="w-full sm:w-auto"
+              >
+                Delete Warehouse
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

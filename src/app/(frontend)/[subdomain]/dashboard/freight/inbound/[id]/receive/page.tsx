@@ -271,7 +271,12 @@ export default function ReceiveStockPage() {
         </Button>
       </div>
 
-      <PutAwayDialog open={showPutAwayDialog} onOpenChange={setShowPutAwayDialog} jobId={job?.id} />
+      <PutAwayDialog 
+        open={showPutAwayDialog} 
+        onOpenChange={setShowPutAwayDialog} 
+        jobId={job?.id}
+        onComplete={handlePutAwayComplete}
+      />
     </div>
   )
 }

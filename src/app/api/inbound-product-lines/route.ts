@@ -16,10 +16,7 @@ export async function GET(request: NextRequest) {
     const depth = url.searchParams.get('depth') ? Number(url.searchParams.get('depth')) : 1
 
     if (!inboundInventoryId) {
-      return NextResponse.json(
-        { message: 'inboundInventoryId is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'inboundInventoryId is required' }, { status: 400 })
     }
 
     const inventoryId = parseInt(inboundInventoryId, 10)
@@ -33,7 +30,8 @@ export async function GET(request: NextRequest) {
       id: inventoryId,
     })
 
-    const inventoryTenantId = typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
+    const inventoryTenantId =
+      typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
     if (inventoryTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Inbound inventory not found' }, { status: 404 })
     }
@@ -56,10 +54,7 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error fetching product lines:', error)
-    return NextResponse.json(
-      { message: 'Failed to fetch product lines' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to fetch product lines' }, { status: 500 })
   }
 }
 
@@ -74,10 +69,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
 
     if (!body.inboundInventoryId) {
-      return NextResponse.json(
-        { message: 'inboundInventoryId is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ message: 'inboundInventoryId is required' }, { status: 400 })
     }
 
     const inventoryId = parseInt(body.inboundInventoryId, 10)
@@ -91,7 +83,8 @@ export async function POST(request: NextRequest) {
       id: inventoryId,
     })
 
-    const inventoryTenantId = typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
+    const inventoryTenantId =
+      typeof inventory.tenantId === 'object' ? inventory.tenantId.id : inventory.tenantId
     if (inventoryTenantId !== tenant.id) {
       return NextResponse.json({ message: 'Inbound inventory not found' }, { status: 404 })
     }
@@ -111,6 +104,9 @@ export async function POST(request: NextRequest) {
         weightPerHU: body.weightPerHU || undefined,
         expectedCubicPerHU: body.expectedCubicPerHU || undefined,
         recievedCubicPerHU: body.recievedCubicPerHU || undefined,
+        expiryDate: body.expiryDate || undefined,
+        attribute1: body.attribute1 || undefined,
+        attribute2: body.attribute2 || undefined,
       },
     })
 
@@ -120,10 +116,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error creating product line:', error)
-    return NextResponse.json(
-      { message: 'Failed to create product line' },
-      { status: 500 }
-    )
+    return NextResponse.json({ message: 'Failed to create product line' }, { status: 500 })
   }
 }
-

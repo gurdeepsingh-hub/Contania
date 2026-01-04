@@ -20,9 +20,6 @@ type SKU = {
   isExpriy?: boolean
   isAttribute1?: boolean
   isAttribute2?: boolean
-  expiryDate?: string
-  attribute1?: string
-  attribute2?: string
 }
 
 type ProductLine = {
@@ -174,9 +171,25 @@ export function ProductLineForm({
       setPalletSpaces(initialData.palletSpaces)
       setSqmPerSU(initialData.sqmPerSU)
       setExpectedCubicPerHU(initialData.expectedCubicPerHU)
-      setExpiryDate(initialData.expiryDate || '')
-      setAttribute1(initialData.attribute1 || '')
-      setAttribute2(initialData.attribute2 || '')
+
+      // Set expiry/attribute values in both local state and form state
+      const expiryValue = initialData.expiryDate
+        ? typeof initialData.expiryDate === 'string'
+          ? initialData.expiryDate.split('T')[0]
+          : new Date(initialData.expiryDate).toISOString().split('T')[0]
+        : ''
+      const attr1Value = initialData.attribute1 || ''
+      const attr2Value = initialData.attribute2 || ''
+
+      setExpiryDate(expiryValue)
+      setAttribute1(attr1Value)
+      setAttribute2(attr2Value)
+
+      // Also set form values
+      setValue('expiryDate', expiryValue)
+      setValue('attribute1', attr1Value)
+      setValue('attribute2', attr2Value)
+
       // Load SKU if we have skuId to get optional fields info
       if (initialData.skuId) {
         // Fetch SKU to check optional fields
@@ -186,25 +199,29 @@ export function ProductLineForm({
             if (data.success && data.sku) {
               const sku = data.sku as SKU
               setSelectedSku(sku)
-              // Set expiry/attributes if SKU has them and initialData doesn't
-              if (sku.isExpriy && sku.expiryDate && !initialData.expiryDate) {
-                setExpiryDate(sku.expiryDate)
-                setValue('expiryDate', sku.expiryDate)
+              // After SKU loads, ensure values are still set (they might have been cleared)
+              if (initialData.expiryDate && sku.isExpriy) {
+                const expiryValue =
+                  typeof initialData.expiryDate === 'string'
+                    ? initialData.expiryDate.split('T')[0]
+                    : new Date(initialData.expiryDate).toISOString().split('T')[0]
+                setExpiryDate(expiryValue)
+                setValue('expiryDate', expiryValue)
               }
-              if (sku.isAttribute1 && sku.attribute1 && !initialData.attribute1) {
-                setAttribute1(sku.attribute1)
-                setValue('attribute1', sku.attribute1)
+              if (initialData.attribute1 && sku.isAttribute1) {
+                setAttribute1(initialData.attribute1)
+                setValue('attribute1', initialData.attribute1)
               }
-              if (sku.isAttribute2 && sku.attribute2 && !initialData.attribute2) {
-                setAttribute2(sku.attribute2)
-                setValue('attribute2', sku.attribute2)
+              if (initialData.attribute2 && sku.isAttribute2) {
+                setAttribute2(initialData.attribute2)
+                setValue('attribute2', initialData.attribute2)
               }
             }
           })
           .catch((error) => console.error('Error fetching SKU:', error))
       }
     }
-  }, [initialData])
+  }, [initialData, setValue])
 
   useEffect(() => {
     // Auto-calculate pallet spaces when expectedQty or lpnQty changes
@@ -246,32 +263,63 @@ export function ProductLineForm({
           setLpnQty(sku.huPerSu?.toString() || '')
           setValue('weightPerHU', sku.weightPerHU_kg)
 
-          // Auto-populate expiry, attribute1, attribute2 if SKU has them enabled
-          if (sku.isExpriy && sku.expiryDate) {
-            // Format date for input (YYYY-MM-DD)
-            const dateStr =
-              typeof sku.expiryDate === 'string'
-                ? sku.expiryDate.split('T')[0]
-                : new Date(sku.expiryDate).toISOString().split('T')[0]
-            setExpiryDate(dateStr)
-            setValue('expiryDate', dateStr)
+          // Only clear expiry, attribute1, attribute2 fields when SKU changes if we're creating new
+          // If editing, preserve existing values from initialData (they're already set in useEffect)
+          // Only clear if we're creating new (no initialData) or if the new SKU doesn't support the field
+          if (!initialData) {
+            // Creating new - clear fields based on SKU checkbox settings
+            if (sku.isExpriy) {
+              // Field will be shown, but user needs to fill it
+              setExpiryDate('')
+              setValue('expiryDate', '')
+            } else {
+              setExpiryDate('')
+              setValue('expiryDate', '')
+            }
+            if (sku.isAttribute1) {
+              setAttribute1('')
+              setValue('attribute1', '')
+            } else {
+              setAttribute1('')
+              setValue('attribute1', '')
+            }
+            if (sku.isAttribute2) {
+              setAttribute2('')
+              setValue('attribute2', '')
+            } else {
+              setAttribute2('')
+              setValue('attribute2', '')
+            }
           } else {
-            setExpiryDate('')
-            setValue('expiryDate', '')
-          }
-          if (sku.isAttribute1 && sku.attribute1) {
-            setAttribute1(sku.attribute1)
-            setValue('attribute1', sku.attribute1)
-          } else {
-            setAttribute1('')
-            setValue('attribute1', '')
-          }
-          if (sku.isAttribute2 && sku.attribute2) {
-            setAttribute2(sku.attribute2)
-            setValue('attribute2', sku.attribute2)
-          } else {
-            setAttribute2('')
-            setValue('attribute2', '')
+            // Editing - preserve existing values if SKU supports them, otherwise clear
+            if (!sku.isExpriy && initialData.expiryDate) {
+              // SKU doesn't support expiry, but we have a value - clear it
+              setExpiryDate('')
+              setValue('expiryDate', '')
+            } else if (sku.isExpriy && initialData.expiryDate) {
+              // SKU supports expiry and we have a value - keep it (already set in useEffect)
+              // Format date for input if needed
+              const expiryValue =
+                typeof initialData.expiryDate === 'string'
+                  ? initialData.expiryDate.split('T')[0]
+                  : new Date(initialData.expiryDate).toISOString().split('T')[0]
+              setExpiryDate(expiryValue)
+              setValue('expiryDate', expiryValue)
+            }
+            if (!sku.isAttribute1 && initialData.attribute1) {
+              setAttribute1('')
+              setValue('attribute1', '')
+            } else if (sku.isAttribute1 && initialData.attribute1) {
+              setAttribute1(initialData.attribute1)
+              setValue('attribute1', initialData.attribute1)
+            }
+            if (!sku.isAttribute2 && initialData.attribute2) {
+              setAttribute2('')
+              setValue('attribute2', '')
+            } else if (sku.isAttribute2 && initialData.attribute2) {
+              setAttribute2(initialData.attribute2)
+              setValue('attribute2', initialData.attribute2)
+            }
           }
 
           // Auto-calculate cubic from SKU dimensions (length × width × height in m³)
@@ -355,6 +403,17 @@ export function ProductLineForm({
   }
 
   const onSubmit = async (data: ProductLineFormData) => {
+    // Get values from form data, handling empty strings
+    const expiryValue = selectedSku?.isExpriy
+      ? data.expiryDate?.trim() || expiryDate?.trim() || undefined
+      : undefined
+    const attr1Value = selectedSku?.isAttribute1
+      ? data.attribute1?.trim() || attribute1?.trim() || undefined
+      : undefined
+    const attr2Value = selectedSku?.isAttribute2
+      ? data.attribute2?.trim() || attribute2?.trim() || undefined
+      : undefined
+
     await onSave({
       ...data,
       skuDescription,
@@ -362,9 +421,9 @@ export function ProductLineForm({
       palletSpaces,
       sqmPerSU,
       expectedCubicPerHU,
-      expiryDate: selectedSku?.isExpriy ? data.expiryDate : undefined,
-      attribute1: selectedSku?.isAttribute1 ? data.attribute1 : undefined,
-      attribute2: selectedSku?.isAttribute2 ? data.attribute2 : undefined,
+      expiryDate: expiryValue,
+      attribute1: attr1Value,
+      attribute2: attr2Value,
     } as ProductLine)
   }
 
@@ -486,23 +545,42 @@ export function ProductLineForm({
         />
       </div>
 
-      {/* Optional fields from SKU - only show if SKU has them enabled, auto-populated and non-editable */}
+      {/* Optional fields from SKU - only show if SKU has them enabled, user fills the values */}
       {selectedSku?.isExpriy && (
         <FormInput
           label="Expiry Date"
           type="date"
           value={expiryDate}
-          readOnly
-          className="bg-muted"
+          onChange={(e) => {
+            setExpiryDate(e.target.value)
+            setValue('expiryDate', e.target.value)
+          }}
+          error={errors.expiryDate?.message}
         />
       )}
 
       {selectedSku?.isAttribute1 && (
-        <FormTextarea label="Attribute 1" value={attribute1} readOnly className="bg-muted" />
+        <FormTextarea
+          label="Attribute 1"
+          value={attribute1}
+          onChange={(e) => {
+            setAttribute1(e.target.value)
+            setValue('attribute1', e.target.value)
+          }}
+          error={errors.attribute1?.message}
+        />
       )}
 
       {selectedSku?.isAttribute2 && (
-        <FormTextarea label="Attribute 2" value={attribute2} readOnly className="bg-muted" />
+        <FormTextarea
+          label="Attribute 2"
+          value={attribute2}
+          onChange={(e) => {
+            setAttribute2(e.target.value)
+            setValue('attribute2', e.target.value)
+          }}
+          error={errors.attribute2?.message}
+        />
       )}
 
       <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t">

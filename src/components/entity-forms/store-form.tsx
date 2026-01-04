@@ -82,6 +82,26 @@ export function StoreForm({ initialData, onSuccess, onCancel, mode = 'create' }:
     fetchWarehouses()
   }, [])
 
+  // Reset form when initialData changes or warehouses are loaded
+  useEffect(() => {
+    if (warehouses.length > 0) {
+      const warehouseIdValue = initialData?.warehouseId
+        ? typeof initialData.warehouseId === 'object'
+          ? String(initialData.warehouseId.id)
+          : String(initialData.warehouseId)
+        : warehouses.length === 1
+          ? String(warehouses[0].id)
+          : ''
+      
+      reset({
+        warehouseId: warehouseIdValue,
+        storeName: initialData?.storeName || '',
+        countable: initialData?.countable || false,
+        zoneType: initialData?.zoneType || undefined,
+      })
+    }
+  }, [initialData, warehouses, reset])
+
   const onSubmit = async (data: StoreFormData) => {
     try {
       const url =
