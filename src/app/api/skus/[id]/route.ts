@@ -42,9 +42,109 @@ export async function GET(
       )
     }
 
+    // Normalize polymorphic customerId relationship to include collection information
+    const normalizedSku = { ...sku } as any
+    if (normalizedSku.customerId) {
+      let collection: string | undefined
+      let customerId: number | undefined
+      let customerName: string | undefined
+
+      if (typeof normalizedSku.customerId === 'object' && normalizedSku.customerId !== null) {
+        if ('relationTo' in normalizedSku.customerId && 'value' in normalizedSku.customerId) {
+          collection = normalizedSku.customerId.relationTo
+          customerId = normalizedSku.customerId.value
+        } else if ('relationTo' in normalizedSku.customerId && 'id' in normalizedSku.customerId) {
+          collection = normalizedSku.customerId.relationTo
+          customerId = normalizedSku.customerId.id
+          customerName = normalizedSku.customerId.customer_name
+        } else if ('id' in normalizedSku.customerId && !('relationTo' in normalizedSku.customerId)) {
+          customerId = normalizedSku.customerId.id
+          customerName = normalizedSku.customerId.customer_name
+          
+          // Try both collections to determine which one
+          try {
+            const testCustomer = await payload.findByID({
+              collection: 'customers',
+              id: customerId,
+              depth: 0,
+            })
+            const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+              ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+              : (testCustomer as { tenantId?: number }).tenantId
+            if (testTenantId === tenant.id) {
+              collection = 'customers'
+            }
+          } catch {
+            try {
+              const testCustomer = await payload.findByID({
+                collection: 'paying-customers',
+                id: customerId,
+                depth: 0,
+              })
+              const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+                ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                : (testCustomer as { tenantId?: number }).tenantId
+              if (testTenantId === tenant.id) {
+                collection = 'paying-customers'
+              }
+            } catch {
+              // Couldn't determine collection
+            }
+          }
+        }
+      } else if (typeof normalizedSku.customerId === 'number') {
+        customerId = normalizedSku.customerId
+        try {
+          const testCustomer = await payload.findByID({
+            collection: 'customers',
+            id: customerId,
+            depth: 0,
+          })
+          const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+            ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+            : (testCustomer as { tenantId?: number }).tenantId
+          if (testTenantId === tenant.id) {
+            collection = 'customers'
+          }
+        } catch {
+          try {
+            const testCustomer = await payload.findByID({
+              collection: 'paying-customers',
+              id: customerId,
+              depth: 0,
+            })
+            const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+              ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+              : (testCustomer as { tenantId?: number }).tenantId
+            if (testTenantId === tenant.id) {
+              collection = 'paying-customers'
+            }
+          } catch {
+            // Couldn't determine collection
+          }
+        }
+      }
+
+      if (collection && customerId !== undefined) {
+        if (typeof normalizedSku.customerId === 'object' && normalizedSku.customerId !== null) {
+          normalizedSku.customerId.relationTo = collection
+          normalizedSku.customerId.collection = collection
+          if (customerName && !normalizedSku.customerId.customer_name) {
+            normalizedSku.customerId.customer_name = customerName
+          }
+        } else {
+          normalizedSku.customerId = {
+            id: customerId,
+            relationTo: collection,
+            collection: collection,
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      sku,
+      sku: normalizedSku,
     })
   } catch (error) {
     console.error('Error fetching SKU:', error)
@@ -92,20 +192,84 @@ export async function PATCH(
       )
     }
 
-    // Verify relationships belong to tenant if they're being updated
-    if (body.customerId !== undefined && body.customerId !== null) {
-      const customer = await payload.findByID({
-        collection: 'customers',
-        id: Number(body.customerId),
-      })
-      const customerTenantId = typeof (customer as { tenantId?: number | { id: number } }).tenantId === 'object'
-        ? (customer as { tenantId: { id: number } }).tenantId.id
-        : (customer as { tenantId?: number }).tenantId
-      if (customerTenantId !== tenant.id) {
-        return NextResponse.json(
-          { message: 'Customer does not belong to this tenant' },
-          { status: 400 }
-        )
+    // Verify relationships belong to tenant and format for Payload
+    let formattedCustomerId: any = undefined
+    if (body.customerId !== undefined && body.customerId !== null && body.customerId !== '') {
+      let customer: any = null
+      let customerCollection = 'customers'
+      
+      // Handle polymorphic relationship format: "collection:id" or { relationTo, value } or just id
+      if (typeof body.customerId === 'string' && body.customerId.includes(':')) {
+        const [collection, idStr] = body.customerId.split(':')
+        customerCollection = collection
+        const customerIdNum = parseInt(idStr, 10)
+        formattedCustomerId = { relationTo: collection, value: customerIdNum }
+        
+        // Verify customer exists and belongs to tenant
+        try {
+          customer = await payload.findByID({
+            collection: customerCollection,
+            id: customerIdNum,
+          })
+        } catch {
+          return NextResponse.json(
+            { message: 'Customer not found' },
+            { status: 400 }
+          )
+        }
+      } else if (typeof body.customerId === 'object' && body.customerId !== null && 'relationTo' in body.customerId) {
+        customerCollection = (body.customerId as any).relationTo
+        formattedCustomerId = body.customerId
+        
+        const customerIdNum = (body.customerId as any).value || (body.customerId as any).id
+        try {
+          customer = await payload.findByID({
+            collection: customerCollection,
+            id: customerIdNum,
+          })
+        } catch {
+          return NextResponse.json(
+            { message: 'Customer not found' },
+            { status: 400 }
+          )
+        }
+      } else if (typeof body.customerId === 'number' || (typeof body.customerId === 'string' && !isNaN(Number(body.customerId)))) {
+        // Try customers first, then paying-customers
+        const idNum = Number(body.customerId)
+        try {
+          customer = await payload.findByID({
+            collection: 'customers',
+            id: idNum,
+          })
+          customerCollection = 'customers'
+          formattedCustomerId = { relationTo: 'customers', value: idNum }
+        } catch {
+          try {
+            customer = await payload.findByID({
+              collection: 'paying-customers',
+              id: idNum,
+            })
+            customerCollection = 'paying-customers'
+            formattedCustomerId = { relationTo: 'paying-customers', value: idNum }
+          } catch {
+            return NextResponse.json(
+              { message: 'Customer not found' },
+              { status: 400 }
+            )
+          }
+        }
+      }
+      
+      if (customer) {
+        const customerTenantId = typeof (customer as { tenantId?: number | { id: number } }).tenantId === 'object'
+          ? (customer as { tenantId: { id: number } }).tenantId.id
+          : (customer as { tenantId?: number }).tenantId
+        if (customerTenantId !== tenant.id) {
+          return NextResponse.json(
+            { message: 'Customer does not belong to this tenant' },
+            { status: 400 }
+          )
+        }
       }
     }
 
@@ -144,8 +308,18 @@ export async function PATCH(
     // Prepare update data
     const updateData: Record<string, unknown> = {}
     if (body.skuCode !== undefined) updateData.skuCode = body.skuCode
-    if (body.description !== undefined) updateData.description = body.description || undefined
-    if (body.customerId !== undefined) updateData.customerId = body.customerId ? Number(body.customerId) : undefined
+    if (body.description !== undefined) {
+      if (!body.description || body.description.trim() === '') {
+        return NextResponse.json(
+          { message: 'Description is required' },
+          { status: 400 }
+        )
+      }
+      updateData.description = body.description
+    }
+    if (body.customerId !== undefined) {
+      updateData.customerId = formattedCustomerId !== undefined ? formattedCustomerId : undefined
+    }
     if (body.storageUnitId !== undefined) updateData.storageUnitId = body.storageUnitId ? Number(body.storageUnitId) : undefined
     if (body.handlingUnitId !== undefined) updateData.handlingUnitId = body.handlingUnitId ? Number(body.handlingUnitId) : undefined
     if (body.huPerSu !== undefined) updateData.huPerSu = body.huPerSu !== null ? Number(body.huPerSu) : undefined

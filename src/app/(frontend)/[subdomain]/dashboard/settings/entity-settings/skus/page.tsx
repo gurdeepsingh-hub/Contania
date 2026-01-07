@@ -39,7 +39,7 @@ type SKU = {
   id: number
   skuCode: string
   description?: string
-  customerId?: number | { id: number; customer_name?: string }
+  customerId?: number | { id: number; customer_name?: string; relationTo?: string; collection?: string }
   storageUnitId?: number | { id: number; name?: string; palletSpaces?: number }
   handlingUnitId?: number | { id: number; name?: string }
   palletSpacesOfStorageUnit?: number
@@ -63,6 +63,13 @@ type SKU = {
 type Customer = {
   id: number
   customer_name: string
+  collection?: 'customers' | 'paying-customers'
+}
+
+type UnifiedCustomer = {
+  id: number
+  customer_name: string
+  collection: 'customers' | 'paying-customers'
 }
 
 type StorageUnit = {
@@ -298,7 +305,7 @@ export default function SKUsPage() {
 
   const skuSchema = z.object({
     skuCode: z.string().min(1, 'SKU code is required'),
-    description: z.string().optional(),
+    description: z.string().min(1, 'Description is required'),
     customerId: z.string().optional(),
     storageUnitId: z.string().min(1, 'Storage Unit is required'),
     handlingUnitId: z.string().min(1, 'Handling Unit is required'),
@@ -575,18 +582,40 @@ export default function SKUsPage() {
   const loadRelations = async () => {
     try {
       setLoadingRelations(true)
-      const [customersRes, storageRes, handlingRes] = await Promise.all([
+      const [customersRes, payingCustomersRes, storageRes, handlingRes] = await Promise.all([
         fetch('/api/customers'),
+        fetch('/api/paying-customers'),
         fetch('/api/storage-units'),
         fetch('/api/handling-units'),
       ])
 
+      const unifiedCustomers: UnifiedCustomer[] = []
+
       if (customersRes.ok) {
         const data = await customersRes.json()
         if (data.success && data.customers) {
-          setCustomers(data.customers)
+          unifiedCustomers.push(
+            ...data.customers.map((c: Customer) => ({
+              ...c,
+              collection: 'customers' as const,
+            }))
+          )
         }
       }
+
+      if (payingCustomersRes.ok) {
+        const data = await payingCustomersRes.json()
+        if (data.success && data.payingCustomers) {
+          unifiedCustomers.push(
+            ...data.payingCustomers.map((c: Customer) => ({
+              ...c,
+              collection: 'paying-customers' as const,
+            }))
+          )
+        }
+      }
+
+      setCustomers(unifiedCustomers)
       if (storageRes.ok) {
         const data = await storageRes.json()
         if (data.success && data.storageUnits) {
@@ -774,7 +803,7 @@ export default function SKUsPage() {
   const resetForm = () => {
     reset({
       skuCode: '',
-      description: '',
+      description: '', // Now required
       customerId: '',
       storageUnitId: '',
       handlingUnitId: '',
@@ -804,12 +833,37 @@ export default function SKUsPage() {
   }
 
   const handleEditSku = (sku: SKU) => {
-    const customerId =
-      typeof sku.customerId === 'object' && sku.customerId && 'id' in sku.customerId
-        ? String(sku.customerId.id)
-        : sku.customerId
-          ? String(sku.customerId)
-          : ''
+    let customerId = ''
+    if (sku.customerId) {
+      // Handle polymorphic relationship - Payload returns different formats
+      if (typeof sku.customerId === 'object' && sku.customerId !== null) {
+        const customerObj = sku.customerId as { id: number; relationTo?: string; collection?: string; customer_name?: string }
+        // Check if it has relationTo (polymorphic relationship metadata)
+        const collection = customerObj.relationTo || customerObj.collection
+        if (collection && customerObj.id) {
+          customerId = `${collection}:${customerObj.id}`
+        } else if (customerObj.id) {
+          // No relationTo in object, try to find in customers list
+          const customer = customers.find(c => c.id === customerObj.id)
+          if (customer) {
+            customerId = `${customer.collection}:${customer.id}`
+          } else {
+            // Default to customers if not found
+            customerId = `customers:${customerObj.id}`
+          }
+        }
+      } else {
+        // It's just a number - try to find which collection it belongs to
+        const id = typeof sku.customerId === 'number' ? sku.customerId : Number(sku.customerId)
+        const customer = customers.find(c => c.id === id)
+        if (customer) {
+          customerId = `${customer.collection}:${customer.id}`
+        } else if (!isNaN(id)) {
+          // Default to customers if not found
+          customerId = `customers:${id}`
+        }
+      }
+    }
 
     const storageUnitId =
       typeof sku.storageUnitId === 'object' && sku.storageUnitId && 'id' in sku.storageUnitId
@@ -859,10 +913,28 @@ export default function SKUsPage() {
 
   const onSubmit = async (data: SKUFormData) => {
     try {
+      // Handle customerId - it might be in "collection:id" format
+      let customerId: string | { relationTo: string; value: number } | undefined = undefined
+      if (data.customerId && data.customerId.trim() !== '') {
+        if (data.customerId.includes(':')) {
+          // Format: "collection:id" - pass it as string to API, API will parse it
+          customerId = data.customerId
+        } else {
+          // Old format: just the ID - try to determine collection from customers list
+          const id = Number(data.customerId)
+          const customer = customers.find(c => c.id === id)
+          if (customer) {
+            customerId = `${customer.collection}:${customer.id}`
+          } else {
+            customerId = data.customerId
+          }
+        }
+      }
+
       const submitData: Record<string, unknown> = {
         skuCode: data.skuCode,
-        description: data.description || undefined,
-        customerId: data.customerId ? Number(data.customerId) : undefined,
+        description: data.description,
+        customerId: customerId,
         storageUnitId: Number(data.storageUnitId),
         handlingUnitId: Number(data.handlingUnitId),
         huPerSu: data.huPerSu ? Number(data.huPerSu) : undefined,
@@ -948,15 +1020,64 @@ export default function SKUsPage() {
     }
   }
 
-  const getCustomerName = (customerId?: number | { id: number; customer_name?: string }) => {
+  const getCustomerName = (customerId?: number | { id: number; customer_name?: string; relationTo?: string; collection?: string } | string) => {
     if (!customerId) return 'N/A'
-    if (typeof customerId === 'object' && customerId && 'customer_name' in customerId) {
-      return customerId.customer_name
+    
+    // Handle object with customer_name (populated from API with depth)
+    if (typeof customerId === 'object' && customerId !== null && 'customer_name' in customerId) {
+      return customerId.customer_name || 'N/A'
     }
-    const customer = customers.find(
-      (c) => c.id === (typeof customerId === 'object' ? customerId.id : customerId),
-    )
-    return customer?.customer_name || 'N/A'
+    
+    // Handle object with id and relationTo (polymorphic relationship format from Payload)
+    if (typeof customerId === 'object' && customerId !== null && 'id' in customerId) {
+      const customerObj = customerId as { id: number; relationTo?: string; collection?: string; customer_name?: string }
+      const collection = customerObj.relationTo || customerObj.collection
+      
+      // If we have customer_name, use it (populated)
+      if (customerObj.customer_name) {
+        return customerObj.customer_name
+      }
+      
+      // Otherwise, look it up in our customers list
+      if (collection) {
+        const customer = customers.find(c => c.id === customerObj.id && c.collection === collection)
+        if (customer) {
+          return customer.customer_name
+        }
+      } else {
+        // No collection info, try to find by ID in any collection
+        const customer = customers.find(c => c.id === customerObj.id)
+        if (customer) {
+          return customer.customer_name
+        }
+      }
+      
+      return 'N/A'
+    }
+    
+    // Handle "collection:id" format (string)
+    if (typeof customerId === 'string' && customerId.includes(':')) {
+      const [collection, idStr] = customerId.split(':')
+      const id = parseInt(idStr, 10)
+      if (!isNaN(id)) {
+        const customer = customers.find(c => c.id === id && c.collection === collection)
+        if (customer) {
+          return customer.customer_name
+        }
+      }
+      return 'N/A'
+    }
+    
+    // Handle number ID - try to find in customers list
+    const id = typeof customerId === 'number' ? customerId : Number(customerId)
+    if (!isNaN(id)) {
+      const customer = customers.find(c => c.id === id)
+      if (customer) {
+        return customer.customer_name
+      }
+    }
+    
+    return 'N/A'
   }
 
   const getStorageUnitName = (storageUnitId?: number | { id: number; name?: string }) => {
@@ -1110,7 +1231,10 @@ export default function SKUsPage() {
                 <FormSelect
                   label=""
                   placeholder="Select customer"
-                  options={customers.map((c) => ({ value: String(c.id), label: c.customer_name }))}
+                  options={customers.map((c) => ({ 
+                    value: `${c.collection}:${c.id}`, 
+                    label: `${c.customer_name} (${c.collection === 'customers' ? 'Consignor/Consignee' : 'Customer'})` 
+                  }))}
                   error={errors.customerId?.message}
                   {...register('customerId')}
                   containerClassName="mb-0"

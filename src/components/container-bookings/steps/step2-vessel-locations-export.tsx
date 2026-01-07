@@ -67,7 +67,8 @@ type Wharf = {
 
 type ContainerSize = {
   id: number
-  size: string
+  size: number
+  attribute?: string
   code?: string
   description?: string
 }
@@ -704,7 +705,7 @@ export function Step2VesselLocationsExport({
                     }
                   }}
                 >
-                  {size.size} {size.code && `(${size.code})`}
+                  {size.size}{size.attribute ? ` ${size.attribute}` : ''}
                 </Button>
               )
             })}
@@ -722,7 +723,7 @@ export function Step2VesselLocationsExport({
               {selectedSizes.map((size) => (
                 <FormInput
                   key={size.id}
-                  label={`${size.size} ${size.code ? `(${size.code})` : ''} Quantity`}
+                  label={`${size.size}${size.attribute ? ` ${size.attribute}` : ''} Quantity`}
                   type="number"
                   min="1"
                   required

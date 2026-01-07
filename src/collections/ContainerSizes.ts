@@ -72,10 +72,10 @@ export const ContainerSizes: CollectionConfig = {
     },
     {
       name: 'size',
-      type: 'text',
+      type: 'number',
       required: true,
       admin: {
-        description: 'Container size (e.g., "20ft", "40ft")',
+        description: 'Container size (e.g., 20, 40)',
       },
     },
     {

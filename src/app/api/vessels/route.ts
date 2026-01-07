@@ -98,9 +98,9 @@ export async function POST(request: NextRequest) {
     const { payload, tenant } = context
     const body = await request.json()
 
-    if (!body.vesselName || !body.jobType) {
+    if (!body.vesselName || !body.jobType || !body.voyageNumber) {
       return NextResponse.json(
-        { message: 'Vessel name and job type are required' },
+        { message: 'Vessel name, voyage number, and job type are required' },
         { status: 400 }
       )
     }
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     const vesselData: Record<string, unknown> = {
       tenantId: tenant.id,
       vesselName: body.vesselName,
-      voyageNumber: body.voyageNumber || undefined,
+      voyageNumber: body.voyageNumber,
       lloydsNumber: body.lloydsNumber || undefined,
       wharfId: body.wharfId || undefined,
       jobType: body.jobType,

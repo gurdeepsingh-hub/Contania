@@ -19,7 +19,7 @@ import { WharfForm } from './wharf-form'
 
 const vesselSchema = z.object({
   vesselName: z.string().min(1, 'Vessel name is required'),
-  voyageNumber: z.string().optional(),
+  voyageNumber: z.string().min(1, 'Voyage number is required'),
   lloydsNumber: z.string().optional(),
   wharfId: z.number().optional(),
   jobType: z.enum(['import', 'export']),
@@ -139,9 +139,10 @@ interface VesselFormProps {
   onSuccess: (vessel: Vessel) => void
   onCancel: () => void
   mode?: 'create' | 'edit'
+  jobType?: 'import' | 'export'
 }
 
-export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }: VesselFormProps) {
+export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create', jobType: propJobType }: VesselFormProps) {
   const [wharves, setWharves] = useState<Wharf[]>([])
   const [showWharfModal, setShowWharfModal] = useState(false)
 
@@ -179,7 +180,7 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }
         typeof initialData?.wharfId === 'object'
           ? initialData.wharfId.id
           : initialData?.wharfId || undefined,
-      jobType: initialData?.jobType || 'import',
+      jobType: initialData?.jobType || propJobType || 'import',
       eta: formatDateForInput(initialData?.eta),
       availability: formatDateForInput(initialData?.availability),
       storageStart: formatDateForInput(initialData?.storageStart),
@@ -202,7 +203,7 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }
           typeof initialData.wharfId === 'object'
             ? initialData.wharfId.id
             : initialData.wharfId || undefined,
-        jobType: initialData.jobType || 'import',
+        jobType: initialData.jobType || propJobType || 'import',
         eta: formatDateForInput(initialData.eta),
         availability: formatDateForInput(initialData.availability),
         storageStart: formatDateForInput(initialData.storageStart),
@@ -219,7 +220,7 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }
         voyageNumber: '',
         lloydsNumber: '',
         wharfId: undefined,
-        jobType: 'import',
+        jobType: propJobType || 'import',
         eta: '',
         availability: '',
         storageStart: '',
@@ -255,8 +256,10 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }
       const method = initialData?.id ? 'PATCH' : 'POST'
 
       // Convert datetime-local strings back to date strings for API
+      // Ensure jobType is always included (from form data, prop, or initialData)
       const apiData = {
         ...data,
+        jobType: data.jobType || propJobType || initialData?.jobType || 'import',
         eta: formatDateForAPI(data.eta),
         availability: formatDateForAPI(data.availability),
         storageStart: formatDateForAPI(data.storageStart),
@@ -302,6 +305,7 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }
           />
           <FormInput
             label="Voyage Number"
+            required
             error={errors.voyageNumber?.message}
             placeholder="Voyage number"
             {...register('voyageNumber')}
@@ -338,16 +342,6 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create' }
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <FormSelect
-            label="Job Type"
-            required
-            error={errors.jobType?.message}
-            options={[
-              { value: 'import', label: 'Import' },
-              { value: 'export', label: 'Export' },
-            ]}
-            {...register('jobType')}
-          />
         </div>
 
         {jobType === 'import' && (

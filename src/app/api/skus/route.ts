@@ -65,9 +65,128 @@ export async function GET(request: NextRequest) {
       sort: sortField,
     })
 
+    // Normalize polymorphic customerId relationships to include collection information
+    // Payload doesn't always include relationTo in populated relationships
+    const normalizedSkus = await Promise.all(
+      skusResult.docs.map(async (sku: any) => {
+        if (sku.customerId) {
+          let collection: string | undefined
+          let customerId: number | undefined
+          let customerName: string | undefined
+
+          // Handle different formats Payload might return
+          if (typeof sku.customerId === 'object' && sku.customerId !== null) {
+            // Check if it has relationTo (unpopulated format: { relationTo, value })
+            if ('relationTo' in sku.customerId && 'value' in sku.customerId) {
+              collection = sku.customerId.relationTo
+              customerId = sku.customerId.value
+            } 
+            // Check if it has relationTo and id (another format)
+            else if ('relationTo' in sku.customerId && 'id' in sku.customerId) {
+              collection = sku.customerId.relationTo
+              customerId = sku.customerId.id
+              customerName = sku.customerId.customer_name
+            }
+            // Populated format - has id and customer_name but no relationTo
+            else if ('id' in sku.customerId && !('relationTo' in sku.customerId)) {
+              customerId = sku.customerId.id
+              customerName = sku.customerId.customer_name
+              
+              // Try both collections to determine which one this belongs to
+              try {
+                const testCustomer = await payload.findByID({
+                  collection: 'customers',
+                  id: customerId,
+                  depth: 0,
+                })
+                // Verify it's from this tenant
+                const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+                  ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                  : (testCustomer as { tenantId?: number }).tenantId
+                if (testTenantId === tenant.id) {
+                  collection = 'customers'
+                }
+              } catch {
+                try {
+                  const testCustomer = await payload.findByID({
+                    collection: 'paying-customers',
+                    id: customerId,
+                    depth: 0,
+                  })
+                  // Verify it's from this tenant
+                  const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+                    ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                    : (testCustomer as { tenantId?: number }).tenantId
+                  if (testTenantId === tenant.id) {
+                    collection = 'paying-customers'
+                  }
+                } catch {
+                  // Couldn't determine collection - keep original format
+                }
+              }
+            }
+          } else if (typeof sku.customerId === 'number') {
+            customerId = sku.customerId
+            // Try both collections to find which one it belongs to
+            try {
+              const testCustomer = await payload.findByID({
+                collection: 'customers',
+                id: customerId,
+                depth: 0,
+              })
+              // Verify it's from this tenant
+              const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+                ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                : (testCustomer as { tenantId?: number }).tenantId
+              if (testTenantId === tenant.id) {
+                collection = 'customers'
+              }
+            } catch {
+              try {
+                const testCustomer = await payload.findByID({
+                  collection: 'paying-customers',
+                  id: customerId,
+                  depth: 0,
+                })
+                // Verify it's from this tenant
+                const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+                  ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                  : (testCustomer as { tenantId?: number }).tenantId
+                if (testTenantId === tenant.id) {
+                  collection = 'paying-customers'
+                }
+              } catch {
+                // Couldn't determine collection
+              }
+            }
+          }
+
+          // If we found the collection, ensure customerId has relationTo/collection info
+          if (collection && customerId !== undefined) {
+            if (typeof sku.customerId === 'object' && sku.customerId !== null) {
+              sku.customerId.relationTo = collection
+              sku.customerId.collection = collection
+              // Preserve customer_name if it exists
+              if (customerName && !sku.customerId.customer_name) {
+                sku.customerId.customer_name = customerName
+              }
+            } else {
+              // Convert number to object format with collection info
+              sku.customerId = {
+                id: customerId,
+                relationTo: collection,
+                collection: collection,
+              }
+            }
+          }
+        }
+        return sku
+      })
+    )
+
     return NextResponse.json({
       success: true,
-      skus: skusResult.docs,
+      skus: normalizedSkus,
       totalDocs: skusResult.totalDocs,
       limit: skusResult.limit,
       totalPages: skusResult.totalPages,
@@ -102,6 +221,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!body.description) {
+      return NextResponse.json(
+        { message: 'Description is required' },
+        { status: 400 }
+      )
+    }
+
     if (!body.storageUnitId) {
       return NextResponse.json(
         { message: 'Storage unit is required' },
@@ -116,20 +242,84 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify relationships belong to tenant
+    // Verify relationships belong to tenant and format for Payload
+    let formattedCustomerId: any = undefined
     if (body.customerId) {
-      const customer = await payload.findByID({
-        collection: 'customers',
-        id: Number(body.customerId),
-      })
-      const customerTenantId = typeof (customer as { tenantId?: number | { id: number } }).tenantId === 'object'
-        ? (customer as { tenantId: { id: number } }).tenantId.id
-        : (customer as { tenantId?: number }).tenantId
-      if (customerTenantId !== tenant.id) {
-        return NextResponse.json(
-          { message: 'Customer does not belong to this tenant' },
-          { status: 400 }
-        )
+      let customer: any = null
+      let customerCollection = 'customers'
+      
+      // Handle polymorphic relationship format: "collection:id" or { relationTo, value } or just id
+      if (typeof body.customerId === 'string' && body.customerId.includes(':')) {
+        const [collection, idStr] = body.customerId.split(':')
+        customerCollection = collection
+        const customerIdNum = parseInt(idStr, 10)
+        formattedCustomerId = { relationTo: collection, value: customerIdNum }
+        
+        // Verify customer exists and belongs to tenant
+        try {
+          customer = await payload.findByID({
+            collection: customerCollection,
+            id: customerIdNum,
+          })
+        } catch {
+          return NextResponse.json(
+            { message: 'Customer not found' },
+            { status: 400 }
+          )
+        }
+      } else if (typeof body.customerId === 'object' && body.customerId !== null && 'relationTo' in body.customerId) {
+        customerCollection = (body.customerId as any).relationTo
+        formattedCustomerId = body.customerId
+        
+        const customerIdNum = (body.customerId as any).value || (body.customerId as any).id
+        try {
+          customer = await payload.findByID({
+            collection: customerCollection,
+            id: customerIdNum,
+          })
+        } catch {
+          return NextResponse.json(
+            { message: 'Customer not found' },
+            { status: 400 }
+          )
+        }
+      } else if (typeof body.customerId === 'number' || (typeof body.customerId === 'string' && !isNaN(Number(body.customerId)))) {
+        // Try customers first, then paying-customers
+        const idNum = Number(body.customerId)
+        try {
+          customer = await payload.findByID({
+            collection: 'customers',
+            id: idNum,
+          })
+          customerCollection = 'customers'
+          formattedCustomerId = { relationTo: 'customers', value: idNum }
+        } catch {
+          try {
+            customer = await payload.findByID({
+              collection: 'paying-customers',
+              id: idNum,
+            })
+            customerCollection = 'paying-customers'
+            formattedCustomerId = { relationTo: 'paying-customers', value: idNum }
+          } catch {
+            return NextResponse.json(
+              { message: 'Customer not found' },
+              { status: 400 }
+            )
+          }
+        }
+      }
+      
+      if (customer) {
+        const customerTenantId = typeof (customer as { tenantId?: number | { id: number } }).tenantId === 'object'
+          ? (customer as { tenantId: { id: number } }).tenantId.id
+          : (customer as { tenantId?: number }).tenantId
+        if (customerTenantId !== tenant.id) {
+          return NextResponse.json(
+            { message: 'Customer does not belong to this tenant' },
+            { status: 400 }
+          )
+        }
       }
     }
 
@@ -170,8 +360,8 @@ export async function POST(request: NextRequest) {
       data: {
         tenantId: tenant.id,
         skuCode: body.skuCode,
-        description: body.description || undefined,
-        customerId: body.customerId ? Number(body.customerId) : undefined,
+        description: body.description,
+        customerId: formattedCustomerId,
         storageUnitId: Number(body.storageUnitId),
         handlingUnitId: Number(body.handlingUnitId),
         palletSpacesOfStorageUnit: palletSpaces || undefined,

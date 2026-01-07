@@ -81,6 +81,7 @@ export const Vessels: CollectionConfig = {
     {
       name: 'voyageNumber',
       type: 'text',
+      required: true,
       admin: {
         description: 'Voyage number',
       },

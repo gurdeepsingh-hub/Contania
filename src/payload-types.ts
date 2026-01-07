@@ -760,11 +760,19 @@ export interface Skus {
   /**
    * Detailed product description
    */
-  description?: string | null;
+  description: string;
   /**
-   * Customer who owns or is linked to this SKU
+   * Customer who owns or is linked to this SKU (from consignor/consignee or paying customers)
    */
-  customerId?: (number | null) | Customer;
+  customerId?:
+    | ({
+        relationTo: 'customers';
+        value: number | Customer;
+      } | null)
+    | ({
+        relationTo: 'paying-customers';
+        value: number | PayingCustomer;
+      } | null);
   /**
    * Default storage unit (SU) for SKU, mandatory, eg: pallet
    */
@@ -1845,7 +1853,7 @@ export interface Vessel {
   /**
    * Voyage number
    */
-  voyageNumber?: string | null;
+  voyageNumber: string;
   /**
    * Lloyds number
    */
@@ -1998,9 +2006,9 @@ export interface ContainerSize {
    */
   tenantId: number | Tenant;
   /**
-   * Container size (e.g., "20ft", "40ft")
+   * Container size (e.g., 20, 40)
    */
-  size: string;
+  size: number;
   /**
    * Description of container size
    */

@@ -54,7 +54,8 @@ type Wharf = {
 
 type ContainerSize = {
   id: number
-  size: string
+  size: number
+  attribute?: string
   code?: string
   description?: string
 }
@@ -465,7 +466,7 @@ export function Step3Locations({ formData, onUpdate, errors }: Step3LocationsPro
                     }
                   }}
                 >
-                  {size.size} {size.code && `(${size.code})`}
+                  {size.size}{size.attribute ? ` ${size.attribute}` : ''}
                 </Button>
               )
             })}
@@ -483,7 +484,7 @@ export function Step3Locations({ formData, onUpdate, errors }: Step3LocationsPro
               {selectedSizes.map((size) => (
                 <FormInput
                   key={size.id}
-                  label={`${size.size} ${size.code ? `(${size.code})` : ''} Quantity`}
+                  label={`${size.size}${size.attribute ? ` ${size.attribute}` : ''} Quantity`}
                   type="number"
                   min="1"
                   required

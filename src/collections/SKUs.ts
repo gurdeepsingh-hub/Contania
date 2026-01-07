@@ -82,6 +82,7 @@ export const SKUs: CollectionConfig = {
     {
       name: 'description',
       type: 'textarea',
+      required: true,
       admin: {
         description: 'Detailed product description',
       },
@@ -89,9 +90,9 @@ export const SKUs: CollectionConfig = {
     {
       name: 'customerId',
       type: 'relationship',
-      relationTo: 'customers',
+      relationTo: ['customers', 'paying-customers'],
       admin: {
-        description: 'Customer who owns or is linked to this SKU',
+        description: 'Customer who owns or is linked to this SKU (from consignor/consignee or paying customers)',
       },
     },
     {

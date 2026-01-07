@@ -13,7 +13,7 @@ type BookingType = 'import' | 'export'
 interface ContainerDetail {
   id: number
   containerNumber: string
-  containerSizeId?: number | { id: number; size?: string; code?: string }
+  containerSizeId?: number | { id: number; size?: number | string; attribute?: string; code?: string }
   shippingLineId?: number | { id: number; name?: string }
   gross?: string
   tare?: string
@@ -81,9 +81,15 @@ export function ContainerDetailsTable({
             </thead>
             <tbody>
               {containers.map((container) => {
-                const size = typeof container.containerSizeId === 'object'
-                  ? container.containerSizeId?.size || container.containerSizeId?.code
-                  : null
+                let sizeDisplay = '-'
+                if (typeof container.containerSizeId === 'object' && container.containerSizeId) {
+                  const size = container.containerSizeId.size
+                  const attribute = container.containerSizeId.attribute
+                  if (size !== undefined && size !== null) {
+                    const sizeStr = typeof size === 'string' ? size : String(size)
+                    sizeDisplay = attribute ? `${sizeStr} ${attribute}` : sizeStr
+                  }
+                }
                 const shippingLine = typeof container.shippingLineId === 'object'
                   ? container.shippingLineId?.name
                   : null
@@ -91,7 +97,7 @@ export function ContainerDetailsTable({
                 return (
                   <tr key={container.id} className="border-b hover:bg-muted/50">
                     <td className="p-2">{container.containerNumber}</td>
-                    <td className="p-2">{size || '-'}</td>
+                    <td className="p-2">{sizeDisplay}</td>
                     <td className="p-2">
                       {container.status ? (
                         <ContainerStatusBadge

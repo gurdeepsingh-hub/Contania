@@ -82,7 +82,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const updateData: Record<string, unknown> = {}
     if (body.vesselName !== undefined) updateData.vesselName = body.vesselName
-    if (body.voyageNumber !== undefined) updateData.voyageNumber = body.voyageNumber || undefined
+    if (body.voyageNumber !== undefined) {
+      if (!body.voyageNumber) {
+        return NextResponse.json(
+          { message: 'Voyage number is required' },
+          { status: 400 }
+        )
+      }
+      updateData.voyageNumber = body.voyageNumber
+    }
     if (body.lloydsNumber !== undefined) updateData.lloydsNumber = body.lloydsNumber || undefined
     if (body.wharfId !== undefined) updateData.wharfId = body.wharfId || undefined
     if (body.jobType !== undefined) updateData.jobType = body.jobType

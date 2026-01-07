@@ -21,6 +21,8 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  Package,
+  Truck,
 } from 'lucide-react'
 import { hasPermission } from '@/lib/permissions'
 import { Input } from '@/components/ui/input'
@@ -68,6 +70,7 @@ export default function VesselsPage() {
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<'import' | 'export'>('import')
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -110,7 +113,7 @@ export default function VesselsPage() {
       loadVessels()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authChecked, page, limit, searchQuery])
+  }, [authChecked, page, limit, searchQuery, activeTab])
 
   const loadVessels = async () => {
     try {
@@ -119,6 +122,7 @@ export default function VesselsPage() {
         page: page.toString(),
         limit: limit.toString(),
         depth: '1',
+        jobType: activeTab,
         ...(searchQuery && { search: searchQuery }),
       })
       const res = await fetch(`/api/vessels?${params.toString()}`)
@@ -149,9 +153,13 @@ export default function VesselsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleAddVessel = () => {
+  const handleAddVessel = (jobType?: 'import' | 'export') => {
     setEditingVessel(null)
     setShowAddForm(true)
+    // If jobType is provided, it will be passed to the form
+    if (jobType) {
+      setActiveTab(jobType)
+    }
   }
 
   const handleEditVessel = (vessel: VesselItem) => {
@@ -234,17 +242,46 @@ export default function VesselsPage() {
           <h1 className="text-3xl font-bold">Vessels</h1>
           <p className="text-muted-foreground">Manage vessel information</p>
         </div>
-        <Button onClick={handleAddVessel} className="min-h-[44px]" size="icon" title="Add Vessel">
-          <Plus className="h-4 w-4" />
-        </Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-4 border-b">
+        <button
+          onClick={() => {
+            setActiveTab('import')
+            setPage(1)
+          }}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'import'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Package className="h-4 w-4" />
+          Import
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('export')
+            setPage(1)
+          }}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'export'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Truck className="h-4 w-4" />
+          Export
+        </button>
       </div>
 
       <Dialog open={showAddForm} onOpenChange={(open) => !open && handleCancel()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingVessel ? 'Edit Vessel' : 'Add New Vessel'}</DialogTitle>
+            <DialogTitle>{editingVessel ? 'Edit Vessel' : `Add New ${activeTab === 'import' ? 'Import' : 'Export'} Vessel`}</DialogTitle>
             <DialogDescription>
-              {editingVessel ? 'Update vessel information' : 'Create a new vessel'}
+              {editingVessel ? 'Update vessel information' : `Create a new ${activeTab} vessel`}
             </DialogDescription>
           </DialogHeader>
           <VesselForm
@@ -253,6 +290,7 @@ export default function VesselsPage() {
             onSuccess={handleSuccess}
             onCancel={handleCancel}
             mode={editingVessel ? 'edit' : 'create'}
+            jobType={editingVessel?.jobType || activeTab}
           />
         </DialogContent>
       </Dialog>
@@ -263,18 +301,24 @@ export default function VesselsPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Ship className="h-5 w-5" />
-                Vessels ({totalDocs})
+                {activeTab === 'import' ? 'Import' : 'Export'} Vessels ({totalDocs})
               </CardTitle>
-              <CardDescription>Manage vessel information</CardDescription>
+              <CardDescription>Manage {activeTab} vessel information</CardDescription>
             </div>
-            <div className="relative max-w-sm w-full sm:w-auto">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search vessels..."
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative max-w-sm w-full sm:w-auto">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search vessels..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button onClick={() => handleAddVessel(activeTab)} className="min-h-[44px]" title={`Add ${activeTab === 'import' ? 'Import' : 'Export'} Vessel`}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add {activeTab === 'import' ? 'Import' : 'Export'}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -319,10 +363,6 @@ export default function VesselsPage() {
                     </CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-start gap-2">
-                          <span className="font-medium min-w-[80px]">Job Type:</span>
-                          <span className="capitalize">{vessel.jobType}</span>
-                        </div>
                         {vessel.voyageNumber && (
                           <div className="flex items-start gap-2">
                             <span className="font-medium min-w-[80px]">Voyage:</span>

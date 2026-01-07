@@ -29,7 +29,7 @@ import { ContainerSizeForm } from '@/components/entity-forms/container-size-form
 
 type ContainerSizeItem = {
   id: number
-  size: string
+  size: number
   description?: string
   attribute?: 'HC' | 'RF' | 'GP' | 'TK' | 'OT'
   weight?: number
@@ -164,7 +164,7 @@ export default function ContainerSizesPage() {
   const handleDeleteContainerSize = async (containerSize: ContainerSizeItem) => {
     if (
       !confirm(
-        `Are you sure you want to delete ${containerSize.size}? This action cannot be undone.`,
+        `Are you sure you want to delete ${containerSize.size}${containerSize.attribute ? ` ${containerSize.attribute}` : ''}? This action cannot be undone.`,
       )
     ) {
       return
@@ -289,7 +289,7 @@ export default function ContainerSizesPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
-                          {containerSize.size}
+                          {containerSize.size}{containerSize.attribute ? ` ${containerSize.attribute}` : ''}
                         </CardTitle>
                         <div className="flex gap-1 shrink-0">
                           <Button

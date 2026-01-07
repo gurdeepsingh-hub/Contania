@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { valueAsNumberOrUndefined } from '@/lib/utils'
 
 const containerSizeSchema = z.object({
-  size: z.string().min(1, 'Container size is required'),
+  size: z.number().min(1, 'Container size is required'),
   description: z.string().optional(),
   attribute: z.enum(['HC', 'RF', 'GP', 'TK', 'OT']).optional(),
   weight: z.number().min(0, 'Weight must be a positive number').optional(),
@@ -20,7 +20,7 @@ type ContainerSizeFormData = z.infer<typeof containerSizeSchema>
 
 type ContainerSize = {
   id?: number
-  size?: string
+  size?: number
   description?: string
   attribute?: 'HC' | 'RF' | 'GP' | 'TK' | 'OT'
   weight?: number
@@ -46,7 +46,7 @@ export function ContainerSizeForm({
   } = useForm<ContainerSizeFormData>({
     resolver: zodResolver(containerSizeSchema),
     defaultValues: {
-      size: initialData?.size || '',
+      size: initialData?.size ? (typeof initialData.size === 'string' ? parseFloat(initialData.size) || undefined : initialData.size) : undefined,
       description: initialData?.description || '',
       attribute: initialData?.attribute || undefined,
       weight: initialData?.weight || undefined,
@@ -89,10 +89,24 @@ export function ContainerSizeForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormInput
           label="Size"
+          type="number"
           required
           error={errors.size?.message}
-          placeholder="e.g., 20ft, 40ft"
-          {...register('size')}
+          placeholder="e.g., 20, 40"
+          {...register('size', { setValueAs: valueAsNumberOrUndefined, valueAsNumber: true })}
+        />
+        <FormSelect
+          label="Attribute"
+          error={errors.attribute?.message}
+          placeholder="Select attribute"
+          options={[
+            { value: 'HC', label: 'HC' },
+            { value: 'RF', label: 'RF' },
+            { value: 'GP', label: 'GP' },
+            { value: 'TK', label: 'TK' },
+            { value: 'OT', label: 'OT' },
+          ]}
+          {...register('attribute')}
         />
       </div>
       <FormInput
@@ -100,19 +114,6 @@ export function ContainerSizeForm({
         error={errors.description?.message}
         placeholder="Description"
         {...register('description')}
-      />
-      <FormSelect
-        label="Attribute"
-        error={errors.attribute?.message}
-        placeholder="Select attribute"
-        options={[
-          { value: 'HC', label: 'HC' },
-          { value: 'RF', label: 'RF' },
-          { value: 'GP', label: 'GP' },
-          { value: 'TK', label: 'TK' },
-          { value: 'OT', label: 'OT' },
-        ]}
-        {...register('attribute')}
       />
       <FormInput
         label="Weight (kg)"

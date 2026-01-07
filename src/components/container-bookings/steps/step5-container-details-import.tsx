@@ -477,7 +477,7 @@ export function Step5ContainerDetailsImport({
           <div key={sizeId} className="space-y-3">
             <div className="sticky top-0 bg-background z-10 pb-2 border-b">
               <h4 className="text-base font-semibold text-foreground">
-                {size ? `${size.size} ${size.code ? `(${size.code})` : ''}` : `Size ID: ${sizeId}`}
+                {size ? `${size.size}${size.attribute ? ` ${size.attribute}` : ''}` : `Size ID: ${sizeId}`}
                 <span className="ml-2 text-sm font-normal text-muted-foreground">
                   ({sizeContainers.length}{' '}
                   {sizeContainers.length === 1 ? 'container' : 'containers'})
@@ -574,7 +574,7 @@ export function Step5ContainerDetailsImport({
                             placeholder="Select container size..."
                             options={containerSizes.map((size) => ({
                               value: size.id,
-                              label: `${size.size} ${size.code ? `(${size.code})` : ''}`,
+                              label: `${size.size}${size.attribute ? ` ${size.attribute}` : ''}`,
                             }))}
                             value={container.containerSizeId}
                             onValueChange={(value) =>

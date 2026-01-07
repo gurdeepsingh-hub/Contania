@@ -28,11 +28,31 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      where.and.push({
-        size: {
-          contains: search,
-        },
-      })
+      // Try to parse as number first, otherwise search as string
+      const searchNum = Number(search)
+      if (!isNaN(searchNum)) {
+        where.and.push({
+          size: {
+            equals: searchNum,
+          },
+        })
+      } else {
+        // If not a number, search in description or attribute
+        where.and.push({
+          or: [
+            {
+              description: {
+                contains: search,
+              },
+            },
+            {
+              attribute: {
+                contains: search,
+              },
+            },
+          ],
+        })
+      }
     }
 
     const sortField = sort.startsWith('-') ? sort.slice(1) : sort
