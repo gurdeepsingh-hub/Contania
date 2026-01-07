@@ -297,19 +297,19 @@ export default function PayingCustomersPage() {
         })
 
         if (res.ok) {
-          toast.success('Paying customer created successfully')
+          toast.success('Customer created successfully')
           await loadPayingCustomers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          toast.error(responseData.message || 'Failed to create paying customer')
+          toast.error(responseData.message || 'Failed to create customer')
         }
       }
     } catch (error) {
       console.error('Error saving paying customer:', error)
-      toast.error('An error occurred while saving the paying customer')
+      toast.error('An error occurred while saving the customer')
     }
   }
 
@@ -328,7 +328,7 @@ export default function PayingCustomersPage() {
       })
 
       if (res.ok) {
-        toast.success('Paying customer deleted successfully')
+        toast.success('Customer deleted successfully')
         await loadPayingCustomers()
       } else {
         const data = await res.json()
@@ -336,7 +336,7 @@ export default function PayingCustomersPage() {
       }
     } catch (error) {
       console.error('Error deleting paying customer:', error)
-      toast.error('An error occurred while deleting the paying customer')
+      toast.error('An error occurred while deleting the customer')
     }
   }
 
@@ -367,14 +367,14 @@ export default function PayingCustomersPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Paying Customers</h1>
-          <p className="text-muted-foreground">Manage paying customer information</p>
+          <h1 className="text-3xl font-bold">Customers</h1>
+          <p className="text-muted-foreground">Manage customer information</p>
         </div>
         <Button
           onClick={handleAddPayingCustomer}
           className="min-h-[44px]"
           size="icon"
-          title="Add Paying Customer"
+          title="Add Customer"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -384,12 +384,12 @@ export default function PayingCustomersPage() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingPayingCustomer ? 'Edit Paying Customer' : 'Add New Paying Customer'}
+              {editingPayingCustomer ? 'Edit Customer' : 'Add New Customer'}
             </DialogTitle>
             <DialogDescription>
               {editingPayingCustomer
-                ? 'Update paying customer information'
-                : 'Create a new paying customer'}
+                ? 'Update customer information'
+                : 'Create a new customer'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">

@@ -90,13 +90,13 @@ export function Step1BasicInfoImport({
       const unified: UnifiedCustomerOption[] = [
         ...customersData.map((cust) => ({
           value: `customers:${cust.id}`,
-          label: `${cust.customer_name} [Customer]`,
+          label: `${cust.customer_name} [Consignee/Consignor]`,
           collection: 'customers' as const,
           id: cust.id,
         })),
         ...payingCustomersData.map((cust) => ({
           value: `paying-customers:${cust.id}`,
-          label: `${cust.customer_name} [Paying Customer]`,
+          label: `${cust.customer_name} [Customer]`,
           collection: 'paying-customers' as const,
           id: cust.id,
         })),
@@ -327,7 +327,7 @@ export function Step1BasicInfoImport({
           <FormCombobox
             label="Charge To"
             required
-            placeholder="Select customer or paying customer..."
+            placeholder="Select consignee/consignor or customer..."
             options={unifiedCustomers.map((cust) => ({
               value: cust.value,
               label: cust.label,
@@ -400,7 +400,7 @@ export function Step1BasicInfoImport({
               }}
               className="flex-1"
             >
-              Create Customer
+              Create Consignee/Consignor
             </Button>
             <Button
               onClick={() => {
@@ -410,7 +410,7 @@ export function Step1BasicInfoImport({
               variant="outline"
               className="flex-1"
             >
-              Create Paying Customer
+              Create Customer
             </Button>
           </div>
         </DialogContent>
@@ -435,7 +435,7 @@ export function Step1BasicInfoImport({
       <Dialog open={showPayingCustomerModal} onOpenChange={setShowPayingCustomerModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Paying Customer</DialogTitle>
+            <DialogTitle>Create Customer</DialogTitle>
           </DialogHeader>
           <PayingCustomerForm
             onSuccess={async (customer) => {

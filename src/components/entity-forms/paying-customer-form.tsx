@@ -116,8 +116,8 @@ export function PayingCustomerForm({
         const customer = responseData.payingCustomer || responseData
         toast.success(
           mode === 'edit'
-            ? 'Paying customer updated successfully'
-            : 'Paying customer created successfully',
+            ? 'Customer updated successfully'
+            : 'Customer created successfully',
         )
         // Keep dialog open briefly showing success, then close automatically
         setTimeout(() => {
@@ -128,20 +128,20 @@ export function PayingCustomerForm({
         // Handle API error responses
         try {
           const errorData = await res.json()
-          const errorMessage = errorData.message || errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} paying customer`
+          const errorMessage = errorData.message || errorData.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} customer`
           toast.error(errorMessage)
         } catch (jsonError) {
           // If response is not JSON, show generic error
-          toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} paying customer. Please try again.`)
+          toast.error(`Failed to ${mode === 'edit' ? 'update' : 'create'} customer. Please try again.`)
         }
       }
     } catch (error) {
-      console.error('Error saving paying customer:', error)
+      console.error('Error saving customer:', error)
       // Handle network errors and other exceptions
       if (error instanceof TypeError && error.message.includes('fetch')) {
         toast.error('Network error. Please check your connection and try again.')
       } else {
-        toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the paying customer. Please try again.`)
+        toast.error(`An error occurred while ${mode === 'edit' ? 'updating' : 'creating'} the customer. Please try again.`)
       }
     }
   }
@@ -270,8 +270,8 @@ export function PayingCustomerForm({
               ? 'Updating...'
               : 'Creating...'
             : mode === 'edit'
-              ? 'Update Paying Customer'
-              : 'Create Paying Customer'}
+              ? 'Update Customer'
+              : 'Create Customer'}
         </Button>
       </div>
     </form>

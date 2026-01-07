@@ -379,13 +379,13 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
       const unified: UnifiedCustomerOption[] = [
         ...customersData.map((cust: Customer) => ({
           value: `customers:${cust.id}`,
-          label: `${cust.customer_name} [Customer]`,
+          label: `${cust.customer_name} [Consignee/Consignor]`,
           collection: 'customers' as const,
           id: cust.id,
         })),
         ...payingCustomersData.map((cust: PayingCustomer) => ({
           value: `paying-customers:${cust.id}`,
-          label: `${cust.customer_name} [Paying Customer]`,
+          label: `${cust.customer_name} [Customer]`,
           collection: 'paying-customers' as const,
           id: cust.id,
         })),
@@ -1435,7 +1435,7 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
               }}
             >
               <div className="text-left">
-                <div className="font-semibold">Paying Customer</div>
+                <div className="font-semibold">Customer</div>
                 <div className="text-sm text-muted-foreground">
                   Customer with billing and delivery addresses
                 </div>
@@ -1454,8 +1454,8 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
       <Dialog open={showCustomerModal} onOpenChange={setShowCustomerModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Quick Create Customer</DialogTitle>
-            <DialogDescription>Create a new customer quickly</DialogDescription>
+            <DialogTitle>Quick Create Consignee/Consignor</DialogTitle>
+            <DialogDescription>Create a new consignee/consignor quickly</DialogDescription>
           </DialogHeader>
           <CustomerForm
             onSuccess={(customer) => {
@@ -1473,8 +1473,8 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
       <Dialog open={showPayingCustomerModal} onOpenChange={setShowPayingCustomerModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Quick Create Paying Customer</DialogTitle>
-            <DialogDescription>Create a new paying customer quickly</DialogDescription>
+            <DialogTitle>Quick Create Customer</DialogTitle>
+            <DialogDescription>Create a new customer quickly</DialogDescription>
           </DialogHeader>
           <PayingCustomerForm
             onSuccess={(customer) => {

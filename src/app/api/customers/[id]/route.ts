@@ -19,7 +19,7 @@ export async function GET(
     const url = new URL(request.url)
     const depth = url.searchParams.get('depth') ? Number(url.searchParams.get('depth')) : 0
 
-    // Get the customer
+    // Get the customer (consignee/consignor)
     const customer = await payload.findByID({
       collection: 'customers',
       id: customerId,
@@ -103,7 +103,7 @@ export async function PATCH(
     if (body.state !== undefined) updateData.state = body.state || undefined
     if (body.postcode !== undefined) updateData.postcode = body.postcode || undefined
 
-    // Update customer
+    // Update customer (consignee/consignor)
     const updatedCustomer = await payload.update({
       collection: 'customers',
       id: customerId,
@@ -159,7 +159,7 @@ export async function DELETE(
       )
     }
 
-    // Delete customer
+    // Delete customer (consignee/consignor)
     await payload.delete({
       collection: 'customers',
       id: customerId,

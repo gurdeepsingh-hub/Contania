@@ -639,21 +639,23 @@ export interface TenantRole {
   createdAt: string;
 }
 /**
+ * Consignee/Consignor - Delivery customer information
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "customers".
  */
 export interface Customer {
   id: number;
   /**
-   * Links customer to their company (tenant)
+   * Links consignee/consignor to their company (tenant)
    */
   tenantId: number | Tenant;
   /**
-   * Name of delivery customer or consignee/consignor
+   * Name of consignee/consignor
    */
   customer_name: string;
   /**
-   * Customer email address
+   * Consignee/consignor email address
    */
   email?: string | null;
   /**
@@ -839,17 +841,19 @@ export interface Skus {
   createdAt: string;
 }
 /**
+ * Customer - Billing and payment information
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "paying-customers".
  */
 export interface PayingCustomer {
   id: number;
   /**
-   * Links paying customer to their company (tenant)
+   * Links customer to their company (tenant)
    */
   tenantId: number | Tenant;
   /**
-   * Official name of the paying customer (client responsible for billing)
+   * Official name of the customer (client responsible for billing)
    */
   customer_name: string;
   /**
@@ -1486,7 +1490,7 @@ export interface ImportContainerBooking {
    */
   bookingReference: string;
   /**
-   * Entity responsible for charges (paying customer or delivery customer)
+   * Entity responsible for charges (customer or consignee/consignor)
    */
   chargeToId?:
     | ({
@@ -1534,7 +1538,7 @@ export interface ImportContainerBooking {
    */
   firstFreeImportDate?: string | null;
   /**
-   * Origin location (delivery customer, paying customer, empty park, or wharf)
+   * Origin location (consignee/consignor, customer, empty park, or wharf)
    */
   fromId?:
     | ({
@@ -1574,7 +1578,7 @@ export interface ImportContainerBooking {
    */
   fromPostcode?: string | null;
   /**
-   * Destination location (delivery customer, paying customer, empty park, or wharf)
+   * Destination location (consignee/consignor, customer, empty park, or wharf)
    */
   toId?:
     | ({
@@ -2105,7 +2109,7 @@ export interface ExportContainerBooking {
    */
   bookingReference: string;
   /**
-   * Entity responsible for charges (paying customer or delivery customer)
+   * Entity responsible for charges (customer or consignee/consignor)
    */
   chargeToId?:
     | ({
@@ -2189,7 +2193,7 @@ export interface ExportContainerBooking {
    */
   fromPostcode?: string | null;
   /**
-   * Destination location (delivery customer, paying customer, empty park, or wharf)
+   * Destination location (consignee/consignor, customer, empty park, or wharf)
    */
   toId?:
     | ({

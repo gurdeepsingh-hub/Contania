@@ -4,6 +4,7 @@ export const PayingCustomers: CollectionConfig = {
   slug: 'paying-customers',
   admin: {
     useAsTitle: 'customer_name',
+    description: 'Customer - Billing and payment information',
   },
   access: {
     create: ({ req }) => {
@@ -55,7 +56,7 @@ export const PayingCustomers: CollectionConfig = {
       relationTo: 'tenants',
       required: true,
       admin: {
-        description: 'Links paying customer to their company (tenant)',
+        description: 'Links customer to their company (tenant)',
       },
     },
     {
@@ -63,7 +64,8 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       required: true,
       admin: {
-        description: 'Official name of the paying customer (client responsible for billing)',
+        description: 'Official name of the customer (client responsible for billing)',
+        label: 'Customer Name',
       },
     },
     {
@@ -71,6 +73,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Business number for invoicing',
+        label: 'ABN',
       },
     },
     {
@@ -78,6 +81,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'email',
       admin: {
         description: 'Customer email address',
+        label: 'Email',
       },
     },
     {
@@ -85,6 +89,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Primary contact person for billing',
+        label: 'Contact Name',
       },
     },
     {
@@ -92,6 +97,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Contact phone number',
+        label: 'Contact Phone',
       },
     },
     {
@@ -99,6 +105,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Billing street address',
+        label: 'Billing Street',
       },
     },
     {
@@ -106,6 +113,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Billing city',
+        label: 'Billing City',
       },
     },
     {
@@ -113,6 +121,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Billing state or province',
+        label: 'Billing State',
       },
     },
     {
@@ -120,6 +129,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Billing postal/ZIP code',
+        label: 'Billing Postcode',
       },
     },
     {
@@ -128,6 +138,7 @@ export const PayingCustomers: CollectionConfig = {
       defaultValue: false,
       admin: {
         description: 'If true, delivery address = billing address',
+        label: 'Delivery Same as Billing',
       },
     },
     {
@@ -135,6 +146,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Delivery street address',
+        label: 'Delivery Street',
       },
     },
     {
@@ -142,6 +154,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Delivery city',
+        label: 'Delivery City',
       },
     },
     {
@@ -149,6 +162,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Delivery state or province',
+        label: 'Delivery State',
       },
     },
     {
@@ -156,6 +170,7 @@ export const PayingCustomers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Delivery postal/ZIP code',
+        label: 'Delivery Postcode',
       },
     },
   ],
@@ -176,4 +191,3 @@ export const PayingCustomers: CollectionConfig = {
     ],
   },
 }
-

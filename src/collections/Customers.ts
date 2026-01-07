@@ -4,6 +4,7 @@ export const Customers: CollectionConfig = {
   slug: 'customers',
   admin: {
     useAsTitle: 'customer_name',
+    description: 'Consignee/Consignor - Delivery customer information',
   },
   access: {
     create: ({ req }) => {
@@ -55,7 +56,7 @@ export const Customers: CollectionConfig = {
       relationTo: 'tenants',
       required: true,
       admin: {
-        description: 'Links customer to their company (tenant)',
+        description: 'Links consignee/consignor to their company (tenant)',
       },
     },
     {
@@ -63,14 +64,16 @@ export const Customers: CollectionConfig = {
       type: 'text',
       required: true,
       admin: {
-        description: 'Name of delivery customer or consignee/consignor',
+        description: 'Name of consignee/consignor',
+        label: 'Consignee/Consignor Name',
       },
     },
     {
       name: 'email',
       type: 'email',
       admin: {
-        description: 'Customer email address',
+        description: 'Consignee/consignor email address',
+        label: 'Email',
       },
     },
     {
@@ -78,6 +81,7 @@ export const Customers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Primary contact name',
+        label: 'Contact Name',
       },
     },
     {
@@ -85,6 +89,7 @@ export const Customers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Contact phone number',
+        label: 'Contact Phone',
       },
     },
     {
@@ -92,6 +97,7 @@ export const Customers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Street address',
+        label: 'Street',
       },
     },
     {
@@ -99,6 +105,7 @@ export const Customers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'City',
+        label: 'City',
       },
     },
     {
@@ -106,6 +113,7 @@ export const Customers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'State or province',
+        label: 'State',
       },
     },
     {
@@ -113,6 +121,7 @@ export const Customers: CollectionConfig = {
       type: 'text',
       admin: {
         description: 'Postal/ZIP code',
+        label: 'Postcode',
       },
     },
   ],
@@ -133,4 +142,3 @@ export const Customers: CollectionConfig = {
     ],
   },
 }
-

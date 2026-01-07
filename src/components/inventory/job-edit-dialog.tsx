@@ -410,13 +410,13 @@ export function JobEditDialog({
       const unified: UnifiedCustomerOption[] = [
         ...customersData.map((cust: Customer) => ({
           value: `customers:${cust.id}`,
-          label: `${cust.customer_name} [Customer]`,
+          label: `${cust.customer_name} [Consignee/Consignor]`,
           collection: 'customers' as const,
           id: cust.id,
         })),
         ...payingCustomersData.map((cust: PayingCustomer) => ({
           value: `paying-customers:${cust.id}`,
-          label: `${cust.customer_name} [Paying Customer]`,
+          label: `${cust.customer_name} [Customer]`,
           collection: 'paying-customers' as const,
           id: cust.id,
         })),

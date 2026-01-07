@@ -130,8 +130,8 @@ export default function EntitySettingsPage() {
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground" />
               </div>
-              <CardTitle className="mt-4">Customers</CardTitle>
-              <CardDescription>Manage customer information and contacts</CardDescription>
+              <CardTitle className="mt-4">Consignee/Consignor</CardTitle>
+              <CardDescription>Manage consignee/consignor information and contacts</CardDescription>
             </CardHeader>
             <CardContent>
               <Button
@@ -142,7 +142,7 @@ export default function EntitySettingsPage() {
                   router.push('/dashboard/settings/entity-settings/customers')
                 }}
               >
-                Manage Customers
+                Manage Consignee/Consignor
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>
@@ -159,9 +159,9 @@ export default function EntitySettingsPage() {
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground" />
               </div>
-              <CardTitle className="mt-4">Paying Customers</CardTitle>
+              <CardTitle className="mt-4">Customers</CardTitle>
               <CardDescription>
-                Manage paying customer information and billing details
+                Manage customer information and billing details
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -173,7 +173,7 @@ export default function EntitySettingsPage() {
                   router.push('/dashboard/settings/entity-settings/paying-customers')
                 }}
               >
-                Manage Paying Customers
+                Manage Customers
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>

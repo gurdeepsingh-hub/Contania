@@ -171,8 +171,8 @@ export function CustomerForm({ initialData, onSuccess, onCancel, mode = 'create'
               ? 'Updating...'
               : 'Creating...'
             : mode === 'edit'
-              ? 'Update Customer'
-              : 'Create Customer'}
+              ? 'Update Consignee/Consignor'
+              : 'Create Consignee/Consignor'}
         </Button>
       </div>
     </form>

@@ -71,7 +71,7 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('')
 
   const customerSchema = z.object({
-    customer_name: z.string().min(1, 'Customer name is required'),
+    customer_name: z.string().min(1, 'Consignee/Consignor name is required'),
     email: z.string().email('Invalid email address').optional().or(z.literal('')),
     contact_name: z.string().optional(),
     contact_phone: z.string().optional(),
@@ -231,7 +231,7 @@ export default function CustomersPage() {
         })
 
         if (res.ok) {
-          toast.success('Customer updated successfully')
+          toast.success('Consignee/Consignor updated successfully')
           await loadCustomers()
           setTimeout(() => {
             handleCancel()
@@ -248,14 +248,14 @@ export default function CustomersPage() {
         })
 
         if (res.ok) {
-          toast.success('Customer created successfully')
+          toast.success('Consignee/Consignor created successfully')
           await loadCustomers()
           setTimeout(() => {
             handleCancel()
           }, 1500)
         } else {
           const responseData = await res.json()
-          toast.error(responseData.message || 'Failed to create customer')
+          toast.error(responseData.message || 'Failed to create consignee/consignor')
         }
       }
     } catch (error) {
@@ -279,15 +279,15 @@ export default function CustomersPage() {
       })
 
       if (res.ok) {
-        toast.success('Customer deleted successfully')
+        toast.success('Consignee/Consignor deleted successfully')
         await loadCustomers()
       } else {
         const data = await res.json()
-        toast.error(data.message || 'Failed to delete customer')
+        toast.error(data.message || 'Failed to delete consignee/consignor')
       }
     } catch (error) {
       console.error('Error deleting customer:', error)
-      toast.error('An error occurred while deleting the customer')
+      toast.error('An error occurred while deleting the consignee/consignor')
     }
   }
 
@@ -318,14 +318,14 @@ export default function CustomersPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">Customers</h1>
-          <p className="text-muted-foreground">Manage customer information</p>
+          <h1 className="text-3xl font-bold">Consignee/Consignor</h1>
+          <p className="text-muted-foreground">Manage consignee/consignor information</p>
         </div>
         <Button
           onClick={handleAddCustomer}
           className="min-h-[44px]"
           size="icon"
-          title="Add Customer"
+          title="Add Consignee/Consignor"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -343,7 +343,7 @@ export default function CustomersPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormInput
-                label="Customer Name"
+                label="Consignee/Consignor Name"
                 required
                 error={errors.customer_name?.message}
                 placeholder="Customer name"

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const sortField = sort.startsWith('-') ? sort.slice(1) : sort
     const sortDirection = sort.startsWith('-') ? 'desc' : 'asc'
 
-    // Fetch customers for this tenant with pagination
+    // Fetch customers (consignee/consignors) for this tenant with pagination
     const customersResult = await payload.find({
       collection: 'customers',
       where,
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create customer
+    // Create customer (consignee/consignor)
     const newCustomer = await payload.create({
       collection: 'customers',
       data: {

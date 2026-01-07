@@ -143,13 +143,13 @@ export function Step3Locations({ formData, onUpdate, errors }: Step3LocationsPro
       const unified: UnifiedLocationOption[] = [
         ...customersData.map((cust) => ({
           value: `customers:${cust.id}`,
-          label: `${cust.customer_name} [Customer]`,
+          label: `${cust.customer_name} [Consignee/Consignor]`,
           collection: 'customers' as const,
           id: cust.id,
         })),
         ...payingCustomersData.map((cust) => ({
           value: `paying-customers:${cust.id}`,
-          label: `${cust.customer_name} [Paying Customer]`,
+          label: `${cust.customer_name} [Customer]`,
           collection: 'paying-customers' as const,
           id: cust.id,
         })),

@@ -174,11 +174,11 @@ export function DriverAllocationSection({
       const all: UnifiedLocationOption[] = [
         ...customersData.map((cust) => ({
           value: `customers:${cust.id}`,
-          label: `${cust.customer_name} [Customer]`,
+          label: `${cust.customer_name} [Consignee/Consignor]`,
         })),
         ...payingCustomersData.map((cust) => ({
           value: `paying-customers:${cust.id}`,
-          label: `${cust.customer_name} [Paying Customer]`,
+          label: `${cust.customer_name} [Customer]`,
         })),
         ...emptyParksData.map((ep) => ({
           value: `empty-parks:${ep.id}`,

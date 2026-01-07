@@ -141,7 +141,7 @@ export const ExportContainerBookings: CollectionConfig = {
         return true as const
       },
       admin: {
-        description: 'Entity responsible for charges (paying customer or delivery customer)',
+        description: 'Entity responsible for charges (customer or consignee/consignor)',
       },
     },
     {
@@ -312,7 +312,7 @@ export const ExportContainerBookings: CollectionConfig = {
       }) as any,
       admin: {
         description:
-          'Destination location (delivery customer, paying customer, empty park, or wharf)',
+          'Destination location (consignee/consignor, customer, empty park, or wharf)',
       },
     },
     {
