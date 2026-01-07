@@ -277,7 +277,7 @@ export function WarehouseForm({
 
           {showStoreForm && (
             <div className="p-4 bg-muted rounded-lg space-y-4">
-              <form onSubmit={handleSubmitStore(onCreateStore)} className="space-y-4">
+              <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormInput
                     label="Store Name"
@@ -325,11 +325,16 @@ export function WarehouseForm({
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" size="sm" disabled={creatingStore}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={creatingStore}
+                    onClick={handleSubmitStore(onCreateStore)}
+                  >
                     {creatingStore ? 'Creating...' : 'Create Store'}
                   </Button>
                 </div>
-              </form>
+              </div>
             </div>
           )}
         </div>

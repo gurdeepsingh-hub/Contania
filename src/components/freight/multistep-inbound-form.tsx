@@ -600,6 +600,14 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
       }
     }
 
+    // If trying to save, validate step 1 (basic info) to prevent saving empty jobs
+    if (action === 'save') {
+      if (!validateStep(0)) {
+        toast.error('Please complete all required fields in step 1 before saving')
+        return
+      }
+    }
+
     setSaving(true)
     try {
       // Convert datetime-local string to ISO date string if present
@@ -619,6 +627,12 @@ export function MultistepInboundForm({ initialData, onSave, onCancel }: Multiste
   }
 
   const handleStepSave = async () => {
+    // Validate step 1 if on step 0 to prevent saving empty jobs
+    if (step === 0 && !validateStep(0)) {
+      toast.error('Please complete all required fields in step 1 before saving')
+      return
+    }
+
     setSaving(true)
     try {
       const url = formData.id ? `/api/inbound-inventory/${formData.id}` : '/api/inbound-inventory'

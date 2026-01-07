@@ -6,7 +6,16 @@ import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Plus, ChevronLeft, ChevronRight, Truck, ArrowLeft } from 'lucide-react'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import { Search, Plus, Package, Truck } from 'lucide-react'
 import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
 import { StatusBadge } from '@/components/container-bookings/status-badge'
@@ -25,6 +34,7 @@ type ExportBooking = {
   cutoff?: boolean
   createdAt: string
   consignorId?: number | { id: number; name?: string }
+  productLineCount?: number
 }
 
 export default function ExportContainerBookingsPage() {
@@ -35,6 +45,7 @@ export default function ExportContainerBookingsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(5)
   const [totalPages, setTotalPages] = useState(1)
   const [hasPrevPage, setHasPrevPage] = useState(false)
   const [hasNextPage, setHasNextPage] = useState(false)
@@ -43,8 +54,6 @@ export default function ExportContainerBookingsPage() {
     id?: number
     role?: number | string | { id: number; permissions?: Record<string, boolean> }
   } | null>(null)
-
-  const limit = 20
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -142,20 +151,26 @@ export default function ExportContainerBookingsPage() {
     return '-'
   }
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit)
+    setPage(1) // Reset to first page when changing limit
+  }
+
+  const handleTabSwitch = (targetPath: string) => {
+    router.prefetch(targetPath)
+    router.push(targetPath)
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/container-bookings">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">Export Container Bookings</h1>
-            <p className="text-muted-foreground">Manage export container bookings</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold">Export Container Bookings</h1>
+          <p className="text-muted-foreground">Manage export container bookings</p>
         </div>
         <Link href="/dashboard/export-container-bookings/new">
           <Button>
@@ -163,6 +178,21 @@ export default function ExportContainerBookingsPage() {
             New Export Booking
           </Button>
         </Link>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-4 border-b">
+        <button
+          onClick={() => handleTabSwitch('/dashboard/import-container-bookings')}
+          className="px-4 py-2 font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Package className="h-4 w-4 inline mr-2" />
+          Import Container
+        </button>
+        <button className="px-4 py-2 font-medium border-b-2 border-primary text-primary">
+          <Truck className="h-4 w-4 inline mr-2" />
+          Export Container
+        </button>
       </div>
 
       {/* Filters */}
@@ -195,6 +225,16 @@ export default function ExportContainerBookingsPage() {
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+            </select>
+            <select
+              value={limit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              className="px-3 py-2 border rounded-md"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="15">15 per page</option>
+              <option value="20">20 per page</option>
             </select>
           </div>
         </CardContent>
@@ -232,7 +272,10 @@ export default function ExportContainerBookingsPage() {
       ) : (
         <>
           <div className="space-y-4">
-            {bookings.map((booking) => (
+            {bookings.map((booking) => {
+              // If no product lines, always show draft status
+              const displayStatus = (!booking.productLineCount || booking.productLineCount === 0) ? 'draft' : booking.status
+              return (
               <Card key={booking.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -241,7 +284,7 @@ export default function ExportContainerBookingsPage() {
                         <CardTitle>
                           {booking.bookingCode || `EXP-${booking.id}`}
                         </CardTitle>
-                        <StatusBadge status={booking.status} type="export" />
+                        <StatusBadge status={displayStatus} type="export" />
                       </div>
                       <CardDescription className="space-y-1">
                         {booking.customerReference && (
@@ -268,31 +311,60 @@ export default function ExportContainerBookingsPage() {
                   </div>
                 </CardHeader>
               </Card>
-            ))}
+              )
+            })}
           </div>
 
           {/* Pagination */}
-          {(hasPrevPage || hasNextPage) && (
+          {totalPages > 1 && (
             <div className="flex items-center justify-between">
-              <Button
-                variant="outline"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={!hasPrevPage}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={!hasNextPage}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+              <div className="text-sm text-muted-foreground">
+                Showing {bookings.length} booking{bookings.length !== 1 ? 's' : ''} on page {page} of {totalPages}
+              </div>
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => handlePageChange(Math.max(1, page - 1))}
+                      className={!hasPrevPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum
+                    if (totalPages <= 5) {
+                      pageNum = i + 1
+                    } else if (page <= 3) {
+                      pageNum = i + 1
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i
+                    } else {
+                      pageNum = page - 2 + i
+                    }
+                    return (
+                      <PaginationItem key={pageNum}>
+                        <PaginationLink
+                          onClick={() => handlePageChange(pageNum)}
+                          isActive={pageNum === page}
+                          className="cursor-pointer"
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      </PaginationItem>
+                    )
+                  })}
+                  {totalPages > 5 && page < totalPages - 2 && (
+                    <PaginationItem>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  )}
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                      className={!hasNextPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
             </div>
           )}
         </>

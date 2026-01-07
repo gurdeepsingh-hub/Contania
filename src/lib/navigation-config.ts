@@ -111,7 +111,7 @@ export const createTenantNavigationItems = (
       id: 'freight',
       label: 'Freight',
       iconName: 'Truck',
-      href: '/dashboard/freight',
+      href: '/dashboard/freight/inbound',
       active: activePage === 'freight' || (activePage?.startsWith('freight-') ?? false),
     })
   }
@@ -133,7 +133,7 @@ export const createTenantNavigationItems = (
       id: 'container-bookings',
       label: 'Containers',
       iconName: 'Container',
-      href: '/dashboard/container-bookings',
+      href: '/dashboard/import-container-bookings',
       active:
         activePage === 'container-bookings' ||
         activePage === 'container-bookings-import' ||

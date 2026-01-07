@@ -736,7 +736,7 @@ export default function TenantDetailsPage() {
                           className="bg-primary hover:bg-primary/90 min-h-[44px] w-full sm:w-auto"
                         >
                           <LogIn className="h-4 w-4 mr-2" />
-                          {signingIn === user.id ? 'Signing in...' : 'Sign in as Tenant'}
+                          {signingIn === user.id ? 'Signing in...' : 'Sign in as this User'}
                         </Button>
                       </div>
                     )}

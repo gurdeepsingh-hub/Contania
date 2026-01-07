@@ -6,7 +6,16 @@ import { useTenant } from '@/lib/tenant-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Package, Plus, Search, Eye, Edit, Trash2, PackageCheck, Truck } from 'lucide-react'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import { Package, Plus, Search, Eye, Trash2, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { hasViewPermission } from '@/lib/permissions'
 import Link from 'next/link'
@@ -20,6 +29,7 @@ type InboundJob = {
   supplierName?: string
   warehouseId?: number | { id: number; name?: string }
   transportMode?: string
+  productLineCount?: number
   createdAt: string
 }
 
@@ -27,12 +37,19 @@ export default function InboundFreightPage() {
   const router = useRouter()
   const { tenant, loading } = useTenant()
   const [jobs, setJobs] = useState<InboundJob[]>([])
-  const [allJobs, setAllJobs] = useState<InboundJob[]>([])
   const [loadingJobs, setLoadingJobs] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(5)
+  const [totalPages, setTotalPages] = useState(1)
+  const [hasPrevPage, setHasPrevPage] = useState(false)
+  const [hasNextPage, setHasNextPage] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
-  const [currentUser, setCurrentUser] = useState<{ id?: number; role?: number | string | { id: number; permissions?: Record<string, boolean> } } | null>(null)
+  const [currentUser, setCurrentUser] = useState<{
+    id?: number
+    role?: number | string | { id: number; permissions?: Record<string, boolean> }
+  } | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -73,33 +90,35 @@ export default function InboundFreightPage() {
     if (tenant && authChecked) {
       loadJobs()
     }
-  }, [tenant, authChecked, searchTerm])
-
-  useEffect(() => {
-    filterJobs()
-  }, [statusFilter, allJobs])
+  }, [tenant, authChecked, searchTerm, statusFilter, page, limit])
 
   const loadJobs = async () => {
     try {
       setLoadingJobs(true)
-      const url = searchTerm
-        ? `/api/inbound-inventory?search=${encodeURIComponent(searchTerm)}&limit=50`
-        : '/api/inbound-inventory?limit=50'
-      const res = await fetch(url)
+      const params = new URLSearchParams()
+      params.set('page', page.toString())
+      params.set('limit', limit.toString())
+      if (searchTerm) {
+        params.set('search', searchTerm)
+      }
+      
+      const res = await fetch(`/api/inbound-inventory?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
-        const loadedJobs = data.jobs || []
-        setAllJobs(loadedJobs)
-        // Apply status filter immediately
-        if (!statusFilter) {
-          setJobs(loadedJobs)
-        } else {
-          const filtered = loadedJobs.filter((job: InboundJob) => {
+        let loadedJobs = data.jobs || []
+        
+        // Apply status filter client-side since API doesn't support it
+        if (statusFilter) {
+          loadedJobs = loadedJobs.filter((job: InboundJob) => {
             const status = getStatusValue(job)
             return status === statusFilter
           })
-          setJobs(filtered)
         }
+        
+        setJobs(loadedJobs)
+        setTotalPages(data.totalPages || 1)
+        setHasPrevPage(data.hasPrevPage || false)
+        setHasNextPage(data.hasNextPage || false)
       }
     } catch (error) {
       console.error('Error loading jobs:', error)
@@ -108,23 +127,23 @@ export default function InboundFreightPage() {
     }
   }
 
-  const filterJobs = () => {
-    if (!statusFilter) {
-      setJobs(allJobs)
-      return
-    }
-
-    const filtered = allJobs.filter((job) => {
-      const status = getStatusValue(job)
-      return status === statusFilter
-    })
-    setJobs(filtered)
-  }
-
   const getStatusValue = (job: InboundJob): string => {
+    // If no product lines, always return draft
+    if (!job.productLineCount || job.productLineCount === 0) {
+      return 'draft'
+    }
     if (job.completedDate) return 'received'
     if (job.expectedDate) return 'expected'
     return 'draft'
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit)
+    setPage(1) // Reset to first page when changing limit
   }
 
   const handleDelete = async (jobId: number) => {
@@ -148,9 +167,6 @@ export default function InboundFreightPage() {
     }
   }
 
-  const handleQuickReceive = (jobId: number) => {
-    router.push(`/dashboard/freight/inbound/${jobId}/receive`)
-  }
 
   if (loading || !authChecked) {
     return (
@@ -169,6 +185,10 @@ export default function InboundFreightPage() {
   }
 
   const getStatus = (job: InboundJob) => {
+    // If no product lines, always return draft
+    if (!job.productLineCount || job.productLineCount === 0) {
+      return { label: 'Draft', color: 'text-gray-600' }
+    }
     if (job.completedDate) return { label: 'Received', color: 'text-green-600' }
     if (job.expectedDate) return { label: 'Expected', color: 'text-blue-600' }
     return { label: 'Draft', color: 'text-gray-600' }
@@ -191,9 +211,7 @@ export default function InboundFreightPage() {
 
       {/* Tabs */}
       <div className="flex gap-4 border-b">
-        <button
-          className="px-4 py-2 font-medium border-b-2 border-primary text-primary"
-        >
+        <button className="px-4 py-2 font-medium border-b-2 border-primary text-primary">
           <Package className="h-4 w-4 inline mr-2" />
           Inbound Freight
         </button>
@@ -221,13 +239,26 @@ export default function InboundFreightPage() {
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
               className="px-3 py-2 border rounded-md"
             >
               <option value="">All Statuses</option>
               <option value="draft">Draft</option>
               <option value="expected">Expected</option>
               <option value="received">Received</option>
+            </select>
+            <select
+              value={limit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              className="px-3 py-2 border rounded-md"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="15">15 per page</option>
+              <option value="20">20 per page</option>
             </select>
           </div>
         </CardContent>
@@ -288,40 +319,21 @@ export default function InboundFreightPage() {
                         )}
                         {job.customerName && <div>Customer: {job.customerName}</div>}
                         {job.supplierName && <div>Supplier: {job.supplierName}</div>}
-                        {job.transportMode && <div>Transport: {job.transportMode === 'our' ? 'Our' : 'Third Party'}</div>}
+                        {job.transportMode && (
+                          <div>
+                            Transport: {job.transportMode === 'our' ? 'Our' : 'Third Party'}
+                          </div>
+                        )}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      {!job.completedDate && (
-                        <>
-                          <Link href={`/dashboard/freight/inbound/${job.id}/edit`}>
-                            <Button variant="outline" size="sm" title="Edit Job">
-                              <Edit className="h-4 w-4 mr-1" />
-                              Edit
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handleQuickReceive(job.id)}
-                            title="Receive Stock"
-                          >
-                            <PackageCheck className="h-4 w-4 mr-1" />
-                            Receive
-                          </Button>
-                        </>
-                      )}
                       <Link href={`/dashboard/freight/inbound/${job.id}`}>
                         <Button variant="outline" size="sm">
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
                       </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(job.id)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(job.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -332,13 +344,59 @@ export default function InboundFreightPage() {
           })}
         </div>
       )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {jobs.length} job{jobs.length !== 1 ? 's' : ''} on page {page} of {totalPages}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(Math.max(1, page - 1))}
+                  className={!hasPrevPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (page <= 3) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pageNum)}
+                      isActive={pageNum === page}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              })}
+              {totalPages > 5 && page < totalPages - 2 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                  className={!hasNextPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   )
 }
-
-
-
-
-
-
-

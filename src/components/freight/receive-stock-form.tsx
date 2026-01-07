@@ -24,9 +24,14 @@ interface ReceiveStockFormProps {
     field: keyof ProductLine,
     value: string | number | undefined,
   ) => void
+  validationErrors?: Record<number, string>
 }
 
-export function ReceiveStockForm({ productLines, onProductLineChange }: ReceiveStockFormProps) {
+export function ReceiveStockForm({
+  productLines,
+  onProductLineChange,
+  validationErrors = {},
+}: ReceiveStockFormProps) {
   return (
     <div className="space-y-4">
       {productLines.map((line, index) => (
@@ -77,16 +82,22 @@ export function ReceiveStockForm({ productLines, onProductLineChange }: ReceiveS
                 readOnly
                 className="bg-muted"
               />
-              <FormInput
-                label="Received Qty"
-                type="number"
-                min="0"
-                value={line.recievedQty || ''}
-                onChange={(e) =>
-                  onProductLineChange(index, 'recievedQty', parseInt(e.target.value) || undefined)
-                }
-                placeholder="Enter received quantity"
-              />
+              <div>
+                <FormInput
+                  label="Received Qty"
+                  type="number"
+                  min="0"
+                  value={line.recievedQty || ''}
+                  onChange={(e) =>
+                    onProductLineChange(index, 'recievedQty', parseInt(e.target.value) || undefined)
+                  }
+                  placeholder="Enter received quantity"
+                  className={validationErrors[line.id] ? 'border-red-500' : ''}
+                />
+                {validationErrors[line.id] && (
+                  <p className="text-sm text-red-500 mt-1">{validationErrors[line.id]}</p>
+                )}
+              </div>
             </div>
 
             {/* Weight Column */}

@@ -7,6 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import { Package, Plus, Search, Eye, Edit, Trash2, PackageX, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { hasViewPermission } from '@/lib/permissions'
@@ -21,6 +30,7 @@ type OutboundJob = {
   customerToName?: string
   customerFromName?: string
   warehouseId?: number | { id: number; name?: string }
+  productLineCount?: number
   createdAt: string
 }
 
@@ -31,6 +41,11 @@ export default function OutboundFreightPage() {
   const [loadingJobs, setLoadingJobs] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(5)
+  const [totalPages, setTotalPages] = useState(1)
+  const [hasPrevPage, setHasPrevPage] = useState(false)
+  const [hasNextPage, setHasNextPage] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [currentUser, setCurrentUser] = useState<{
     id?: number
@@ -76,28 +91,43 @@ export default function OutboundFreightPage() {
     if (tenant && authChecked) {
       loadJobs()
     }
-  }, [tenant, authChecked, searchTerm, statusFilter])
+  }, [tenant, authChecked, searchTerm, statusFilter, page, limit])
 
   const loadJobs = async () => {
     try {
       setLoadingJobs(true)
-      let url = '/api/outbound-inventory?limit=50'
+      const params = new URLSearchParams()
+      params.set('page', page.toString())
+      params.set('limit', limit.toString())
       if (searchTerm) {
-        url += `&search=${encodeURIComponent(searchTerm)}`
+        params.set('search', searchTerm)
       }
       if (statusFilter) {
-        url += `&status=${encodeURIComponent(statusFilter)}`
+        params.set('status', statusFilter)
       }
-      const res = await fetch(url)
+      
+      const res = await fetch(`/api/outbound-inventory?${params.toString()}`)
       if (res.ok) {
         const data = await res.json()
         setJobs(data.jobs || [])
+        setTotalPages(data.totalPages || 1)
+        setHasPrevPage(data.hasPrevPage || false)
+        setHasNextPage(data.hasNextPage || false)
       }
     } catch (error) {
       console.error('Error loading jobs:', error)
     } finally {
       setLoadingJobs(false)
     }
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit)
+    setPage(1) // Reset to first page when changing limit
   }
 
   const handleDelete = async (jobId: number) => {
@@ -222,13 +252,19 @@ export default function OutboundFreightPage() {
               <Input
                 placeholder="Search by job code, customer, or notes..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
               className="px-3 py-2 border rounded-md"
             >
               <option value="">All Statuses</option>
@@ -240,6 +276,16 @@ export default function OutboundFreightPage() {
               <option value="picked">Picked</option>
               <option value="ready_to_dispatch">Ready to Dispatch</option>
               <option value="dispatched">Dispatched</option>
+            </select>
+            <select
+              value={limit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              className="px-3 py-2 border rounded-md"
+            >
+              <option value="5">5 per page</option>
+              <option value="10">10 per page</option>
+              <option value="15">15 per page</option>
+              <option value="20">20 per page</option>
             </select>
           </div>
         </CardContent>
@@ -277,8 +323,10 @@ export default function OutboundFreightPage() {
       ) : (
         <div className="space-y-4">
           {jobs.map((job) => {
-            const statusColor = getStatusColor(job.status)
-            const statusLabel = getStatusLabel(job.status)
+            // If no product lines, always show draft status
+            const displayStatus = (!job.productLineCount || job.productLineCount === 0) ? 'draft' : (job.status || 'draft')
+            const statusColor = getStatusColor(displayStatus)
+            const statusLabel = getStatusLabel(displayStatus)
             return (
               <Card key={job.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
@@ -331,6 +379,59 @@ export default function OutboundFreightPage() {
               </Card>
             )
           })}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {jobs.length} job{jobs.length !== 1 ? 's' : ''} on page {page} of {totalPages}
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(Math.max(1, page - 1))}
+                  className={!hasPrevPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (page <= 3) {
+                  pageNum = i + 1
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = page - 2 + i
+                }
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(pageNum)}
+                      isActive={pageNum === page}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              })}
+              {totalPages > 5 && page < totalPages - 2 && (
+                <PaginationItem>
+                  <PaginationEllipsis />
+                </PaginationItem>
+              )}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
+                  className={!hasNextPage ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
     </div>

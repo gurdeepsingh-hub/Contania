@@ -340,7 +340,7 @@ export default function TenantDashboard() {
                 </Link>
               ))}
               <div className="pt-2">
-                <Link href="/dashboard/container-bookings">
+                <Link href="/dashboard/import-container-bookings">
                   <Button variant="outline" size="sm" className="w-full">
                     View All Bookings
                   </Button>

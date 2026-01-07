@@ -91,9 +91,28 @@ export async function GET(request: NextRequest) {
       sort: sortField,
     })
 
+    // Get product line counts for each job
+    const jobsWithProductLineCounts = await Promise.all(
+      result.docs.map(async (job) => {
+        const productLinesResult = await payload.find({
+          collection: 'outbound-product-line',
+          where: {
+            outboundInventoryId: {
+              equals: job.id,
+            },
+          },
+          limit: 1, // We only need to know if any exist
+        })
+        return {
+          ...job,
+          productLineCount: productLinesResult.totalDocs,
+        }
+      })
+    )
+
     return NextResponse.json({
       success: true,
-      jobs: result.docs,
+      jobs: jobsWithProductLineCounts,
       totalDocs: result.totalDocs,
       limit: result.limit,
       totalPages: result.totalPages,

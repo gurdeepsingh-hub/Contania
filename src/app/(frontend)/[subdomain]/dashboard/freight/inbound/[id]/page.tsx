@@ -345,15 +345,17 @@ export default function InboundJobDetailPage() {
                   Edit Job
                 </Button>
               </Link>
-              <Link href={`/dashboard/freight/inbound/${job.id}/receive`}>
-                <Button>
-                  <PackageCheck className="h-4 w-4 mr-2" />
-                  Receive Stock
-                </Button>
-              </Link>
+              {job.productLines && job.productLines.length > 0 && (
+                <Link href={`/dashboard/freight/inbound/${job.id}/receive`}>
+                  <Button>
+                    <PackageCheck className="h-4 w-4 mr-2" />
+                    Receive Stock
+                  </Button>
+                </Link>
+              )}
             </>
           )}
-          {hasReceivedData && !areAllProductLinesPutAway && (
+          {hasReceivedData && !areAllProductLinesPutAway && job.productLines && job.productLines.length > 0 && (
             <>
               <Button variant="outline" onClick={() => handlePutAway()}>
                 Put Away Stock

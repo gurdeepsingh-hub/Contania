@@ -46,6 +46,7 @@ export default function ReceiveStockPage() {
   const [loadingJob, setLoadingJob] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [showPutAwayDialog, setShowPutAwayDialog] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<Record<number, string>>({})
 
   const jobId = params.id as string
 
@@ -106,14 +107,46 @@ export default function ReceiveStockPage() {
   }
 
   const handleSave = async (action: 'save' | 'putAway') => {
+    // Validate all product lines and collect errors
+    const errors: Record<number, string> = {}
+    const validProductLines: ProductLine[] = []
+
+    productLines.forEach((line) => {
+      const hasValidQty =
+        line.recievedQty !== undefined && line.recievedQty !== null && line.recievedQty > 0
+
+      if (!hasValidQty) {
+        errors[line.id] = 'Please enter a positive received quantity'
+      } else {
+        validProductLines.push(line)
+      }
+    })
+
+    // Set validation errors to show field-level errors
+    setValidationErrors(errors)
+
+    // Check if at least one product line has valid data
+    if (validProductLines.length === 0) {
+      toast.error('Please enter a positive received quantity for at least one product line before saving')
+      return
+    }
+
+    // If there are errors but also valid lines, show a warning
+    if (Object.keys(errors).length > 0 && validProductLines.length > 0) {
+      toast.warning(
+        `Only ${validProductLines.length} product line(s) with positive values will be saved. Please fill in the remaining product lines.`
+      )
+    }
+
     setSaving(true)
     try {
+      // Only send product lines with positive received quantities
       const res = await fetch(`/api/inbound-inventory/${jobId}/receive`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           completedDate: new Date().toISOString(),
-          productLines: productLines.map((line) => ({
+          productLines: validProductLines.map((line) => ({
             id: line.id,
             recievedQty: line.recievedQty,
             recievedWeight: line.recievedWeight,
@@ -126,7 +159,9 @@ export default function ReceiveStockPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
-          toast.success('Stock received successfully')
+          toast.success(
+            `Stock received successfully for ${validProductLines.length} product line(s)`
+          )
           if (action === 'putAway') {
             // Open put-away dialog
             setShowPutAwayDialog(true)
@@ -156,7 +191,22 @@ export default function ReceiveStockPage() {
   const updateProductLine = (index: number, field: keyof ProductLine, value: string | number | undefined) => {
     setProductLines((prev) => {
       const updated = [...prev]
-      updated[index] = { ...updated[index], [field]: value }
+      const line = updated[index]
+      updated[index] = { ...line, [field]: value }
+
+      // Clear validation error for this line if received quantity becomes valid
+      if (field === 'recievedQty') {
+        const hasValidQty =
+          value !== undefined && value !== null && typeof value === 'number' && value > 0
+        if (hasValidQty && validationErrors[line.id]) {
+          setValidationErrors((prevErrors) => {
+            const newErrors = { ...prevErrors }
+            delete newErrors[line.id]
+            return newErrors
+          })
+        }
+      }
+
       return updated
     })
   }
@@ -255,7 +305,11 @@ export default function ReceiveStockPage() {
             //     </div>
             //   </div>
             // ))
-            <ReceiveStockForm productLines={productLines} onProductLineChange={updateProductLine} />
+            <ReceiveStockForm
+              productLines={productLines}
+              onProductLineChange={updateProductLine}
+              validationErrors={validationErrors}
+            />
           )}
         </CardContent>
       </Card>

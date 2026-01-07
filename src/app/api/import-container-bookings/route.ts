@@ -76,9 +76,38 @@ export async function GET(request: NextRequest) {
       sort: sortField,
     })
 
+    // Get stock allocation counts with product lines for each booking
+    const bookingsWithProductLineCounts = await Promise.all(
+      bookingsResult.docs.map(async (booking) => {
+        const allocationsResult = await payload.find({
+          collection: 'container-stock-allocations',
+          where: {
+            containerBookingId: {
+              relationTo: 'import-container-bookings',
+              value: booking.id,
+            },
+          },
+          limit: 1000, // Get all allocations to count product lines
+        })
+        
+        // Count total product lines across all allocations
+        let totalProductLines = 0
+        for (const allocation of allocationsResult.docs) {
+          if (allocation.productLines && Array.isArray(allocation.productLines)) {
+            totalProductLines += allocation.productLines.length
+          }
+        }
+        
+        return {
+          ...booking,
+          productLineCount: totalProductLines,
+        }
+      })
+    )
+
     return NextResponse.json({
       success: true,
-      importContainerBookings: bookingsResult.docs,
+      importContainerBookings: bookingsWithProductLineCounts,
       totalDocs: bookingsResult.totalDocs,
       limit: bookingsResult.limit,
       totalPages: bookingsResult.totalPages,
