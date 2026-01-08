@@ -1033,7 +1033,7 @@ export interface InboundInventory {
    */
   tenantId: number | Tenant;
   /**
-   * Unique job code for this tenant (auto-generated)
+   * Unique job code for this tenant (auto-generated with INB- prefix, unique across all job collections per tenant)
    */
   jobCode: string;
   /**
@@ -1473,7 +1473,7 @@ export interface ImportContainerBooking {
    */
   tenantId: number | Tenant;
   /**
-   * Auto-generated unique booking code (IMP- prefix)
+   * Auto-generated unique booking code (IMP- prefix, unique across all job collections per tenant)
    */
   bookingCode: string;
   /**
@@ -1564,6 +1564,10 @@ export interface ImportContainerBooking {
     | ({
         relationTo: 'wharves';
         value: number | Wharf;
+      } | null)
+    | ({
+        relationTo: 'warehouses';
+        value: number | Warehouse;
       } | null);
   /**
    * Collection type for fromId
@@ -1604,6 +1608,10 @@ export interface ImportContainerBooking {
     | ({
         relationTo: 'wharves';
         value: number | Wharf;
+      } | null)
+    | ({
+        relationTo: 'warehouses';
+        value: number | Warehouse;
       } | null);
   /**
    * Collection type for toId
@@ -2092,7 +2100,7 @@ export interface ExportContainerBooking {
    */
   tenantId: number | Tenant;
   /**
-   * Auto-generated unique booking code (EXP- prefix)
+   * Auto-generated unique booking code (EXP- prefix, unique across all job collections per tenant)
    */
   bookingCode: string;
   /**
@@ -2179,6 +2187,10 @@ export interface ExportContainerBooking {
     | ({
         relationTo: 'wharves';
         value: number | Wharf;
+      } | null)
+    | ({
+        relationTo: 'warehouses';
+        value: number | Warehouse;
       } | null);
   /**
    * Collection type for fromId
@@ -2219,6 +2231,10 @@ export interface ExportContainerBooking {
     | ({
         relationTo: 'wharves';
         value: number | Wharf;
+      } | null)
+    | ({
+        relationTo: 'warehouses';
+        value: number | Warehouse;
       } | null);
   /**
    * Collection type for toId
@@ -2620,7 +2636,7 @@ export interface OutboundInventory {
    */
   tenantId: number | Tenant;
   /**
-   * Unique job code for this tenant (auto-generated)
+   * Unique job code for this tenant (auto-generated with OUTB- prefix, unique across all job collections per tenant)
    */
   jobCode: string;
   /**

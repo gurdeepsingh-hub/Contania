@@ -337,7 +337,7 @@ export default function VesselsPage() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <CardTitle className="text-lg font-semibold line-clamp-1 pr-2">
-                          {vessel.vesselName}
+                          {vessel.vesselName}{vessel.voyageNumber ? `/${vessel.voyageNumber}` : ''}
                         </CardTitle>
                         <div className="flex gap-1 shrink-0">
                           <Button

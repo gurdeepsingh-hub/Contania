@@ -66,6 +66,16 @@ type Wharf = {
   }
 }
 
+type Warehouse = {
+  id: number
+  name: string
+  type?: 'Depot' | 'Warehouse' | null
+  street?: string | null
+  city?: string | null
+  state?: string | null
+  postcode?: string | null
+}
+
 type ContainerSize = {
   id: number
   size: number
@@ -77,7 +87,7 @@ type ContainerSize = {
 type UnifiedLocationOption = {
   value: string // Format: "collection:id"
   label: string
-  collection: 'customers' | 'paying-customers' | 'empty-parks' | 'wharves'
+  collection: 'customers' | 'paying-customers' | 'empty-parks' | 'wharves' | 'warehouses'
   id: number
 }
 
@@ -119,6 +129,7 @@ export function Step2VesselLocationsImport({
   const [payingCustomers, setPayingCustomers] = useState<PayingCustomer[]>([])
   const [emptyParks, setEmptyParks] = useState<EmptyPark[]>([])
   const [wharves, setWharves] = useState<Wharf[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [containerSizes, setContainerSizes] = useState<ContainerSize[]>([])
   const [unifiedLocations, setUnifiedLocations] = useState<UnifiedLocationOption[]>([])
 
@@ -140,12 +151,13 @@ export function Step2VesselLocationsImport({
   const loadOptions = useCallback(async () => {
     setLoading(true)
     try {
-      const [customersRes, payingCustomersRes, emptyParksRes, wharvesRes, containerSizesRes] =
+      const [customersRes, payingCustomersRes, emptyParksRes, wharvesRes, warehousesRes, containerSizesRes] =
         await Promise.all([
           fetch('/api/customers?limit=100'),
           fetch('/api/paying-customers?limit=100'),
           fetch('/api/empty-parks?limit=100'),
           fetch('/api/wharves?limit=100'),
+          fetch('/api/warehouses?limit=100'),
           fetch('/api/container-sizes?limit=100'),
         ])
 
@@ -153,6 +165,7 @@ export function Step2VesselLocationsImport({
       let payingCustomersData: PayingCustomer[] = []
       let emptyParksData: EmptyPark[] = []
       let wharvesData: Wharf[] = []
+      let warehousesData: Warehouse[] = []
       let containerSizesData: ContainerSize[] = []
 
       if (customersRes.ok) {
@@ -174,6 +187,11 @@ export function Step2VesselLocationsImport({
         const data = await wharvesRes.json()
         wharvesData = data.wharves || []
         setWharves(wharvesData)
+      }
+      if (warehousesRes.ok) {
+        const data = await warehousesRes.json()
+        warehousesData = data.warehouses || []
+        setWarehouses(warehousesData)
       }
       if (containerSizesRes.ok) {
         const data = await containerSizesRes.json()
@@ -204,6 +222,12 @@ export function Step2VesselLocationsImport({
           value: `wharves:${wh.id}`,
           label: `${wh.name} [Wharf]`,
           collection: 'wharves' as const,
+          id: wh.id,
+        })),
+        ...warehousesData.map((wh) => ({
+          value: `warehouses:${wh.id}`,
+          label: `${wh.name} [${wh.type || 'Warehouse'}]`,
+          collection: 'warehouses' as const,
           id: wh.id,
         })),
       ]
@@ -332,10 +356,6 @@ export function Step2VesselLocationsImport({
     field: 'fromId' | 'toId',
     locationValue: string | number | undefined,
   ) => {
-    // Prevent changes to "from" field when it's disabled (vessel wharf auto-filled)
-    if (field === 'fromId' && selectedVessel?.wharfId) {
-      return
-    }
 
     if (!locationValue || locationValue === '') {
       onUpdate({
@@ -367,6 +387,8 @@ export function Step2VesselLocationsImport({
         apiPath = `/api/empty-parks/${locationId}`
       } else if (collection === 'wharves') {
         apiPath = `/api/wharves/${locationId}`
+      } else if (collection === 'warehouses') {
+        apiPath = `/api/warehouses/${locationId}`
       } else {
         console.warn('Unknown collection:', collection)
         return
@@ -417,6 +439,12 @@ export function Step2VesselLocationsImport({
             city = wh.address?.city || ''
             state = wh.address?.state || ''
             postcode = wh.address?.postcode || ''
+          } else if (collection === 'warehouses' && data.warehouse) {
+            const wh = data.warehouse as Warehouse
+            street = wh.street || ''
+            city = wh.city || ''
+            state = wh.state || ''
+            postcode = wh.postcode || ''
           }
 
           onUpdate({
@@ -495,9 +523,8 @@ export function Step2VesselLocationsImport({
     return computed
   }, [formData.toId, unifiedLocations])
 
-  // Check if "from" field should be disabled (when vessel has a wharf - disabled from the start)
-  const isFromFieldDisabled = React.useMemo(() => {
-    // Disable immediately when vessel has a wharf, not conditionally
+  // Check if "from" field is prefilled from vessel wharf (for display message)
+  const isFromFieldPrefilled = React.useMemo(() => {
     return !!selectedVessel?.wharfId
   }, [selectedVessel])
 
@@ -516,7 +543,7 @@ export function Step2VesselLocationsImport({
                   placeholder="Select vessel..."
                   options={vessels.map((v) => ({
                     value: v.id,
-                    label: `${v.vesselName}${v.voyageNumber ? ` - ${v.voyageNumber}` : ''}`,
+                    label: `${v.vesselName}${v.voyageNumber ? `/${v.voyageNumber}` : ''}`,
                   }))}
                   value={formData.vesselId}
                   onValueChange={(value) =>
@@ -536,27 +563,6 @@ export function Step2VesselLocationsImport({
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* Vessel Info Box */}
-            {selectedVessel && (
-              <div className="p-3 bg-muted rounded-md space-y-1 text-xs">
-                {selectedVessel.voyageNumber && (
-                  <p>
-                    <strong>Voyage:</strong> {selectedVessel.voyageNumber}
-                  </p>
-                )}
-                {selectedVessel.lloydsNumber && (
-                  <p>
-                    <strong>Lloyds:</strong> {selectedVessel.lloydsNumber}
-                  </p>
-                )}
-                {selectedWharf && (
-                  <p>
-                    <strong>Wharf:</strong> {selectedWharf.name}
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Vessel Date Fields */}
             {selectedVessel && (
@@ -624,10 +630,9 @@ export function Step2VesselLocationsImport({
               value={fromValue}
               onValueChange={(value) => handleLocationChange('fromId', value)}
               error={errors?.fromId}
-              disabled={isFromFieldDisabled}
             />
-            {isFromFieldDisabled && (
-              <p className="text-xs text-muted-foreground">Auto-filled from vessel&apos;s wharf</p>
+            {isFromFieldPrefilled && (
+              <p className="text-xs text-muted-foreground">Prefilled from vessel&apos;s wharf (editable)</p>
             )}
             <div className="grid grid-cols-1 gap-2">
               <FormInput
@@ -730,7 +735,8 @@ export function Step2VesselLocationsImport({
                     }
                   }}
                 >
-                  {size.size}{size.attribute ? ` ${size.attribute}` : ''}
+                  {size.size}
+                  {size.attribute ? ` ${size.attribute}` : ''}
                 </Button>
               )
             })}

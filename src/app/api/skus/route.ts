@@ -76,22 +76,25 @@ export async function GET(request: NextRequest) {
 
           // Handle different formats Payload might return
           if (typeof sku.customerId === 'object' && sku.customerId !== null) {
-            // Check if it has relationTo (unpopulated format: { relationTo, value })
+            // Payload polymorphic format: {relationTo: "collection", value: {id, customer_name, ...}}
             if ('relationTo' in sku.customerId && 'value' in sku.customerId) {
               collection = sku.customerId.relationTo
-              customerId = sku.customerId.value
-            } 
-            // Check if it has relationTo and id (another format)
-            else if ('relationTo' in sku.customerId && 'id' in sku.customerId) {
+              const valueObj = sku.customerId.value
+              // value can be a number or a full object
+              if (typeof valueObj === 'object' && valueObj !== null && 'id' in valueObj) {
+                customerId = valueObj.id
+                customerName = valueObj.customer_name
+              } else if (typeof valueObj === 'number') {
+                customerId = valueObj
+              }
+            } else if ('relationTo' in sku.customerId && 'id' in sku.customerId) {
               collection = sku.customerId.relationTo
               customerId = sku.customerId.id
               customerName = sku.customerId.customer_name
-            }
-            // Populated format - has id and customer_name but no relationTo
-            else if ('id' in sku.customerId && !('relationTo' in sku.customerId)) {
+            } else if ('id' in sku.customerId && !('relationTo' in sku.customerId)) {
               customerId = sku.customerId.id
               customerName = sku.customerId.customer_name
-              
+
               // Try both collections to determine which one this belongs to
               try {
                 const testCustomer = await payload.findByID({
@@ -99,10 +102,11 @@ export async function GET(request: NextRequest) {
                   id: customerId,
                   depth: 0,
                 })
-                // Verify it's from this tenant
-                const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
-                  ? (testCustomer as { tenantId: { id: number } }).tenantId.id
-                  : (testCustomer as { tenantId?: number }).tenantId
+                const testTenantId =
+                  typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId ===
+                  'object'
+                    ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                    : (testCustomer as { tenantId?: number }).tenantId
                 if (testTenantId === tenant.id) {
                   collection = 'customers'
                 }
@@ -113,10 +117,11 @@ export async function GET(request: NextRequest) {
                     id: customerId,
                     depth: 0,
                   })
-                  // Verify it's from this tenant
-                  const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
-                    ? (testCustomer as { tenantId: { id: number } }).tenantId.id
-                    : (testCustomer as { tenantId?: number }).tenantId
+                  const testTenantId =
+                    typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId ===
+                    'object'
+                      ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                      : (testCustomer as { tenantId?: number }).tenantId
                   if (testTenantId === tenant.id) {
                     collection = 'paying-customers'
                   }
@@ -127,17 +132,16 @@ export async function GET(request: NextRequest) {
             }
           } else if (typeof sku.customerId === 'number') {
             customerId = sku.customerId
-            // Try both collections to find which one it belongs to
             try {
               const testCustomer = await payload.findByID({
                 collection: 'customers',
                 id: customerId,
                 depth: 0,
               })
-              // Verify it's from this tenant
-              const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
-                ? (testCustomer as { tenantId: { id: number } }).tenantId.id
-                : (testCustomer as { tenantId?: number }).tenantId
+              const testTenantId =
+                typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
+                  ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                  : (testCustomer as { tenantId?: number }).tenantId
               if (testTenantId === tenant.id) {
                 collection = 'customers'
               }
@@ -148,10 +152,11 @@ export async function GET(request: NextRequest) {
                   id: customerId,
                   depth: 0,
                 })
-                // Verify it's from this tenant
-                const testTenantId = typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId === 'object'
-                  ? (testCustomer as { tenantId: { id: number } }).tenantId.id
-                  : (testCustomer as { tenantId?: number }).tenantId
+                const testTenantId =
+                  typeof (testCustomer as { tenantId?: number | { id: number } }).tenantId ===
+                  'object'
+                    ? (testCustomer as { tenantId: { id: number } }).tenantId.id
+                    : (testCustomer as { tenantId?: number }).tenantId
                 if (testTenantId === tenant.id) {
                   collection = 'paying-customers'
                 }
@@ -161,25 +166,17 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // If we found the collection, ensure customerId has relationTo/collection info
+          // Transform to frontend-friendly format: {id, relationTo, collection, customer_name}
           if (collection && customerId !== undefined) {
-            if (typeof sku.customerId === 'object' && sku.customerId !== null) {
-              sku.customerId.relationTo = collection
-              sku.customerId.collection = collection
-              // Preserve customer_name if it exists
-              if (customerName && !sku.customerId.customer_name) {
-                sku.customerId.customer_name = customerName
-              }
-            } else {
-              // Convert number to object format with collection info
-              sku.customerId = {
-                id: customerId,
-                relationTo: collection,
-                collection: collection,
-              }
+            sku.customerId = {
+              id: customerId,
+              relationTo: collection,
+              collection: collection,
+              ...(customerName && { customer_name: customerName }),
             }
           }
         }
+
         return sku
       })
     )

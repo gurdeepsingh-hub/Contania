@@ -1,56 +1,5 @@
 import type { CollectionConfig } from 'payload'
-
-/**
- * Generate a random alphanumeric code
- */
-function generateJobCode(length: number = 8): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let result = ''
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
-}
-
-/**
- * Generate a unique job code for a tenant
- */
-async function generateUniqueJobCode(
-  payload: any,
-  tenantId: number | string,
-  maxAttempts: number = 10,
-): Promise<string> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const code = generateJobCode(8) // 8 character code
-
-    // Check if this code already exists for this tenant
-    const existing = await payload.find({
-      collection: 'inbound-inventory',
-      where: {
-        and: [
-          {
-            tenantId: {
-              equals: tenantId,
-            },
-          },
-          {
-            jobCode: {
-              equals: code,
-            },
-          },
-        ],
-      },
-      limit: 1,
-    })
-
-    if (existing.docs.length === 0) {
-      return code
-    }
-  }
-
-  // Fallback: use timestamp-based code if all attempts fail
-  return generateJobCode(6) + Date.now().toString().slice(-4)
-}
+import { generateUniqueJobNumber } from '@/lib/job-number-generator'
 
 export const InboundInventory: CollectionConfig = {
   slug: 'inbound-inventory',
@@ -128,7 +77,7 @@ export const InboundInventory: CollectionConfig = {
       required: true,
       unique: true,
       admin: {
-        description: 'Unique job code for this tenant (auto-generated)',
+        description: 'Unique job code for this tenant (auto-generated with INB- prefix, unique across all job collections per tenant)',
         readOnly: true,
       },
     },
@@ -359,12 +308,12 @@ export const InboundInventory: CollectionConfig = {
           }
         }
 
-        // Generate unique job code when creating a new job
+        // Generate unique job code with 'inb' prefix when creating a new job
         if (operation === 'create' && !data.jobCode && req?.payload && data.tenantId) {
           const tenantId =
             typeof data.tenantId === 'object' ? (data.tenantId as { id: number }).id : data.tenantId
           if (tenantId) {
-            data.jobCode = await generateUniqueJobCode(req.payload, tenantId)
+            data.jobCode = await generateUniqueJobNumber(req.payload, tenantId, 'INB')
           }
         }
 

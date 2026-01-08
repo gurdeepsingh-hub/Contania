@@ -579,7 +579,13 @@ export function MultistepExportContainerBookingForm({
 
   const handleNext = async () => {
     if (!validateStep(step)) {
-      toast.error('Please fix validation errors before proceeding')
+      const stepErrors = validationErrors[step]
+      if (stepErrors) {
+        const errorMessages = Object.values(stepErrors).join(', ')
+        toast.error(`Please fix validation errors: ${errorMessages}`)
+      } else {
+        toast.error('Please fix validation errors before proceeding')
+      }
       return
     }
 

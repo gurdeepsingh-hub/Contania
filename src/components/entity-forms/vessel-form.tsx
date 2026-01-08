@@ -292,6 +292,9 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create', 
     }
   }
 
+  const vesselName = watch('vesselName')
+  const voyageNumber = watch('voyageNumber')
+
   return (
     <>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -310,6 +313,14 @@ export function VesselForm({ initialData, onSuccess, onCancel, mode = 'create', 
             placeholder="Voyage number"
             {...register('voyageNumber')}
           />
+          {(vesselName || voyageNumber) && (
+            <div className="md:col-span-2">
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium">Display Name: </span>
+                <span>{vesselName || ''}{vesselName && voyageNumber ? '/' : ''}{voyageNumber || ''}</span>
+              </div>
+            </div>
+          )}
           <FormInput
             label="Lloyds Number"
             error={errors.lloydsNumber?.message}

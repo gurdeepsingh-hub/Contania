@@ -785,7 +785,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         } else {
           // Use provided collection or find it
           const providedCollection = fullRouting.dropoffLocationCollection
-          const allowedCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
+          const allowedCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses']
 
           if (providedCollection && allowedCollections.includes(providedCollection)) {
             // Validate ID exists in the provided collection AND belongs to this tenant
@@ -866,7 +866,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         } else {
           // Use provided collection or find it
           const providedCollection = fullRouting.pickupLocationCollection
-          const allowedCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
+          const allowedCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses']
 
           if (providedCollection && allowedCollections.includes(providedCollection)) {
             // Validate ID exists in the provided collection AND belongs to this tenant
@@ -1122,7 +1122,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         } else {
           // Use provided collection or find it
           const providedCollection = emptyRouting.dropoffLocationCollection
-          const allowedCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves']
+          const allowedCollections = ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses']
 
           if (providedCollection && allowedCollections.includes(providedCollection)) {
             // Validate ID exists in the provided collection AND belongs to this tenant

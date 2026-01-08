@@ -52,7 +52,10 @@ export const step2Schema = z
   .object({
     vesselId: numberOrUndefined,
     eta: dateStringOrUndefined,
-    availability: z.boolean().optional(),
+    availability: z.preprocess((val) => {
+      if (val === null || val === undefined || val === '') return undefined
+      return Boolean(val)
+    }, z.boolean().optional()),
     storageStart: dateStringOrUndefined,
     firstFreeImportDate: dateStringOrUndefined,
     fromId: z.union([
@@ -60,7 +63,7 @@ export const step2Schema = z
         if (!val || typeof val !== 'string') return false
         const [collection, id] = val.split(':')
         return (
-          ['customers', 'paying-customers', 'empty-parks', 'wharves'].includes(collection) &&
+          ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses'].includes(collection) &&
           !Number.isNaN(parseInt(id, 10))
         )
       }, 'From location is required'),
@@ -71,7 +74,7 @@ export const step2Schema = z
         if (!val || typeof val !== 'string') return false
         const [collection, id] = val.split(':')
         return (
-          ['customers', 'paying-customers', 'empty-parks', 'wharves'].includes(collection) &&
+          ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses'].includes(collection) &&
           !Number.isNaN(parseInt(id, 10))
         )
       }, 'To location is required'),

@@ -112,7 +112,7 @@ export function Step2VesselInfoImport({
             placeholder="Select vessel..."
             options={vessels.map((v) => ({
               value: v.id,
-              label: `${v.vesselName}${v.voyageNumber ? ` - ${v.voyageNumber}` : ''}`,
+              label: `${v.vesselName}${v.voyageNumber ? `/${v.voyageNumber}` : ''}`,
             }))}
             value={formData.vesselId}
             onValueChange={(value) =>
@@ -132,24 +132,6 @@ export function Step2VesselInfoImport({
           <Plus className="h-4 w-4" />
         </Button>
       </div>
-
-      {selectedVessel && (
-        <div className="p-4 bg-muted rounded-md space-y-2 text-sm">
-          <p>
-            <strong>Vessel:</strong> {selectedVessel.vesselName}
-          </p>
-          {selectedVessel.voyageNumber && (
-            <p>
-              <strong>Voyage:</strong> {selectedVessel.voyageNumber}
-            </p>
-          )}
-          {selectedVessel.lloydsNumber && (
-            <p>
-              <strong>Lloyds Number:</strong> {selectedVessel.lloydsNumber}
-            </p>
-          )}
-        </div>
-      )}
 
       <FormInput
         label="ETA (Estimated Time of Arrival)"

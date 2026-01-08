@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { generateUniqueJobNumber } from '@/lib/job-number-generator'
 
 export const ExportContainerBookings: CollectionConfig = {
   slug: 'export-container-bookings',
@@ -76,7 +77,8 @@ export const ExportContainerBookings: CollectionConfig = {
       required: true,
       unique: true,
       admin: {
-        description: 'Auto-generated unique booking code (EXP- prefix)',
+        description:
+          'Auto-generated unique booking code (EXP- prefix, unique across all job collections per tenant)',
         readOnly: true,
       },
     },
@@ -227,7 +229,7 @@ export const ExportContainerBookings: CollectionConfig = {
     {
       name: 'fromId',
       type: 'relationship',
-      relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+      relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses'],
       required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
@@ -292,7 +294,7 @@ export const ExportContainerBookings: CollectionConfig = {
     {
       name: 'toId',
       type: 'relationship',
-      relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves'],
+      relationTo: ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses'],
       required: (({ data, operation }: { data: any; operation: any }) => {
         // Only required when status is not 'draft' and it's a create/update operation
         if (operation === 'create' || operation === 'update') {
@@ -311,8 +313,7 @@ export const ExportContainerBookings: CollectionConfig = {
         return true as const
       }) as any,
       admin: {
-        description:
-          'Destination location (consignee/consignor, customer, empty park, or wharf)',
+        description: 'Destination location (consignee/consignor, customer, empty park, or wharf)',
       },
     },
     {
@@ -601,14 +602,13 @@ export const ExportContainerBookings: CollectionConfig = {
           }
         }
 
-        // Auto-generate booking code with EXP- prefix
-        if (operation === 'create' && !data.bookingCode) {
-          const prefix = 'EXP'
-          const timestamp = Date.now().toString().slice(-8)
-          const random = Math.floor(Math.random() * 1000)
-            .toString()
-            .padStart(3, '0')
-          data.bookingCode = `${prefix}-${timestamp}-${random}`
+        // Auto-generate booking code with 'exp' prefix (unique across all job collections per tenant)
+        if (operation === 'create' && !data.bookingCode && req?.payload && data.tenantId) {
+          const tenantId =
+            typeof data.tenantId === 'object' ? (data.tenantId as { id: number }).id : data.tenantId
+          if (tenantId) {
+            data.bookingCode = await generateUniqueJobNumber(req.payload, tenantId, 'EXP')
+          }
         }
 
         // Auto-fetch chargeTo entity details

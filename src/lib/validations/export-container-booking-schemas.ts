@@ -59,7 +59,7 @@ export const step2Schema = z
         if (!val || typeof val !== 'string') return false
         const [collection, id] = val.split(':')
         return (
-          ['customers', 'paying-customers', 'empty-parks', 'wharves'].includes(collection) &&
+          ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses'].includes(collection) &&
           !Number.isNaN(parseInt(id, 10))
         )
       }, 'From location is required'),
@@ -70,7 +70,7 @@ export const step2Schema = z
         if (!val || typeof val !== 'string') return false
         const [collection, id] = val.split(':')
         return (
-          ['customers', 'paying-customers', 'empty-parks', 'wharves'].includes(collection) &&
+          ['customers', 'paying-customers', 'empty-parks', 'wharves', 'warehouses'].includes(collection) &&
           !Number.isNaN(parseInt(id, 10))
         )
       }, 'To location is required'),

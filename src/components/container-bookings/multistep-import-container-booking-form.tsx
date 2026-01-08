@@ -186,7 +186,7 @@ export function MultistepImportContainerBookingForm({
           stepData = {
             vesselId: formData.vesselId,
             eta: formData.eta,
-            availability: formData.availability,
+            availability: formData.availability === null ? undefined : formData.availability,
             storageStart: formData.storageStart,
             firstFreeImportDate: formData.firstFreeImportDate,
             fromId: formData.fromId,
@@ -837,7 +837,13 @@ export function MultistepImportContainerBookingForm({
 
   const handleNext = async () => {
     if (!validateStep(step)) {
-      toast.error('Please fix validation errors before proceeding')
+      const stepErrors = validationErrors[step]
+      if (stepErrors) {
+        const errorMessages = Object.values(stepErrors).join(', ')
+        toast.error(`Please fix validation errors: ${errorMessages}`)
+      } else {
+        toast.error('Please fix validation errors before proceeding')
+      }
       return
     }
 

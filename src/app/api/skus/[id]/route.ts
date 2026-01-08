@@ -50,9 +50,17 @@ export async function GET(
       let customerName: string | undefined
 
       if (typeof normalizedSku.customerId === 'object' && normalizedSku.customerId !== null) {
+        // Payload polymorphic format: {relationTo: "collection", value: {id, customer_name, ...}}
         if ('relationTo' in normalizedSku.customerId && 'value' in normalizedSku.customerId) {
           collection = normalizedSku.customerId.relationTo
-          customerId = normalizedSku.customerId.value
+          const valueObj = normalizedSku.customerId.value
+          // value can be a number or a full object
+          if (typeof valueObj === 'object' && valueObj !== null && 'id' in valueObj) {
+            customerId = valueObj.id
+            customerName = valueObj.customer_name
+          } else if (typeof valueObj === 'number') {
+            customerId = valueObj
+          }
         } else if ('relationTo' in normalizedSku.customerId && 'id' in normalizedSku.customerId) {
           collection = normalizedSku.customerId.relationTo
           customerId = normalizedSku.customerId.id
@@ -125,19 +133,13 @@ export async function GET(
         }
       }
 
+      // Transform to frontend-friendly format: {id, relationTo, collection, customer_name}
       if (collection && customerId !== undefined) {
-        if (typeof normalizedSku.customerId === 'object' && normalizedSku.customerId !== null) {
-          normalizedSku.customerId.relationTo = collection
-          normalizedSku.customerId.collection = collection
-          if (customerName && !normalizedSku.customerId.customer_name) {
-            normalizedSku.customerId.customer_name = customerName
-          }
-        } else {
-          normalizedSku.customerId = {
-            id: customerId,
-            relationTo: collection,
-            collection: collection,
-          }
+        normalizedSku.customerId = {
+          id: customerId,
+          relationTo: collection,
+          collection: collection,
+          ...(customerName && { customer_name: customerName }),
         }
       }
     }
