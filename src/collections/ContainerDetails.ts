@@ -1,5 +1,94 @@
 import type { CollectionConfig } from 'payload'
 
+/**
+ * Generate a random alphanumeric code for container detail number
+ */
+function generateContainerDetailCode(length: number = 8): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+/**
+ * Generate a unique container number for a tenant
+ */
+async function generateUniqueContainerNumber(
+  payload: any,
+  tenantId: number | string,
+  maxAttempts: number = 10,
+): Promise<string> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const code = generateContainerDetailCode(8)
+    const containerNumber = `CN-${code}`
+
+    // Check if this container number already exists for this tenant
+    // We need to check through bookings to ensure tenant uniqueness
+    const existing = await payload.find({
+      collection: 'container-details',
+      where: {
+        containerNumber: {
+          equals: containerNumber,
+        },
+      },
+      limit: 1,
+      depth: 1, // Need depth to check tenant through booking
+    })
+
+    // If found, check if it belongs to the same tenant
+    if (existing.docs.length > 0) {
+      const detail = existing.docs[0] as any
+      const bookingRef = detail.containerBookingId
+
+      if (bookingRef) {
+        let bookingTenantId: number | string | undefined = undefined
+
+        // Extract tenant from booking
+        if (typeof bookingRef === 'object' && bookingRef !== null) {
+          const bookingId = bookingRef.id || (bookingRef.value && bookingRef.value.id)
+          const collection = bookingRef.relationTo
+
+          if (bookingId && collection) {
+            try {
+              const booking = await payload.findByID({
+                collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                id: bookingId,
+              })
+
+              const bookingData = booking as { tenantId?: number | { id: number } }
+              if (bookingData.tenantId) {
+                bookingTenantId =
+                  typeof bookingData.tenantId === 'object'
+                    ? bookingData.tenantId.id
+                    : bookingData.tenantId
+              }
+            } catch {
+              // Continue to next attempt
+            }
+          }
+        }
+
+        // If same tenant, try again
+        if (bookingTenantId && String(bookingTenantId) === String(tenantId)) {
+          continue
+        }
+      }
+    }
+
+    // If not found or belongs to different tenant, use this number
+    if (existing.docs.length === 0) {
+      return containerNumber
+    }
+  }
+
+  // Fallback: use timestamp-based code if all attempts fail
+  const timestamp = Date.now().toString().slice(-6)
+  const random = generateContainerDetailCode(4)
+  return `CN-${timestamp}-${random}`
+}
+
 export const ContainerDetails: CollectionConfig = {
   slug: 'container-details',
   admin: {
@@ -83,7 +172,7 @@ export const ContainerDetails: CollectionConfig = {
       name: 'warehouseId',
       type: 'relationship',
       relationTo: 'warehouses',
-      required: true,
+      required: false,
       admin: {
         description: 'Warehouse for put-away operations',
       },
@@ -91,16 +180,16 @@ export const ContainerDetails: CollectionConfig = {
     {
       name: 'containerNumber',
       type: 'text',
-      required: true,
+      required: false,
       admin: {
-        description: 'Container number',
+        description: 'Container number (auto-generated if not provided)',
       },
     },
     {
       name: 'containerSizeId',
       type: 'relationship',
       relationTo: 'container-sizes',
-      required: true,
+      required: false,
       admin: {
         description: 'Container size (prefilled from Step 3)',
       },
@@ -279,6 +368,92 @@ export const ContainerDetails: CollectionConfig = {
   hooks: {
     beforeChange: [
       async ({ data, req, operation }) => {
+        // Auto-generate container number if not provided
+        if (operation === 'create' && !data.containerNumber && req?.payload) {
+          try {
+            const user = (
+              req as unknown as {
+                user?: { role?: string; tenantId?: number | string; collection?: string }
+              }
+            ).user
+
+            // Get tenant ID from user or from booking
+            let tenantId: number | string | undefined = undefined
+
+            if (user?.tenantId) {
+              tenantId =
+                typeof user.tenantId === 'object'
+                  ? (user.tenantId as { id: number }).id
+                  : user.tenantId
+            } else if (data.containerBookingId) {
+              // Try to get tenant from booking
+              try {
+                let bookingId: number | undefined = undefined
+                let collection: string | undefined = undefined
+
+                // Handle polymorphic relationship format: { relationTo: string, value: number | object }
+                if (
+                  typeof data.containerBookingId === 'object' &&
+                  data.containerBookingId !== null &&
+                  'relationTo' in data.containerBookingId &&
+                  'value' in data.containerBookingId
+                ) {
+                  collection = data.containerBookingId.relationTo
+                  const value = data.containerBookingId.value
+                  // Value can be a number (ID) or an object with id
+                  if (typeof value === 'number') {
+                    bookingId = value
+                  } else if (typeof value === 'object' && value !== null && 'id' in value) {
+                    bookingId = (value as { id: number }).id
+                  }
+                } else if (
+                  typeof data.containerBookingId === 'object' &&
+                  data.containerBookingId !== null
+                ) {
+                  // Handle direct object format: { id: number, relationTo?: string }
+                  const bookingRef = data.containerBookingId as { id?: number; relationTo?: string }
+                  bookingId = bookingRef.id
+                  collection = bookingRef.relationTo
+                }
+
+                if (bookingId && collection) {
+                  const booking = await req.payload.findByID({
+                    collection: collection as
+                      | 'import-container-bookings'
+                      | 'export-container-bookings',
+                    id: bookingId,
+                  })
+
+                  const bookingData = booking as { tenantId?: number | { id: number } }
+                  if (bookingData.tenantId) {
+                    tenantId =
+                      typeof bookingData.tenantId === 'object'
+                        ? bookingData.tenantId.id
+                        : bookingData.tenantId
+                  }
+                }
+              } catch (error) {
+                console.error('Error fetching booking for tenant ID:', error)
+              }
+            }
+
+            if (tenantId) {
+              data.containerNumber = await generateUniqueContainerNumber(req.payload, tenantId)
+            } else {
+              // Fallback: generate a simple unique number if tenantId not found
+              const timestamp = Date.now().toString().slice(-6)
+              const random = generateContainerDetailCode(4)
+              data.containerNumber = `CN-${timestamp}-${random}`
+            }
+          } catch (error) {
+            console.error('Error generating container number:', error)
+            // Fallback: generate a simple unique number
+            const timestamp = Date.now().toString().slice(-6)
+            const random = generateContainerDetailCode(4)
+            data.containerNumber = `CN-${timestamp}-${random}`
+          }
+        }
+
         // Set default status based on booking type
         if (operation === 'create' && data.containerBookingId && !data.status && req?.payload) {
           try {
@@ -372,7 +547,12 @@ export const ContainerDetails: CollectionConfig = {
     afterChange: [
       async ({ doc, previousDoc, operation, req }) => {
         // Update parent booking status when container status changes
-        if (operation === 'update' && previousDoc && doc.status !== previousDoc.status && req?.payload) {
+        if (
+          operation === 'update' &&
+          previousDoc &&
+          doc.status !== previousDoc.status &&
+          req?.payload
+        ) {
           try {
             const bookingRef = doc.containerBookingId
             if (!bookingRef) return doc
@@ -448,7 +628,9 @@ export const ContainerDetails: CollectionConfig = {
             if (newBookingStatus) {
               try {
                 const booking = await req.payload.findByID({
-                  collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                  collection: collection as
+                    | 'import-container-bookings'
+                    | 'export-container-bookings',
                   id: bookingId,
                 })
 
@@ -460,10 +642,26 @@ export const ContainerDetails: CollectionConfig = {
                   currentStatus !== 'completed'
                 ) {
                   await req.payload.update({
-                    collection: collection as 'import-container-bookings' | 'export-container-bookings',
+                    collection: collection as
+                      | 'import-container-bookings'
+                      | 'export-container-bookings',
                     id: bookingId,
                     data: {
-                      status: newBookingStatus as 'allocated' | 'picked' | 'dispatched' | 'expecting' | 'received' | 'put_away' | 'draft' | 'confirmed' | 'partially_received' | 'partially_put_away' | 'completed' | 'cancelled' | 'partially_picked' | 'ready_to_dispatch',
+                      status: newBookingStatus as
+                        | 'allocated'
+                        | 'picked'
+                        | 'dispatched'
+                        | 'expecting'
+                        | 'received'
+                        | 'put_away'
+                        | 'draft'
+                        | 'confirmed'
+                        | 'partially_received'
+                        | 'partially_put_away'
+                        | 'completed'
+                        | 'cancelled'
+                        | 'partially_picked'
+                        | 'ready_to_dispatch',
                     },
                   })
                 }

@@ -12,7 +12,7 @@ type OutboundProductLine = {
   requiredWeight?: number
   allocatedWeight?: number
   requiredCubicPerHU?: number
-  containerNumber?: string
+  containerNumber?: string // Not used in container jobs, but kept for type compatibility with OutboundProductLineForm
   location?: string
   expiry?: string
   attribute1?: string
@@ -40,8 +40,10 @@ export function ContainerProductLineFormExport({
 }: ContainerProductLineFormExportProps) {
   const handleSave = async (productLine: OutboundProductLine) => {
     // Add container-specific fields
+    // Remove containerNumber since it's not needed in container job product lines
+    const { containerNumber, ...productLineWithoutContainerNumber } = productLine
     const containerProductLine = {
-      ...productLine,
+      ...productLineWithoutContainerNumber,
       containerDetailId,
       containerBookingId,
       stage,
@@ -58,6 +60,7 @@ export function ContainerProductLineFormExport({
       initialData={initialData}
       onSave={handleSave}
       onCancel={onCancel}
+      hideContainerNumber={true}
     />
   )
 }

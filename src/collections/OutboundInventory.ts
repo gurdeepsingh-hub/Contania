@@ -77,7 +77,8 @@ export const OutboundInventory: CollectionConfig = {
       required: true,
       unique: true,
       admin: {
-        description: 'Unique job code for this tenant (auto-generated with OUTB- prefix, unique across all job collections per tenant)',
+        description:
+          'Unique job code for this tenant (auto-generated with OUTB- prefix, unique across all job collections per tenant)',
         readOnly: true,
       },
     },
@@ -539,9 +540,7 @@ export const OutboundInventory: CollectionConfig = {
 
               const allAllocated =
                 productLines.docs.length > 0 &&
-                productLines.docs.every(
-                  (line: any) => line.allocatedQty && line.allocatedQty > 0,
-                )
+                productLines.docs.every((line: any) => line.allocatedQty && line.allocatedQty > 0)
 
               if (!allAllocated) {
                 throw new Error(
@@ -565,9 +564,7 @@ export const OutboundInventory: CollectionConfig = {
 
               const allAllocated =
                 productLines.docs.length > 0 &&
-                productLines.docs.every(
-                  (line: any) => line.allocatedQty && line.allocatedQty > 0,
-                )
+                productLines.docs.every((line: any) => line.allocatedQty && line.allocatedQty > 0)
 
               if (!allAllocated) {
                 throw new Error(

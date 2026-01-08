@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Eye } from 'lucide-react'
+import { Eye, Plus, Edit } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ContainerStatusBadge } from './container-status-badge'
@@ -12,8 +12,10 @@ type BookingType = 'import' | 'export'
 
 interface ContainerDetail {
   id: number
-  containerNumber: string
-  containerSizeId?: number | { id: number; size?: number | string; attribute?: string; code?: string }
+  containerNumber?: string
+  containerSizeId?:
+    | number
+    | { id: number; size?: number | string; attribute?: string; code?: string }
   shippingLineId?: number | { id: number; name?: string }
   gross?: string
   tare?: string
@@ -41,9 +43,10 @@ export function ContainerDetailsTable({
     if (onContainerClick) {
       onContainerClick(containerId)
     } else {
-      const path = bookingType === 'import'
-        ? `/dashboard/import-container-bookings/${bookingId}/containers/${containerId}`
-        : `/dashboard/export-container-bookings/${bookingId}/containers/${containerId}`
+      const path =
+        bookingType === 'import'
+          ? `/dashboard/import-container-bookings/${bookingId}/containers/${containerId}`
+          : `/dashboard/export-container-bookings/${bookingId}/containers/${containerId}`
       router.push(path)
     }
   }
@@ -64,7 +67,23 @@ export function ContainerDetailsTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Container Details ({containers.length})</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>Container Details ({containers.length})</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const path =
+                bookingType === 'import'
+                  ? `/dashboard/import-container-bookings/${bookingId}/edit?step=4`
+                  : `/dashboard/export-container-bookings/${bookingId}/edit?step=4`
+              router.push(path)
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Manage Containers
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
@@ -90,20 +109,18 @@ export function ContainerDetailsTable({
                     sizeDisplay = attribute ? `${sizeStr} ${attribute}` : sizeStr
                   }
                 }
-                const shippingLine = typeof container.shippingLineId === 'object'
-                  ? container.shippingLineId?.name
-                  : null
+                const shippingLine =
+                  typeof container.shippingLineId === 'object'
+                    ? container.shippingLineId?.name
+                    : null
 
                 return (
                   <tr key={container.id} className="border-b hover:bg-muted/50">
-                    <td className="p-2">{container.containerNumber}</td>
+                    <td className="p-2">{container.containerNumber || '-'}</td>
                     <td className="p-2">{sizeDisplay}</td>
                     <td className="p-2">
                       {container.status ? (
-                        <ContainerStatusBadge
-                          status={container.status}
-                          type={bookingType}
-                        />
+                        <ContainerStatusBadge status={container.status} type={bookingType} />
                       ) : (
                         '-'
                       )}
@@ -111,14 +128,30 @@ export function ContainerDetailsTable({
                     <td className="p-2">{shippingLine || '-'}</td>
                     <td className="p-2">{container.isoCode || '-'}</td>
                     <td className="p-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleContainerClick(container.id)}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleContainerClick(container.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const path =
+                              bookingType === 'import'
+                                ? `/dashboard/import-container-bookings/${bookingId}/edit?step=4&container=${container.id}`
+                                : `/dashboard/export-container-bookings/${bookingId}/edit?step=4&container=${container.id}`
+                            router.push(path)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -130,4 +163,3 @@ export function ContainerDetailsTable({
     </Card>
   )
 }
-

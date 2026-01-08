@@ -77,7 +77,8 @@ export const InboundInventory: CollectionConfig = {
       required: true,
       unique: true,
       admin: {
-        description: 'Unique job code for this tenant (auto-generated with INB- prefix, unique across all job collections per tenant)',
+        description:
+          'Unique job code for this tenant (auto-generated with INB- prefix, unique across all job collections per tenant)',
         readOnly: true,
       },
     },

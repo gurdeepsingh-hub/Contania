@@ -50,7 +50,50 @@ export function Step6StockAllocationImport({
   const [selectedStage, setSelectedStage] = useState<'expected' | 'received' | 'put_away'>('expected')
   const [saving, setSaving] = useState(false)
 
-  const containers = formData.containerDetails || []
+  const [containers, setContainers] = useState<ContainerDetail[]>(formData.containerDetails || [])
+
+  // Load containers from API if not available in formData or if they don't have IDs
+  useEffect(() => {
+    const loadContainers = async () => {
+      if (!bookingId) return
+      
+      // If we have containers with IDs, use them
+      if (containers.length > 0 && containers.some(c => c.id)) {
+        return
+      }
+
+      // Otherwise, fetch from API
+      try {
+        const res = await fetch(`/api/import-container-bookings/${bookingId}/container-details?depth=1`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.containerDetails && data.containerDetails.length > 0) {
+            const loadedContainers = data.containerDetails.map((detail: any) => ({
+              id: detail.id,
+              containerNumber: detail.containerNumber || '',
+              containerSizeId: typeof detail.containerSizeId === 'object' && detail.containerSizeId?.id
+                ? detail.containerSizeId.id
+                : detail.containerSizeId,
+            }))
+            setContainers(loadedContainers)
+            onUpdate({ containerDetails: loadedContainers })
+          }
+        }
+      } catch (error) {
+        console.error('Error loading containers:', error)
+      }
+    }
+
+    loadContainers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId])
+
+  // Update containers when formData changes
+  useEffect(() => {
+    if (formData.containerDetails && formData.containerDetails.length > 0) {
+      setContainers(formData.containerDetails)
+    }
+  }, [formData.containerDetails])
 
   const addProductLine = (containerId: number, stage: 'expected' | 'received' | 'put_away') => {
     setSelectedContainerId(containerId)

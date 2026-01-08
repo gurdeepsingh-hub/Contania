@@ -128,13 +128,13 @@ export const step3Schema = z.object({
     .optional(),
 })
 
-// Step 4: Container Details
+// Step 4: Container Details (optional - containers can be auto-saved)
 export const step4Schema = z.object({
   containerDetails: z
     .array(
       z.object({
-        containerNumber: z.string().min(1, 'Container number is required'),
-        containerSizeId: z.number().min(1, 'Container size is required'),
+        containerNumber: z.string().optional(),
+        containerSizeId: z.number().optional(),
         gross: z.string().optional(),
         tare: z.string().optional(),
         net: z.string().optional(),
@@ -160,7 +160,7 @@ export const step4Schema = z.object({
         oceanBillNumber: z.string().optional(),
       }),
     )
-    .min(1, 'At least one container detail is required'),
+    .optional(),
 })
 
 // Step 5: Stock Allocation (Import)

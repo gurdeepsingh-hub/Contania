@@ -112,6 +112,7 @@ interface OutboundProductLineFormProps {
   initialData?: OutboundProductLine
   onSave: (data: OutboundProductLine) => Promise<void>
   onCancel: () => void
+  hideContainerNumber?: boolean
 }
 
 type BatchOption = {
@@ -126,6 +127,7 @@ export function OutboundProductLineForm({
   initialData,
   onSave,
   onCancel,
+  hideContainerNumber = false,
 }: OutboundProductLineFormProps) {
   const [batchOptions, setBatchOptions] = useState<BatchOption[]>([])
   const [skuOptions, setSkuOptions] = useState<SKU[]>([])
@@ -333,11 +335,14 @@ export function OutboundProductLineForm({
       return val
     }
 
-    // Map frontend "required" fields to backend "expected" fields
-    await onSave({
-      ...data,
+    // Prepare the data to save
+    const saveData: OutboundProductLine = {
+      skuId: data.skuId,
       skuDescription,
-      requiredCubicPerHU,
+      batchNumber: data.batchNumber,
+      requiredQty: data.requiredQty,
+      requiredWeight: cleanNumber(data.requiredWeight),
+      requiredCubicPerHU: cleanNumber(data.requiredCubicPerHU),
       expiry: selectedSku?.isExpriy ? expiryDate : undefined,
       attribute1: selectedSku?.isAttribute1 ? attribute1 : undefined,
       attribute2: selectedSku?.isAttribute2 ? attribute2 : undefined,
@@ -345,7 +350,14 @@ export function OutboundProductLineForm({
       expectedQty: data.requiredQty,
       expectedWeight: cleanNumber(data.requiredWeight),
       expectedCubicPerHU: cleanNumber(data.requiredCubicPerHU),
-    } as OutboundProductLine & {
+    }
+
+    // Only include containerNumber if not hidden (for regular outbound jobs)
+    if (!hideContainerNumber && data.containerNumber) {
+      saveData.containerNumber = data.containerNumber
+    }
+
+    await onSave(saveData as OutboundProductLine & {
       expectedQty?: number
       expectedWeight?: number
       expectedCubicPerHU?: number
@@ -498,12 +510,14 @@ export function OutboundProductLineForm({
 
       {/* Container Number, Qty Required, Weight Required, Cubic Required */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <FormInput
-          label="Container Number (optional)"
-          error={errors.containerNumber?.message}
-          placeholder="Enter container number"
-          {...register('containerNumber')}
-        />
+        {!hideContainerNumber && (
+          <FormInput
+            label="Container Number (optional)"
+            error={errors.containerNumber?.message}
+            placeholder="Enter container number"
+            {...register('containerNumber')}
+          />
+        )}
         <FormInput
           label="Required Quantity"
           type="number"

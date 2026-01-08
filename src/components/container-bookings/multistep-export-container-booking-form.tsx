@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react'
@@ -577,6 +577,8 @@ export function MultistepExportContainerBookingForm({
     }
   }
 
+  const saveAllContainersRef = useRef<(() => Promise<void>) | null>(null)
+
   const handleNext = async () => {
     if (!validateStep(step)) {
       const stepErrors = validationErrors[step]
@@ -587,6 +589,18 @@ export function MultistepExportContainerBookingForm({
         toast.error('Please fix validation errors before proceeding')
       }
       return
+    }
+
+    // If on container details step (step 3), save all unsaved containers first
+    if (step === 3 && saveAllContainersRef.current) {
+      try {
+        await saveAllContainersRef.current()
+        // Wait a bit for state to update and propagate to formData
+        await new Promise((resolve) => setTimeout(resolve, 300))
+      } catch (error) {
+        console.error('Error saving containers:', error)
+        // Continue anyway - don't block navigation
+      }
     }
 
     // Auto-save before moving to next step
@@ -775,6 +789,9 @@ export function MultistepExportContainerBookingForm({
                 }}
                 onUpdate={(data) => setFormData((prev) => ({ ...prev, ...data }))}
                 errors={validationErrors[3]}
+                onRegisterSaveAll={(saveFn) => {
+                  saveAllContainersRef.current = saveFn
+                }}
               />
             )}
             {step === 4 && (

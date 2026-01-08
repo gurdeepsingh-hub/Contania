@@ -1354,15 +1354,15 @@ export interface ContainerDetail {
   /**
    * Warehouse for put-away operations
    */
-  warehouseId: number | Warehouse;
+  warehouseId?: (number | null) | Warehouse;
   /**
-   * Container number
+   * Container number (auto-generated if not provided)
    */
-  containerNumber: string;
+  containerNumber?: string | null;
   /**
    * Container size (prefilled from Step 3)
    */
-  containerSizeId: number | ContainerSize;
+  containerSizeId?: (number | null) | ContainerSize;
   /**
    * Gross weight
    */

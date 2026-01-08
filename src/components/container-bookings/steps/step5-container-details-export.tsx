@@ -77,6 +77,7 @@ interface Step5ContainerDetailsExportProps {
   }
   onUpdate: (data: Partial<Step5ContainerDetailsExportProps['formData']>) => void
   errors?: Record<string, string>
+  onRegisterSaveAll?: (saveFn: () => Promise<void>) => void
 }
 
 export function Step5ContainerDetailsExport({
@@ -86,6 +87,7 @@ export function Step5ContainerDetailsExport({
   step4Data,
   onUpdate,
   errors,
+  onRegisterSaveAll,
 }: Step5ContainerDetailsExportProps) {
   const [loading, setLoading] = useState(false)
   const [containerSizes, setContainerSizes] = useState<ContainerSize[]>([])
@@ -175,7 +177,7 @@ export function Step5ContainerDetailsExport({
     }
   }, [warehouses, containers, onUpdate])
 
-  // Initialize containers from Step 3 quantities
+  // Initialize containers from Step 3 quantities and auto-save them
   useEffect(() => {
     if (step3Data?.containerSizeIds && step3Data?.containerQuantities && containers.length === 0) {
       const newContainers: ContainerDetail[] = []
@@ -186,13 +188,56 @@ export function Step5ContainerDetailsExport({
             containerSizeId: sizeId,
             containerNumber: '',
             shippingLineId: step4Data?.emptyRouting?.shippingLineId,
+            warehouseId: warehouses.length === 1 ? warehouses[0].id : undefined,
           })
         }
       })
       setContainers(newContainers)
       onUpdate({ containerDetails: newContainers })
+
+      // Auto-save containers if bookingId exists (for editing) or after booking is created
+      if (bookingId && newContainers.length > 0) {
+        // Auto-save each container with the fields that are auto-filled
+        // Use Promise.all to wait for all saves to complete
+        Promise.all(
+          newContainers.map(async (container, index) => {
+            try {
+              const res = await fetch(`/api/export-container-bookings/${bookingId}/container-details`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  containerSizeId: container.containerSizeId,
+                  shippingLineId: container.shippingLineId,
+                  warehouseId: container.warehouseId,
+                  // containerNumber is optional, so we don't need to provide it
+                }),
+              })
+
+              if (res.ok) {
+                const data = await res.json()
+                if (data.success && data.containerDetail) {
+                  return { index, containerDetail: data.containerDetail }
+                }
+              }
+            } catch (error) {
+              console.error('Error auto-saving container:', error)
+            }
+            return { index, containerDetail: null }
+          }),
+        ).then((results) => {
+          // Update containers with saved IDs
+          const updated = [...newContainers]
+          results.forEach(({ index, containerDetail }) => {
+            if (containerDetail) {
+              updated[index] = { ...updated[index], id: containerDetail.id }
+            }
+          })
+          setContainers(updated)
+          onUpdate({ containerDetails: updated })
+        })
+      }
     }
-  }, [step3Data, step4Data, containers.length, onUpdate])
+  }, [step3Data, step4Data, containers.length, onUpdate, bookingId, warehouses])
 
   // Helper function to calculate net weight from gross and tare
   const calculateNetWeight = (gross: string | undefined, tare: string | undefined): string => {
@@ -279,10 +324,8 @@ export function Step5ContainerDetailsExport({
     }
 
     const container = containers[index]
-    if (!container.containerNumber || !container.containerSizeId || !container.warehouseId) {
-      toast.error('Container number, size, and warehouse are required')
-      return
-    }
+    // Container details are now optional - we can save with just auto-filled fields
+    // Only validate weights if provided
 
     // Validate weights before saving
     const weightValidationErrors = validateWeights(container.gross, container.tare)
@@ -329,10 +372,76 @@ export function Step5ContainerDetailsExport({
     }
   }
 
-  const getContainerStatus = (container: ContainerDetail) => {
-    if (!container.containerNumber || !container.containerSizeId || !container.warehouseId) {
-      return { status: 'incomplete', label: 'Incomplete', icon: AlertCircle }
+  // Function to save all unsaved containers
+  const saveAllContainers = async (): Promise<void> => {
+    if (!bookingId) {
+      return
     }
+
+    // Find all containers that don't have an ID (unsaved)
+    const unsavedContainers = containers
+      .map((container, index) => ({ container, index }))
+      .filter(({ container }) => !container.id)
+
+    if (unsavedContainers.length === 0) {
+      return
+    }
+
+    // Save all unsaved containers in parallel
+    const savePromises = unsavedContainers.map(async ({ container, index }) => {
+      // Skip if there are weight validation errors
+      const weightValidationErrors = validateWeights(container.gross, container.tare)
+      if (weightValidationErrors.gross || weightValidationErrors.tare) {
+        return { index, success: false, error: 'Weight validation error' }
+      }
+
+      try {
+        const res = await fetch(`/api/export-container-bookings/${bookingId}/container-details`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(container),
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.containerDetail) {
+            return { index, success: true, containerDetail: data.containerDetail }
+          }
+        }
+        return { index, success: false, error: 'Failed to save' }
+      } catch (error) {
+        console.error('Error saving container:', error)
+        return { index, success: false, error: 'Network error' }
+      }
+    })
+
+    const results = await Promise.all(savePromises)
+
+    // Update containers with saved IDs
+    const updated = [...containers]
+    let hasUpdates = false
+    results.forEach((result) => {
+      if (result.success && result.containerDetail) {
+        updated[result.index] = { ...updated[result.index], id: result.containerDetail.id }
+        hasUpdates = true
+      }
+    })
+
+    if (hasUpdates) {
+      setContainers(updated)
+      onUpdate({ containerDetails: updated })
+    }
+  }
+
+  // Register saveAllContainers function with parent
+  useEffect(() => {
+    if (onRegisterSaveAll) {
+      onRegisterSaveAll(saveAllContainers)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containers, bookingId])
+
+  const getContainerStatus = (container: ContainerDetail) => {
     if (container.id) {
       return { status: 'saved', label: 'Saved', icon: CheckCircle2 }
     }
@@ -388,9 +497,6 @@ export function Step5ContainerDetailsExport({
                 const StatusIcon = containerStatus.icon
                 const isSaving = savingContainerIndex === index
                 const canSave =
-                  container.containerNumber &&
-                  container.containerSizeId &&
-                  container.warehouseId &&
                   !weightErrors[index]?.gross &&
                   !weightErrors[index]?.tare
 
@@ -450,7 +556,6 @@ export function Step5ContainerDetailsExport({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormInput
                             label="Container Number"
-                            required
                             value={container.containerNumber || ''}
                             onChange={(e) =>
                               updateContainer(index, 'containerNumber', e.target.value)
@@ -460,7 +565,6 @@ export function Step5ContainerDetailsExport({
 
                           <FormCombobox
                             label="Container Size"
-                            required
                             placeholder="Select container size..."
                             options={containerSizes.map((size) => ({
                               value: size.id,
